@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DIX — The World's First AppIA by DixSystem</title>
+  <meta name="description" content="From 34 to 91. In seconds. DIX reads 847 kernel parameters and fixes them with AI. The world's first AppIA." />
+  <meta property="og:title" content="DIX — The World's First AppIA" />
+  <meta property="og:description" content="Your system learns. Your system optimizes. On its own. — DixSystem" />
+  <meta property="og:image" content="dix_mask.png" />
+  <link rel="icon" type="image/png" href="dix_mask.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange:  #FF6B00;
+      --yellow:  #FFD700;
+      --green:   #00FF88;
+      --black:   #0d1117;
+      --card:    #161b22;
+      --card2:   #1c2128;
+      --border:  #30363d;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--black);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ─── NAVBAR ─────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem;
+      height: 64px;
+      background: rgba(13,17,23,0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand { display: flex; align-items: center; text-decoration: none; }
+    .nav-brand img { height: 40px; width: auto; }
+    nav ul { display: flex; gap: 2rem; list-style: none; }
+    nav ul a { color: var(--muted); text-decoration: none; font-size: .875rem; transition: color .2s; }
+    nav ul a:hover { color: var(--text); }
+
+    .nav-right { display: flex; align-items: center; gap: .75rem; }
+
+    /* ── Botón idioma ── */
+    .lang-toggle {
+      display: flex; align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0;
+      cursor: pointer;
+      overflow: hidden;
+      font-size: .8rem; font-weight: 700;
+      height: 32px;
+    }
+    .lang-toggle span {
+      padding: 0 .7rem;
+      height: 100%;
+      display: flex; align-items: center;
+      color: var(--muted);
+      transition: background .15s, color .15s;
+      user-select: none;
+    }
+    .lang-toggle span.active {
+      background: var(--orange);
+      color: #fff;
+    }
+    .lang-toggle .sep {
+      color: var(--border);
+      padding: 0;
+      font-weight: 300;
+      pointer-events: none;
+    }
+
+    .btn-nav {
+      background: var(--orange); color: #fff;
+      border: none; border-radius: 8px;
+      padding: .5rem 1.25rem;
+      font-size: .875rem; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      transition: background .2s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn-nav:hover { background: #ff8533; transform: translateY(-1px); }
+
+    /* ─── HERO ───────────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 4rem;
+      position: relative; overflow: hidden;
+    }
+    #hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(255,107,0,.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,215,0,.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge-appia {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: rgba(255,107,0,.12);
+      border: 1px solid rgba(255,107,0,.4);
+      color: var(--orange);
+      padding: .35rem 1rem;
+      border-radius: 999px;
+      font-size: .8rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+    .badge-appia::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--orange);
+      border-radius: 50%;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { opacity:1; transform:scale(1); }
+      50% { opacity:.4; transform:scale(.6); }
+    }
+    .hero-mask {
+      width: 200px; height: 200px;
+      border-radius: 32px;
+      margin-bottom: 2.5rem;
+      filter: drop-shadow(0 0 40px rgba(255,107,0,.5));
+      animation: float 6s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .hero-mask img { width: 100%; height: 100%; object-fit: contain; border-radius: 32px; }
+    h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900; letter-spacing: -.03em; line-height: 1.05;
+      margin-bottom: 1rem;
+    }
+    h1 .highlight  { color: var(--orange); }
+    h1 .highlight-y { color: var(--yellow); }
+    .hero-sub {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      color: var(--muted); max-width: 560px; margin: 0 auto 2.5rem;
+    }
+    .hero-sub strong { color: var(--text); }
+    .hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-bottom: 3rem; }
+    .btn-primary {
+      background: var(--orange); color: #fff;
+      border: none; border-radius: 12px;
+      padding: .9rem 2rem; font-size: 1rem; font-weight: 800;
+      cursor: pointer; text-decoration: none;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 24px rgba(255,107,0,.4);
+    }
+    .btn-primary:hover { background: #ff8533; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,107,0,.55); }
+    .btn-secondary {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: .9rem 2rem; font-size: 1rem; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: border-color .2s, transform .15s;
+    }
+    .btn-secondary:hover { border-color: var(--orange); transform: translateY(-2px); }
+    .hero-proof { display: flex; gap: 2.5rem; flex-wrap: wrap; justify-content: center; color: var(--muted); font-size: .85rem; }
+    .hero-proof span { display: flex; align-items: center; gap: .4rem; }
+    .dot { width:8px; height:8px; border-radius:50%; }
+    .dot-green  { background: var(--green); }
+    .dot-orange { background: var(--orange); }
+    .dot-yellow { background: var(--yellow); }
+
+    /* ─── SCORE ──────────────────────────────────────────────── */
+    #score-section { padding: 6rem 2rem; text-align: center; }
+    .score-container {
+      max-width: 880px; margin: 0 auto;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 24px; padding: 4rem 3rem;
+      position: relative; overflow: hidden;
+    }
+    .score-container::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,255,136,.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .score-label { font-size: .9rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5rem; }
+    .score-track { display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap; margin-bottom: 3rem; }
+    .score-box { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+    .score-number { font-size: clamp(4rem, 10vw, 7rem); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+    .score-number.bad  { color: #ff4444; }
+    .score-number.good { color: var(--green); }
+    .score-unit { font-size: 1.2rem; color: var(--muted); }
+    .score-arrow { font-size: 2.5rem; color: var(--orange); animation: arrow-pulse 1.5s ease-in-out infinite; }
+    @keyframes arrow-pulse {
+      0%,100% { transform: translateX(0); opacity:1; }
+      50% { transform: translateX(8px); opacity:.6; }
+    }
+    .score-headline { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 900; margin-bottom: 1rem; letter-spacing: -.02em; }
+    .score-headline .accent { color: var(--orange); }
+    .score-desc { font-size: 1.05rem; color: var(--muted); max-width: 500px; margin: 0 auto; }
+    .score-desc strong { color: var(--text); }
+    .progress-wrap { margin: 2.5rem auto 0; max-width: 500px; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+    .progress-bar-bg { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--orange), var(--green)); width: 0%; transition: width 1.8s cubic-bezier(.22,1,.36,1); }
+    .progress-bar-fill.animated { width: 91%; }
+
+    /* ─── FEATURES ───────────────────────────────────────────── */
+    #features { padding: 6rem 2rem; }
+    .section-label { text-align: center; font-size: .8rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--orange); margin-bottom: 1rem; }
+    .section-title { text-align: center; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; letter-spacing: -.02em; margin-bottom: 1rem; }
+    .section-sub { text-align: center; color: var(--muted); font-size: 1.05rem; max-width: 520px; margin: 0 auto 3.5rem; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; max-width: 1100px; margin: 0 auto; }
+    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; transition: border-color .2s, transform .2s; }
+    .feature-card:hover { border-color: var(--orange); transform: translateY(-4px); }
+    .feature-icon { font-size: 2rem; margin-bottom: 1rem; display: block; }
+    .feature-title { font-size: 1rem; font-weight: 700; margin-bottom: .5rem; color: var(--text); }
+    .feature-desc { font-size: .875rem; color: var(--muted); line-height: 1.6; }
+
+    /* ─── HOW IT WORKS ───────────────────────────────────────── */
+    #how { padding: 6rem 2rem; background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; max-width: 900px; margin: 0 auto; }
+    .step { text-align: center; padding: 2rem 1.5rem; }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; border: 2px solid var(--orange); color: var(--orange); font-size: 1.4rem; font-weight: 900; margin-bottom: 1.25rem; }
+    .step-title { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; }
+    .step-desc { font-size: .875rem; color: var(--muted); }
+    .step-desc strong { color: var(--yellow); }
+
+    /* ─── BENCHMARKS ─────────────────────────────────────────── */
+    #benchmarks { padding: 6rem 2rem; }
+    .bench-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; max-width: 1000px; margin: 0 auto; }
+    .bench-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem 1.5rem; text-align: center; }
+    .bench-value { font-size: 2.8rem; font-weight: 900; color: var(--green); line-height: 1; margin-bottom: .5rem; }
+    .bench-label { font-size: .85rem; color: var(--muted); line-height: 1.5; }
+    .bench-label strong { color: var(--text); display: block; }
+
+    /* ─── PRICING ────────────────────────────────────────────── */
+    #pricing { padding: 6rem 2rem; background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .pricing-card { max-width: 440px; margin: 0 auto; background: var(--black); border: 1px solid var(--orange); border-radius: 24px; padding: 3rem 2.5rem; text-align: center; position: relative; box-shadow: 0 0 60px rgba(255,107,0,.15); }
+    .pricing-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--orange); color: #fff; font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: .3rem 1rem; border-radius: 999px; white-space: nowrap; }
+    .pricing-plan { font-size: .875rem; color: var(--muted); margin-bottom: .75rem; }
+    .pricing-price { font-size: 4rem; font-weight: 900; color: var(--text); line-height: 1; margin-bottom: .25rem; }
+    .pricing-price sup { font-size: 1.5rem; vertical-align: super; color: var(--muted); }
+    .pricing-once { font-size: .85rem; color: var(--green); font-weight: 700; margin-bottom: 2rem; }
+    .pricing-features { list-style: none; margin-bottom: 2.5rem; text-align: left; }
+    .pricing-features li { padding: .6rem 0; font-size: .9rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .75rem; color: var(--muted); }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li::before { content: '✓'; color: var(--green); font-weight: 800; font-size: 1rem; flex-shrink: 0; }
+    .pricing-features li strong { color: var(--text); }
+    .btn-buy { display: block; width: 100%; background: var(--orange); color: #fff; border: none; border-radius: 12px; padding: 1rem; font-size: 1.1rem; font-weight: 800; cursor: pointer; text-decoration: none; transition: background .2s, transform .15s, box-shadow .2s; box-shadow: 0 4px 24px rgba(255,107,0,.4); }
+    .btn-buy:hover { background: #ff8533; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,107,0,.55); }
+    .pricing-note { font-size: .8rem; color: var(--muted); margin-top: 1rem; }
+    .platforms { text-align: center; margin-top: 3rem; }
+    .platforms p { font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
+    .platform-badges { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+    .pbadge { padding: .35rem .9rem; border-radius: 8px; font-size: .8rem; font-weight: 600; border: 1px solid var(--border); }
+    .pbadge-live { border-color: var(--green); color: var(--green); }
+    .pbadge-soon { border-color: var(--border); color: var(--muted); }
+
+    /* ─── FAQ ────────────────────────────────────────────────── */
+    #faq { padding: 6rem 2rem; }
+    .faq-list { max-width: 700px; margin: 0 auto; }
+    details { border: 1px solid var(--border); border-radius: 12px; margin-bottom: .75rem; overflow: hidden; }
+    summary { padding: 1.25rem 1.5rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; list-style: none; transition: background .15s; }
+    summary:hover { background: var(--card2); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; color: var(--orange); font-size: 1.2rem; font-weight: 300; transition: transform .2s; }
+    details[open] summary::after { transform: rotate(45deg); }
+    details[open] summary { background: var(--card); }
+    .faq-answer { padding: 0 1.5rem 1.25rem; background: var(--card); color: var(--muted); font-size: .9rem; line-height: 1.7; }
+    .faq-answer strong { color: var(--text); }
+
+    /* ─── LEADERBOARD ───────────────────────────────────────── */
+    .lb-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .lb-table th { text-align: left; padding: .6rem 1rem; font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .lb-table td { padding: .75rem 1rem; border-bottom: 1px solid rgba(48,54,61,.5); vertical-align: middle; }
+    .lb-table tr:last-child td { border-bottom: none; }
+    .lb-table tr:hover td { background: var(--card2); }
+    .rank-1 { color: var(--yellow); font-weight: 900; font-size: 1.1rem; }
+    .rank-2 { color: #c0c0c0; font-weight: 800; }
+    .rank-3 { color: #cd7f32; font-weight: 800; }
+    .delta-badge { display: inline-flex; align-items: center; gap: .3rem; background: rgba(0,255,136,.1); border: 1px solid rgba(0,255,136,.3); color: var(--green); border-radius: 6px; padding: .2rem .6rem; font-size: .8rem; font-weight: 700; }
+    .distro-badge { display: inline-block; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: .15rem .5rem; font-size: .75rem; color: var(--muted); }
+    .score-pill { display: inline-flex; align-items: center; gap: .4rem; font-weight: 700; }
+    .score-pill .s-before { color: #ff4444; font-size: .8rem; }
+    .score-pill .s-arrow  { color: var(--muted); }
+    .score-pill .s-after  { color: var(--green); }
+
+    /* ─── EMAIL FORM ─────────────────────────────────────────── */
+    .atlas-form { display: flex; gap: .75rem; flex-wrap: wrap; justify-content: center; }
+    .atlas-form input[type=email] {
+      flex: 1; min-width: 220px; max-width: 320px;
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: .75rem 1rem;
+      color: var(--text); font-size: .9rem;
+      outline: none; transition: border-color .2s;
+    }
+    .atlas-form input[type=email]:focus { border-color: var(--orange); }
+    .atlas-form input[type=email]::placeholder { color: var(--muted); }
+    .atlas-form input[type=text] {
+      flex: 1; min-width: 140px; max-width: 200px;
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: .75rem 1rem;
+      color: var(--text); font-size: .9rem;
+      outline: none; transition: border-color .2s;
+    }
+    .atlas-form input[type=text]:focus { border-color: var(--orange); }
+    .atlas-form input[type=text]::placeholder { color: var(--muted); }
+    .btn-atlas {
+      background: var(--orange); color: #fff;
+      border: none; border-radius: 10px;
+      padding: .75rem 1.5rem; font-size: .9rem; font-weight: 800;
+      cursor: pointer; transition: background .2s, transform .15s;
+      white-space: nowrap;
+    }
+    .btn-atlas:hover { background: #ff8533; transform: translateY(-1px); }
+    .form-msg { font-size: .8rem; margin-top: .75rem; min-height: 1.2em; }
+    .form-msg.ok  { color: var(--green); }
+    .form-msg.err { color: #ff4444; }
+
+    /* ─── FINAL CTA ──────────────────────────────────────────── */
+    #final-cta { padding: 8rem 2rem; text-align: center; position: relative; overflow: hidden; }
+    #final-cta::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,107,0,.1) 0%, transparent 70%); pointer-events: none; }
+    #final-cta h2 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; letter-spacing: -.02em; margin-bottom: 1rem; }
+    #final-cta p { color: var(--muted); font-size: 1.1rem; max-width: 480px; margin: 0 auto 2.5rem; }
+
+    /* ─── FOOTER ─────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 2.5rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    .footer-brand { display: flex; align-items: center; }
+    .footer-brand img { height: 32px; width: auto; }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a { font-size: .8rem; color: var(--muted); text-decoration: none; transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-right { font-size: .75rem; color: var(--muted); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--black); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    @media (max-width: 640px) {
+      nav ul { display: none; }
+      .score-track { gap: 1.5rem; }
+      .score-number { font-size: 3.5rem; }
+    }
+
+    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav>
+  <a href="#" class="nav-brand">
+    <img src="dix_logo_brand.png" alt="DixSystem" />
+  </a>
+  <ul>
+    <li><a href="#features"    data-i18n="nav_features">Features</a></li>
+    <li><a href="#how"         data-i18n="nav_how">How it works</a></li>
+    <li><a href="#benchmarks"  data-i18n="nav_bench">Benchmarks</a></li>
+    <li><a href="#pricing"     data-i18n="nav_pricing">Pricing</a></li>
+    <li><a href="#faq"         data-i18n="nav_faq">FAQ</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="lang-toggle" onclick="toggleLang()" aria-label="Switch language">
+      <span id="lt-en" class="active">EN</span>
+      <span class="sep">|</span>
+      <span id="lt-es">ES</span>
+    </button>
+    <a href="#pricing" class="btn-nav" data-i18n="nav_cta">Get DIX →</a>
+  </div>
+</nav>
+
+<!-- ══════════════ HERO ══════════════ -->
+<section id="hero">
+  <div class="badge-appia" data-i18n="hero_badge">The World's First AppIA</div>
+
+  <div class="hero-mask">
+    <img src="dix_mask.png" alt="DIX by DixSystem" />
+  </div>
+
+  <h1 data-i18n-html="hero_h1">
+    Your system <span class="highlight">learns.</span><br />
+    Your system <span class="highlight-y">optimizes.</span><br />
+    On its own.
+  </h1>
+
+  <p class="hero-sub" data-i18n-html="hero_sub">
+    <strong>DIX</strong> is not a cleaner. It's an AI that reads your kernel,
+    understands your hardware, and pushes your Linux system to its absolute limit.
+  </p>
+
+  <div class="hero-ctas">
+    <a href="#pricing" class="btn-primary" data-i18n="hero_btn1">Get it for €14.99 — One time</a>
+    <a href="#score-section" class="btn-secondary" data-i18n="hero_btn2">See it in action ↓</a>
+  </div>
+
+  <div class="hero-proof">
+    <span><span class="dot dot-green"></span><span data-i18n="proof_1">Linux native</span></span>
+    <span><span class="dot dot-orange"></span><span data-i18n="proof_2">847 parameters analyzed</span></span>
+    <span><span class="dot dot-yellow"></span><span data-i18n="proof_3">AI-powered — no guesswork</span></span>
+  </div>
+</section>
+
+<!-- ══════════════ SCORE ══════════════ -->
+<section id="score-section">
+  <div class="score-container fade-in">
+    <p class="score-label" data-i18n="score_label">Real result — real hardware</p>
+    <div class="score-track">
+      <div class="score-box">
+        <span class="score-number bad" id="score-before">34</span>
+        <span class="score-unit" data-i18n="score_before">/100 — before</span>
+      </div>
+      <span class="score-arrow">→</span>
+      <div class="score-box">
+        <span class="score-number good" id="score-after">91</span>
+        <span class="score-unit" data-i18n="score_after">/100 — after</span>
+      </div>
+    </div>
+    <h2 class="score-headline" data-i18n-html="score_headline">
+      From 34 to <span class="accent">91.</span><br />In seconds.
+    </h2>
+    <p class="score-desc" data-i18n-html="score_desc">
+      DIX reads <strong>847 system parameters</strong> and fixes them with AI.
+      No manual configuration. No guesswork. No reboot.
+    </p>
+    <div class="progress-wrap">
+      <div class="progress-labels">
+        <span>0</span>
+        <span style="color:var(--green);font-weight:700;">91 / 100</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ FEATURES ══════════════ -->
+<section id="features">
+  <p class="section-label" data-i18n="feat_label">What DIX does</p>
+  <h2 class="section-title" data-i18n="feat_title">One scan. Maximum performance.</h2>
+  <p class="section-sub" data-i18n="feat_sub">Every tweak is calculated specifically for your hardware. No generic profiles.</p>
+  <div class="features-grid">
+    <div class="feature-card fade-in">
+      <span class="feature-icon">🧠</span>
+      <p class="feature-title" data-i18n="f1_title">AI Kernel Analysis</p>
+      <p class="feature-desc"  data-i18n="f1_desc">Claude AI reads 847 live kernel parameters — governor, scheduler, memory pressure, I/O queues — and calculates the optimal configuration for your exact hardware.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <span class="feature-icon">⚡</span>
+      <p class="feature-title" data-i18n="f2_title">One-Click Optimization</p>
+      <p class="feature-desc"  data-i18n="f2_desc">Scan → Analyze → Apply. Three steps. Seconds to complete. Your system runs at maximum before the coffee gets cold.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <span class="feature-icon">🎯</span>
+      <p class="feature-title" data-i18n="f3_title">Score 0–100</p>
+      <p class="feature-desc"  data-i18n="f3_desc">A single number that tells you exactly where your system stands — before and after. Not a vague percentage. A real performance score.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <span class="feature-icon">🛡️</span>
+      <p class="feature-title" data-i18n="f4_title">Safe by Design</p>
+      <p class="feature-desc"  data-i18n="f4_desc">No GPU overclocking. No NUMA modifications. No dangerous tweaks. Every parameter change is within kernel safety boundaries. Your hardware is protected.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <span class="feature-icon" style="font-size:1.6rem;font-family:monospace;color:var(--green);">$_</span>
+      <p class="feature-title" data-i18n="f5_title">Built for Linux</p>
+      <p class="feature-desc"  data-i18n="f5_desc">Not a Windows port. Not a web wrapper. A native Linux application built with Rust and Tauri — fast, lightweight, no bloat.</p>
+    </div>
+    <div class="feature-card fade-in">
+      <span class="feature-icon">🔒</span>
+      <p class="feature-title" data-i18n="f6_title">Yours Forever</p>
+      <p class="feature-desc"  data-i18n="f6_desc">€14.99. One payment. No subscription. No telemetry. No ads. The license is yours for life — including all future v1 updates.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ HOW IT WORKS ══════════════ -->
+<section id="how">
+  <p class="section-label" data-i18n="how_label">How it works</p>
+  <h2 class="section-title" data-i18n="how_title">Three steps to maximum.</h2>
+  <p class="section-sub" style="margin-bottom:3rem;" data-i18n="how_sub">No configuration. No manual. No PhD required.</p>
+  <div class="steps">
+    <div class="step fade-in">
+      <div class="step-num">1</div>
+      <p class="step-title" data-i18n="s1_title">Launch &amp; Scan</p>
+      <p class="step-desc"  data-i18n-html="s1_desc">Open DIX. Hit <strong>Scan</strong>. DIX reads <strong>847 parameters</strong> from your live kernel in real time.</p>
+    </div>
+    <div class="step fade-in">
+      <div class="step-num">2</div>
+      <p class="step-title" data-i18n="s2_title">AI Analyzes</p>
+      <p class="step-desc"  data-i18n-html="s2_desc">Claude AI cross-references your hardware profile against performance models. Calculates the exact kernel configuration for <strong>your machine.</strong></p>
+    </div>
+    <div class="step fade-in">
+      <div class="step-num">3</div>
+      <p class="step-title" data-i18n="s3_title">Apply &amp; Score</p>
+      <p class="step-desc"  data-i18n-html="s3_desc">One click applies every tweak. Your score jumps. <strong>No reboot. No guesswork.</strong> Feel the difference immediately.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ BENCHMARKS ══════════════ -->
+<section id="benchmarks">
+  <p class="section-label" data-i18n="bench_label">Real numbers — real hardware</p>
+  <h2 class="section-title" data-i18n="bench_title">The data doesn't lie.</h2>
+  <p class="section-sub"   data-i18n="bench_sub">Measured on actual Linux systems before and after optimization.</p>
+  <div class="bench-grid">
+    <div class="bench-card fade-in">
+      <p class="bench-value">−23%</p>
+      <p class="bench-label" data-i18n-html="b1"><strong>Rust build time</strong> cargo build --release on i5-12400</p>
+    </div>
+    <div class="bench-card fade-in">
+      <p class="bench-value">+18</p>
+      <p class="bench-label" data-i18n-html="b2"><strong>FPS gained</strong> average in GPU-bound Linux gaming</p>
+    </div>
+    <div class="bench-card fade-in">
+      <p class="bench-value">−11°C</p>
+      <p class="bench-label" data-i18n-html="b3"><strong>CPU temperature</strong> under sustained workload</p>
+    </div>
+    <div class="bench-card fade-in">
+      <p class="bench-value">847</p>
+      <p class="bench-label" data-i18n-html="b4"><strong>Parameters analyzed</strong> per scan — live kernel state</p>
+    </div>
+    <div class="bench-card fade-in">
+      <p class="bench-value">&lt;30s</p>
+      <p class="bench-label" data-i18n-html="b5"><strong>Time to optimize</strong> from cold launch to applied tweaks</p>
+    </div>
+    <div class="bench-card fade-in">
+      <p class="bench-value">91</p>
+      <p class="bench-label" data-i18n-html="b6"><strong>Score achieved</strong> starting from 34 on an untuned system</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ DIX ATLAS ══════════════ -->
+<section id="atlas" style="padding:6rem 2rem; background:var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <p class="section-label" data-i18n="atlas_label">DIX Atlas</p>
+  <h2 class="section-title" data-i18n="atlas_title">The world's Linux hardware intelligence.</h2>
+  <p class="section-sub" data-i18n="atlas_sub">Every anonymous scan contributes to a growing library of real hardware profiles. DIX learns. Every user benefits.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;max-width:1000px;margin:0 auto 3rem;">
+    <div class="feature-card fade-in" style="border-color:rgba(255,107,0,.3);">
+      <span class="feature-icon">🗺️</span>
+      <p class="feature-title" data-i18n="at1_title">Real hardware. Real data.</p>
+      <p class="feature-desc"  data-i18n="at1_desc">Every free scan adds an anonymous hardware profile to DIX Atlas — CPU, RAM, kernel, distro, score. No names. No IPs. Just hardware.</p>
+    </div>
+    <div class="feature-card fade-in" style="border-color:rgba(255,107,0,.3);">
+      <span class="feature-icon">🧬</span>
+      <p class="feature-title" data-i18n="at2_title">DIX learns with every scan.</p>
+      <p class="feature-desc"  data-i18n="at2_desc">As the Atlas grows, DIX recognizes your hardware faster, predicts optimal configurations more accurately, and requires fewer AI calls. Faster and smarter over time.</p>
+    </div>
+    <div class="feature-card fade-in" style="border-color:rgba(255,107,0,.3);">
+      <span class="feature-icon">🔐</span>
+      <p class="feature-title" data-i18n="at3_title">Privacy enforced in code.</p>
+      <p class="feature-desc"  data-i18n="at3_desc">The same Policy Manager that protects your hardware also validates every outbound data packet. If a field isn't on the whitelist, it never leaves your machine. Not a promise — code.</p>
+    </div>
+  </div>
+
+  <!-- Prize + Leaderboard + Form -->
+  <div style="max-width:860px;margin:0 auto;">
+
+    <!-- Prize banner -->
+    <div style="background:linear-gradient(135deg,rgba(255,107,0,.15),rgba(255,215,0,.08));border:1px solid rgba(255,107,0,.4);border-radius:20px;padding:1.75rem;text-align:center;margin-bottom:1.5rem;">
+      <p style="font-size:.72rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--orange);margin-bottom:.4rem;" data-i18n="atlas_prize_label">🏆 DIX Atlas Challenge — Monthly</p>
+      <h3 style="font-size:1.4rem;font-weight:900;margin-bottom:.4rem;letter-spacing:-.02em;" data-i18n="atlas_prize_title">Top 3 improvements win DIX Daemon v2. Free. Forever.</h3>
+      <p style="font-size:.85rem;color:var(--muted);" data-i18n="atlas_prize_desc">The 3 users with the biggest improvement (before → after) each month win a lifetime license of DIX v2 — for any platform they choose.</p>
+    </div>
+
+    <!-- Steps -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.75rem;text-align:center;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem .75rem;">
+        <div style="font-size:1.3rem;margin-bottom:.4rem;">🔍</div>
+        <p style="font-size:.78rem;font-weight:700;color:var(--text);margin-bottom:.2rem;" data-i18n="atlas_step1_title">1. Scan free</p>
+        <p style="font-size:.72rem;color:var(--muted);" data-i18n="atlas_step1_desc">Run the free scan. See your score before and after.</p>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--orange);border-radius:14px;padding:1rem .75rem;">
+        <div style="font-size:1.3rem;margin-bottom:.4rem;">📤</div>
+        <p style="font-size:.78rem;font-weight:700;color:var(--text);margin-bottom:.2rem;" data-i18n="atlas_step2_title">2. Join Atlas &amp; share</p>
+        <p style="font-size:.72rem;color:var(--muted);">Email + <strong style="color:var(--orange);">#MyDIXScore</strong> on X.</p>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem .75rem;">
+        <div style="font-size:1.3rem;margin-bottom:.4rem;">🏆</div>
+        <p style="font-size:.78rem;font-weight:700;color:var(--text);margin-bottom:.2rem;" data-i18n="atlas_step3_title">3. Win v2</p>
+        <p style="font-size:.72rem;color:var(--muted);" data-i18n="atlas_step3_desc">Top 3 each month get DIX v2 free forever.</p>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:1.5rem;">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div>
+          <p style="font-weight:700;font-size:.9rem;" data-i18n="lb_title">DIX Atlas — Monthly Ranking</p>
+          <p style="font-size:.72rem;color:var(--muted);" data-i18n="lb_sub">Sorted by biggest improvement · Resets 1st of each month</p>
+        </div>
+        <span style="background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);color:var(--green);border-radius:8px;padding:.2rem .65rem;font-size:.72rem;font-weight:700;" data-i18n="lb_live">● Live</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="lb-table">
+          <thead>
+            <tr>
+              <th data-i18n="lbh_rank">#</th>
+              <th data-i18n="lbh_alias">User</th>
+              <th data-i18n="lbh_hw">Hardware</th>
+              <th data-i18n="lbh_distro">Distro</th>
+              <th data-i18n="lbh_score">Score</th>
+              <th data-i18n="lbh_delta">Improvement</th>
+            </tr>
+          </thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+      </div>
+      <div style="padding:.6rem 1.5rem;border-top:1px solid var(--border);text-align:center;">
+        <p style="font-size:.7rem;color:var(--muted);" data-i18n="lb_demo_note">Demo data — live rankings activate as users join DIX Atlas</p>
+      </div>
+    </div>
+
+    <!-- Email signup -->
+    <div style="background:var(--black);border:1px solid rgba(255,107,0,.35);border-radius:20px;padding:2rem;text-align:center;">
+      <div style="font-size:1.6rem;margin-bottom:.4rem;">🗺️</div>
+      <h3 style="font-size:1.15rem;font-weight:800;margin-bottom:.35rem;" data-i18n="form_title">Join DIX Atlas. Enter the ranking.</h3>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem;" data-i18n="form_sub">Get your rank, monthly results, DIX Intel newsletter, and early access to Windows &amp; macOS.</p>
+      <form class="atlas-form" id="atlas-form" onsubmit="submitAtlas(event)">
+        <input type="text"  id="f-alias" placeholder="Your alias (public)" maxlength="24" required />
+        <input type="email" id="f-email" placeholder="your@email.com" required />
+        <button type="submit" class="btn-atlas" data-i18n="form_btn">Join Atlas →</button>
+      </form>
+      <p class="form-msg" id="form-msg"></p>
+      <p style="font-size:.7rem;color:var(--muted);margin-top:.75rem;" data-i18n="form_legal">No spam. No third parties. Unsubscribe anytime. GDPR compliant.</p>
+      <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border);">
+        <span style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.35rem;"><span style="color:var(--orange);">✦</span><span data-i18n="nl1">Monthly Atlas results</span></span>
+        <span style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.35rem;"><span style="color:var(--orange);">✦</span><span data-i18n="nl2">Linux performance tips</span></span>
+        <span style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.35rem;"><span style="color:var(--orange);">✦</span><span data-i18n="nl3">Early access Windows &amp; macOS</span></span>
+        <span style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.35rem;"><span style="color:var(--orange);">✦</span><span data-i18n="nl4">Your rank vs. the community</span></span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════ PRICING ══════════════ -->
+<section id="pricing" style="padding:6rem 2rem;">
+  <p class="section-label" data-i18n="price_label">Pricing</p>
+  <h2 class="section-title" data-i18n="price_title">Choose your tier.</h2>
+  <p class="section-sub" data-i18n="price_sub">Start free. Go pro when you're ready.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;max-width:960px;margin:0 auto 3rem;">
+
+    <!-- FREE TIER -->
+    <div class="fade-in" style="background:var(--card);border:1px solid var(--border);border-radius:24px;padding:2.5rem 2rem;text-align:center;position:relative;">
+      <p style="font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;" data-i18n="tier_free_label">DIX Free</p>
+      <p style="font-size:3rem;font-weight:900;line-height:1;margin-bottom:.25rem;">€0</p>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:1.75rem;" data-i18n="tier_free_sub">Scan + score. Always free.</p>
+      <ul class="pricing-features" style="margin-bottom:1.75rem;">
+        <li data-i18n="ff1">Full system scan — 847 parameters</li>
+        <li data-i18n="ff2">Score 0–100 — see where you stand</li>
+        <li data-i18n="ff3">Watch 1 short ad (20s) per scan</li>
+        <li data-i18n-html="ff4">Opt-in: <strong>contribute to DIX Atlas</strong></li>
+        <li data-i18n="ff5" style="color:#ff4444;text-decoration:line-through;opacity:.5;">Optimization not applied</li>
+      </ul>
+      <a href="#" class="btn-secondary" style="display:block;text-align:center;" data-i18n="tier_free_btn">Download Free</a>
+    </div>
+
+    <!-- PRO TIER -->
+    <div class="fade-in" style="background:var(--black);border:2px solid var(--orange);border-radius:24px;padding:2.5rem 2rem;text-align:center;position:relative;box-shadow:0 0 60px rgba(255,107,0,.15);transform:scale(1.03);">
+      <span class="pricing-badge" data-i18n="price_badge">Linux Launch — Early Access</span>
+      <p style="font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--orange);margin-bottom:.5rem;" data-i18n="tier_pro_label">DIX Pro</p>
+      <p class="pricing-price"><sup>€</sup>14.99</p>
+      <p class="pricing-once" data-i18n="price_once">✓ One-time payment — lifetime license</p>
+      <ul class="pricing-features" style="margin-bottom:1.75rem;">
+        <li data-i18n-html="pf1"><strong>Full AI optimization applied</strong> — all 847 parameters</li>
+        <li data-i18n-html="pf2"><strong>Score 0–100</strong> — before &amp; after</li>
+        <li data-i18n-html="pf3"><strong>DIX</strong> — an AI with a face. Your system's guardian.</li>
+        <li data-i18n="pf4">No ads. Ever.</li>
+        <li data-i18n="pf5">All v1 updates included</li>
+        <li data-i18n="pf6">Your data stays on your machine</li>
+      </ul>
+      <a href="#" class="btn-buy" id="buy-btn" data-i18n="price_btn">Get DIX Pro — €14.99</a>
+      <p class="pricing-note" data-i18n="price_note">Secure checkout via Lemon Squeezy. Instant download.</p>
+    </div>
+
+    <!-- DAEMON TIER -->
+    <div class="fade-in" style="background:var(--card);border:1px solid var(--border);border-radius:24px;padding:2.5rem 2rem;text-align:center;position:relative;opacity:.85;">
+      <p style="font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;" data-i18n="tier_daemon_label">DIX Daemon</p>
+      <p style="font-size:3rem;font-weight:900;line-height:1;margin-bottom:.25rem;color:var(--muted);">v2</p>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:1.75rem;" data-i18n="tier_daemon_sub">Always-on adaptive optimization.</p>
+      <ul class="pricing-features" style="margin-bottom:1.75rem;">
+        <li data-i18n="df1">Background daemon — always optimizing</li>
+        <li data-i18n="df2">Auto-detects: gaming, compile, stream, idle</li>
+        <li data-i18n="df3">Zero user interaction required</li>
+        <li data-i18n="df4">Streamer profile — OBS + game, zero dropouts</li>
+        <li data-i18n="df5">Windows + macOS included</li>
+      </ul>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.85rem;font-size:.85rem;color:var(--muted);font-weight:600;" data-i18n="tier_daemon_btn">Coming with v2 — Join the waitlist</div>
+    </div>
+
+  </div>
+
+  <div class="platforms">
+    <p data-i18n="plat_title">Platform availability</p>
+    <div class="platform-badges">
+      <span class="pbadge pbadge-live" data-i18n="plat_linux">Linux — Available Now</span>
+      <span class="pbadge pbadge-soon" data-i18n="plat_win">Windows — Coming Soon</span>
+      <span class="pbadge pbadge-soon" data-i18n="plat_mac">macOS — Coming Soon</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ FAQ ══════════════ -->
+<section id="faq">
+  <p class="section-label" data-i18n="faq_label">FAQ</p>
+  <h2 class="section-title" data-i18n="faq_title">Before you ask.</h2>
+  <p class="section-sub" style="margin-bottom:3rem;" data-i18n="faq_sub">The answers to everything.</p>
+  <div class="faq-list">
+
+    <details class="fade-in">
+      <summary data-i18n="q1">Is it safe? Will it break my system?</summary>
+      <div class="faq-answer" data-i18n-html="a1">
+        <strong>Yes, it's safe. Completely.</strong> DIX only modifies sysctl parameters and CPU governors — all within the boundaries defined by the Linux kernel itself. We never touch GPU settings, never modify NUMA topology, and never apply changes that can't be reverted. Every parameter change is validated before being applied.
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary data-i18n="q2">What Linux distributions are supported?</summary>
+      <div class="faq-answer" data-i18n-html="a2">
+        DIX works on any Linux distribution with kernel 5.4+. This includes <strong>Ubuntu, Debian, Arch Linux, Manjaro, Fedora, openSUSE, Pop!_OS, Linux Mint</strong> and more. If your distro runs systemd and has a modern kernel, it works.
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary data-i18n="q3">Do I need root / sudo access?</summary>
+      <div class="faq-answer" data-i18n-html="a3">
+        Some kernel parameters require elevated permissions to apply. DIX will prompt for authentication via <strong>pkexec</strong> (PolicyKit) when needed — the standard secure way Linux applications handle privileged operations. You remain in full control.
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary data-i18n="q4">What happens after I buy? Is it really one-time?</summary>
+      <div class="faq-answer" data-i18n-html="a4">
+        <strong>Yes. One payment. Forever.</strong> After purchase via Lemon Squeezy you receive a license key and download link by email. The key activates the application. You get all v1.x updates for free. No subscription, no renewal, no expiry. Windows and macOS versions will be separate purchases (or a bundle deal — TBA).
+      </div>
+    </details>
+
+    <details class="fade-in">
+      <summary data-i18n="q5">Does it send my data anywhere?</summary>
+      <div class="faq-answer" data-i18n-html="a5">
+        The AI analysis is performed via a call to Claude API using the system data collected locally. <strong>No personal data is transmitted.</strong> No usage telemetry. No analytics. The only network call is the optimization analysis — and you see exactly what's being analyzed before it happens.
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<!-- ══════════════ FINAL CTA ══════════════ -->
+<section id="final-cta">
+  <h2 data-i18n="cta_title">What does your system score?</h2>
+  <p  data-i18n="cta_sub">Most untuned Linux systems score between 28 and 45. Find out yours — and then fix it.</p>
+  <a href="#pricing" class="btn-primary" data-i18n="cta_btn">Get DIX — €14.99</a>
+</section>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer>
+  <div class="footer-brand">
+    <img src="dix_logo_brand.png" alt="DixSystem" />
+  </div>
+  <div class="footer-links">
+    <a href="#" data-i18n="foot_privacy">Privacy</a>
+    <a href="#" data-i18n="foot_terms">Terms</a>
+    <a href="#" data-i18n="foot_contact">Contact</a>
+    <a href="#">GitHub</a>
+  </div>
+  <div class="footer-right" data-i18n="foot_copy">© 2026 DixSystem. The world's first AppIA.</div>
+</footer>
+
+<script>
+/* ══════════════ TRADUCCIONES ══════════════ */
+const T = {
+  en: {
+    nav_features: 'Features',        nav_how: 'How it works',
+    nav_bench: 'Benchmarks',         nav_pricing: 'Pricing',
+    nav_faq: 'FAQ',                  nav_cta: 'Get DIX →',
+
+    hero_badge: "The World's First AppIA",
+    hero_h1: 'Your system <span class="highlight">learns.</span><br/>Your system <span class="highlight-y">optimizes.</span><br/>On its own.',
+    hero_sub: '<strong>DIX</strong> is not a cleaner. It\'s an AI that reads your kernel, understands your hardware, and pushes your Linux system to its absolute limit.',
+    hero_btn1: 'Get it for €14.99 — One time',
+    hero_btn2: 'See it in action ↓',
+    proof_1: 'Linux native', proof_2: '847 parameters analyzed', proof_3: 'AI-powered — no guesswork',
+
+    score_label: 'Real result — real hardware',
+    score_before: '/100 — before', score_after: '/100 — after',
+    score_headline: 'From 34 to <span class="accent">91.</span><br/>In seconds.',
+    score_desc: 'DIX reads <strong>847 system parameters</strong> and fixes them with AI. No manual configuration. No guesswork. No reboot.',
+
+    feat_label: 'What DIX does',
+    feat_title: 'One scan. Maximum performance.',
+    feat_sub: 'Every tweak is calculated specifically for your hardware. No generic profiles.',
+    f1_title: 'AI Kernel Analysis',
+    f1_desc: 'Claude AI reads 847 live kernel parameters — governor, scheduler, memory pressure, I/O queues — and calculates the optimal configuration for your exact hardware.',
+    f2_title: 'One-Click Optimization',
+    f2_desc: 'Scan → Analyze → Apply. Three steps. Seconds to complete. Your system runs at maximum before the coffee gets cold.',
+    f3_title: 'Score 0–100',
+    f3_desc: 'A single number that tells you exactly where your system stands — before and after. Not a vague percentage. A real performance score.',
+    f4_title: 'Safe by Design',
+    f4_desc: 'No GPU overclocking. No NUMA modifications. No dangerous tweaks. Every parameter change is within kernel safety boundaries. Your hardware is protected.',
+    f5_title: 'Built for Linux',
+    f5_desc: 'Not a Windows port. Not a web wrapper. A native Linux application built with Rust and Tauri — fast, lightweight, no bloat.',
+    f6_title: 'Yours Forever',
+    f6_desc: '€14.99. One payment. No subscription. No telemetry. No ads. The license is yours for life — including all future v1 updates.',
+
+    how_label: 'How it works',
+    how_title: 'Three steps to maximum.',
+    how_sub: 'No configuration. No manual. No PhD required.',
+    s1_title: 'Launch & Scan',
+    s1_desc: 'Open DIX. Hit <strong>Scan</strong>. DIX reads <strong>847 parameters</strong> from your live kernel in real time.',
+    s2_title: 'AI Analyzes',
+    s2_desc: 'Claude AI cross-references your hardware profile against performance models. Calculates the exact kernel configuration for <strong>your machine.</strong>',
+    s3_title: 'Apply & Score',
+    s3_desc: 'One click applies every tweak. Your score jumps. <strong>No reboot. No guesswork.</strong> Feel the difference immediately.',
+
+    bench_label: 'Real numbers — real hardware',
+    bench_title: "The data doesn't lie.",
+    bench_sub: 'Measured on actual Linux systems before and after optimization.',
+    b1: '<strong>Rust build time</strong> cargo build --release on i5-12400',
+    b2: '<strong>FPS gained</strong> average in GPU-bound Linux gaming',
+    b3: '<strong>CPU temperature</strong> under sustained workload',
+    b4: '<strong>Parameters analyzed</strong> per scan — live kernel state',
+    b5: '<strong>Time to optimize</strong> from cold launch to applied tweaks',
+    b6: '<strong>Score achieved</strong> starting from 34 on an untuned system',
+
+    price_label: 'Pricing',     price_title: 'No subscriptions. No tricks.',
+    price_sub: 'Pay once. Own it forever.',
+    price_badge: 'Linux Launch — Early Access',
+    price_once: '✓ One-time payment — lifetime license',
+    pf1: '<strong>Full AI kernel optimization</strong> — all 847 parameters',
+    pf2: '<strong>Score system 0–100</strong> — real-time performance rating',
+    pf3: '<strong>DIX</strong> — an AI with a face. Your system\'s guardian.',
+    pf4: 'Linux native (Debian, Ubuntu, Arch, Fedora + more)',
+    pf5: 'All v1 future updates included',
+    pf6: 'No telemetry. No ads. No subscription ever.',
+    price_btn: 'Get DIX — €14.99',
+    price_note: 'Secure checkout via Lemon Squeezy. Instant download after purchase.',
+    plat_title: 'Platform availability',
+    plat_linux: 'Linux — Available Now', plat_win: 'Windows — Coming Soon', plat_mac: 'macOS — Coming Soon',
+
+    faq_label: 'FAQ',  faq_title: 'Before you ask.',  faq_sub: 'The answers to everything.',
+    q1: 'Is it safe? Will it break my system?',
+    a1: "<strong>Yes, it's safe. Completely.</strong> DIX only modifies sysctl parameters and CPU governors — all within the boundaries defined by the Linux kernel itself. We never touch GPU settings, never modify NUMA topology, and never apply changes that can't be reverted. Every parameter change is validated before being applied.",
+    q2: 'What Linux distributions are supported?',
+    a2: 'DIX works on any Linux distribution with kernel 5.4+. This includes <strong>Ubuntu, Debian, Arch Linux, Manjaro, Fedora, openSUSE, Pop!_OS, Linux Mint</strong> and more. If your distro runs systemd and has a modern kernel, it works.',
+    q3: 'Do I need root / sudo access?',
+    a3: 'Some kernel parameters require elevated permissions to apply. DIX will prompt for authentication via <strong>pkexec</strong> (PolicyKit) when needed — the standard secure way Linux applications handle privileged operations. You remain in full control.',
+    q4: 'What happens after I buy? Is it really one-time?',
+    a4: '<strong>Yes. One payment. Forever.</strong> After purchase via Lemon Squeezy you receive a license key and download link by email. The key activates the application. You get all v1.x updates for free. No subscription, no renewal, no expiry. Windows and macOS versions will be separate purchases (or a bundle deal — TBA).',
+    q5: 'Does it send my data anywhere?',
+    a5: 'The AI analysis is performed via a call to Claude API using the system data collected locally. <strong>No personal data is transmitted.</strong> No usage telemetry. No analytics. The only network call is the optimization analysis — and you see exactly what\'s being analyzed before it happens.',
+
+    cta_title: 'What does your system score?',
+    cta_sub: 'Most untuned Linux systems score between 28 and 45. Find out yours — and then fix it.',
+    cta_btn: 'Get DIX — €14.99',
+    foot_privacy: 'Privacy', foot_terms: 'Terms', foot_contact: 'Contact',
+    foot_copy: '© 2026 DixSystem. The world\'s first AppIA.',
+
+    atlas_label: 'DIX Atlas',
+    atlas_title: "The world's Linux hardware intelligence.",
+    atlas_sub: 'Every anonymous scan contributes to a growing library of real hardware profiles. DIX learns. Every user benefits.',
+    at1_title: 'Real hardware. Real data.', at1_desc: 'Every free scan adds an anonymous hardware profile to DIX Atlas — CPU, RAM, kernel, distro, score. No names. No IPs. Just hardware.',
+    at2_title: 'DIX learns with every scan.', at2_desc: 'As the Atlas grows, DIX recognizes your hardware faster, predicts optimal configurations more accurately, and requires fewer AI calls. Faster and smarter over time.',
+    at3_title: 'Privacy enforced in code.', at3_desc: "The same Policy Manager that protects your hardware also validates every outbound data packet. If a field isn't on the whitelist, it never leaves your machine. Not a promise — code.",
+    atlas_prize_label: '🏆 DIX Atlas Challenge — Monthly',
+    atlas_prize_title: 'Top 3 improvements win DIX Daemon v2. Free. Forever.',
+    atlas_prize_desc: 'Share your score publicly. The 3 users with the biggest improvement (before → after) each month win a lifetime license of DIX v2 — for any platform they choose.',
+    atlas_step1_title: '1. Scan free',   atlas_step1_desc: 'Run the free scan. See your score before and after.',
+    atlas_step2_title: '2. Share your score', atlas_step2_desc: 'Post it on X/Twitter with #MyDIXScore and opt-in to Atlas.',
+    atlas_step3_title: '3. Win v2',      atlas_step3_desc: 'Top 3 biggest improvements each month get DIX v2 free forever.',
+    lb_title:'DIX Atlas — Monthly Ranking', lb_sub:'Sorted by biggest improvement · Resets 1st of each month', lb_live:'● Live', lb_demo_note:'Demo data — live rankings activate as users join DIX Atlas',
+    lbh_rank:'#', lbh_alias:'User', lbh_hw:'Hardware', lbh_distro:'Distro', lbh_score:'Score', lbh_delta:'Improvement',
+    form_title:'Join DIX Atlas. Enter the ranking.', form_sub:'Get your rank, monthly results, DIX Intel newsletter, and early access to Windows & macOS.',
+    form_btn:'Join Atlas →', form_legal:'No spam. No third parties. Unsubscribe anytime. GDPR compliant.',
+    nl1:'Monthly Atlas results', nl2:'Linux performance tips', nl3:'Early access Windows & macOS', nl4:'Your rank vs. the community',
+    atlas_consent_label: 'Your choice. Always.',
+    atlas_consent_desc: 'Asked once before your first scan. No opt-in = full scan, full score, zero data sent. DIX works either way.',
+    atlas_optin: '✓ Join Atlas & compete\nShare anonymous data · Enter the ranking',
+    atlas_optout: '✗ Stay private\nNo data shared · Not in ranking',
+
+    price_title: 'Choose your tier.', price_sub: 'Start free. Go pro when you\'re ready.',
+    tier_free_label: 'DIX Free', tier_free_sub: 'Scan + score. Always free.',
+    ff1: 'Full system scan — 847 parameters', ff2: 'Score 0–100 — see where you stand',
+    ff3: 'Watch 1 short ad (20s) per scan', ff4: 'Opt-in: <strong>contribute to DIX Atlas</strong>',
+    ff5: 'Optimization not applied', tier_free_btn: 'Download Free',
+    tier_pro_label: 'DIX Pro',
+    pf4: 'No ads. Ever.', pf5: 'All v1 updates included', pf6: 'Your data stays on your machine',
+    tier_daemon_label: 'DIX Daemon', tier_daemon_sub: 'Always-on adaptive optimization.',
+    df1: 'Background daemon — always optimizing', df2: 'Auto-detects: gaming, compile, stream, idle',
+    df3: 'Zero user interaction required', df4: 'Streamer profile — OBS + game, zero dropouts',
+    df5: 'Windows + macOS included', tier_daemon_btn: 'Coming with v2 — Join the waitlist',
+  },
+
+  es: {
+    nav_features: 'Características',  nav_how: 'Cómo funciona',
+    nav_bench: 'Benchmarks',          nav_pricing: 'Precio',
+    nav_faq: 'FAQ',                   nav_cta: 'Obtener DIX →',
+
+    hero_badge: 'La Primera AppIA del Mundo',
+    hero_h1: 'Tu sistema <span class="highlight">aprende.</span><br/>Tu sistema <span class="highlight-y">se optimiza.</span><br/>Solo.',
+    hero_sub: '<strong>DIX</strong> no es un limpiador. Es una IA que lee tu kernel, entiende tu hardware y lleva tu sistema Linux al límite absoluto.',
+    hero_btn1: 'Consíguelo por €14,99 — Pago único',
+    hero_btn2: 'Verlo en acción ↓',
+    proof_1: 'Nativo en Linux', proof_2: '847 parámetros analizados', proof_3: 'Impulsado por IA — sin suposiciones',
+
+    score_label: 'Resultado real — hardware real',
+    score_before: '/100 — antes', score_after: '/100 — después',
+    score_headline: 'De 34 a <span class="accent">91.</span><br/>En segundos.',
+    score_desc: 'DIX lee <strong>847 parámetros del sistema</strong> y los corrige con IA. Sin configuración manual. Sin suposiciones. Sin reinicio.',
+
+    feat_label: 'Qué hace DIX',
+    feat_title: 'Un escaneo. Rendimiento máximo.',
+    feat_sub: 'Cada ajuste se calcula específicamente para tu hardware. Sin perfiles genéricos.',
+    f1_title: 'Análisis IA del Kernel',
+    f1_desc: 'Claude AI lee 847 parámetros del kernel en vivo — governor, scheduler, presión de memoria, colas I/O — y calcula la configuración óptima para tu hardware exacto.',
+    f2_title: 'Optimización en Un Clic',
+    f2_desc: 'Escanear → Analizar → Aplicar. Tres pasos. Segundos. Tu sistema funciona al máximo antes de que se enfríe el café.',
+    f3_title: 'Puntuación 0–100',
+    f3_desc: 'Un único número que te dice exactamente dónde está tu sistema — antes y después. No un porcentaje vago. Una puntuación de rendimiento real.',
+    f4_title: 'Seguro por Diseño',
+    f4_desc: 'Sin overclocking de GPU. Sin modificaciones NUMA. Sin ajustes peligrosos. Cada cambio de parámetro está dentro de los límites de seguridad del kernel. Tu hardware está protegido.',
+    f5_title: 'Hecho para Linux',
+    f5_desc: 'No es un port de Windows. No es un wrapper web. Una aplicación nativa Linux construida con Rust y Tauri — rápida, ligera, sin bloatware.',
+    f6_title: 'Tuyo Para Siempre',
+    f6_desc: '€14,99. Un pago. Sin suscripción. Sin telemetría. Sin anuncios. La licencia es tuya de por vida — incluyendo todas las actualizaciones futuras de v1.',
+
+    how_label: 'Cómo funciona',
+    how_title: 'Tres pasos al máximo.',
+    how_sub: 'Sin configuración. Sin manual. Sin doctorado.',
+    s1_title: 'Lanzar y Escanear',
+    s1_desc: 'Abre DIX. Pulsa <strong>Escanear</strong>. DIX lee <strong>847 parámetros</strong> de tu kernel en tiempo real.',
+    s2_title: 'La IA Analiza',
+    s2_desc: 'Claude AI cruza tu perfil de hardware con modelos de rendimiento. Calcula la configuración exacta del kernel para <strong>tu máquina.</strong>',
+    s3_title: 'Aplicar y Puntuar',
+    s3_desc: 'Un clic aplica todos los ajustes. Tu puntuación sube. <strong>Sin reinicio. Sin suposiciones.</strong> Siente la diferencia inmediatamente.',
+
+    bench_label: 'Números reales — hardware real',
+    bench_title: 'Los datos no mienten.',
+    bench_sub: 'Medido en sistemas Linux reales antes y después de la optimización.',
+    b1: '<strong>Tiempo de compilación Rust</strong> cargo build --release en i5-12400',
+    b2: '<strong>FPS ganados</strong> media en gaming Linux limitado por GPU',
+    b3: '<strong>Temperatura CPU</strong> bajo carga sostenida',
+    b4: '<strong>Parámetros analizados</strong> por escaneo — estado real del kernel',
+    b5: '<strong>Tiempo para optimizar</strong> desde inicio hasta ajustes aplicados',
+    b6: '<strong>Puntuación alcanzada</strong> partiendo de 34 en un sistema sin tunear',
+
+    price_label: 'Precio',    price_title: 'Sin suscripciones. Sin trucos.',
+    price_sub: 'Paga una vez. Tuyo para siempre.',
+    price_badge: 'Lanzamiento Linux — Acceso Anticipado',
+    price_once: '✓ Pago único — licencia de por vida',
+    pf1: '<strong>Optimización IA del kernel completa</strong> — los 847 parámetros',
+    pf2: '<strong>Sistema de puntuación 0–100</strong> — valoración de rendimiento en tiempo real',
+    pf3: '<strong>DIX</strong> — una IA con cara. El guardián de tu sistema.',
+    pf4: 'Nativo Linux (Debian, Ubuntu, Arch, Fedora y más)',
+    pf5: 'Todas las actualizaciones futuras de v1 incluidas',
+    pf6: 'Sin telemetría. Sin anuncios. Sin suscripción jamás.',
+    price_btn: 'Obtener DIX — €14,99',
+    price_note: 'Pago seguro con Lemon Squeezy. Descarga inmediata tras la compra.',
+    plat_title: 'Disponibilidad',
+    plat_linux: 'Linux — Disponible Ya', plat_win: 'Windows — Próximamente', plat_mac: 'macOS — Próximamente',
+
+    faq_label: 'Preguntas Frecuentes', faq_title: 'Antes de que preguntes.', faq_sub: 'Las respuestas a todo.',
+    q1: '¿Es seguro? ¿Puede romper mi sistema?',
+    a1: '<strong>Sí, es completamente seguro.</strong> DIX solo modifica parámetros sysctl y governors de CPU — todo dentro de los límites definidos por el propio kernel Linux. Nunca tocamos la GPU, nunca modificamos la topología NUMA y nunca aplicamos cambios que no puedan revertirse. Cada cambio se valida antes de aplicarse.',
+    q2: '¿Qué distribuciones Linux son compatibles?',
+    a2: 'DIX funciona en cualquier distribución Linux con kernel 5.4+. Incluye <strong>Ubuntu, Debian, Arch Linux, Manjaro, Fedora, openSUSE, Pop!_OS, Linux Mint</strong> y más. Si tu distro usa systemd y tiene un kernel moderno, funciona.',
+    q3: '¿Necesito acceso root / sudo?',
+    a3: 'Algunos parámetros del kernel requieren permisos elevados. DIX solicitará autenticación mediante <strong>pkexec</strong> (PolicyKit) cuando sea necesario — el método estándar y seguro que usan las aplicaciones Linux para operaciones privilegiadas. Tú tienes el control en todo momento.',
+    q4: '¿Qué pasa después de comprar? ¿Es realmente de pago único?',
+    a4: '<strong>Sí. Un pago. Para siempre.</strong> Tras la compra en Lemon Squeezy recibes una clave de licencia y enlace de descarga por email. La clave activa la aplicación. Todas las actualizaciones v1.x son gratuitas. Sin suscripción, sin renovación, sin caducidad. Las versiones Windows y macOS serán compras separadas (o bundle — por confirmar).',
+    q5: '¿Envía mis datos a algún servidor?',
+    a5: 'El análisis IA se realiza mediante una llamada a Claude API usando los datos del sistema recopilados localmente. <strong>No se transmiten datos personales.</strong> Sin telemetría. Sin analíticas. La única llamada de red es el análisis de optimización — y ves exactamente qué se analiza antes de que ocurra.',
+
+    cta_title: '¿Cuánto puntúa tu sistema?',
+    cta_sub: 'La mayoría de sistemas Linux sin optimizar puntúan entre 28 y 45. Descubre el tuyo — y corrígelo.',
+    cta_btn: 'Obtener DIX — €14,99',
+    foot_privacy: 'Privacidad', foot_terms: 'Términos', foot_contact: 'Contacto',
+    foot_copy: '© 2026 DixSystem. La primera AppIA del mundo.',
+
+    atlas_label: 'DIX Atlas',
+    atlas_title: 'La inteligencia de hardware Linux más grande del mundo.',
+    atlas_sub: 'Cada escaneo anónimo contribuye a una biblioteca creciente de perfiles de hardware reales. DIX aprende. Todos los usuarios se benefician.',
+    at1_title: 'Hardware real. Datos reales.', at1_desc: 'Cada escaneo gratuito añade un perfil de hardware anónimo a DIX Atlas — CPU, RAM, kernel, distro, puntuación. Sin nombres. Sin IPs. Solo hardware.',
+    at2_title: 'DIX aprende con cada escaneo.', at2_desc: 'A medida que el Atlas crece, DIX reconoce tu hardware más rápido, predice configuraciones óptimas con mayor precisión y necesita menos llamadas a la IA. Más rápido y más inteligente con el tiempo.',
+    at3_title: 'Privacidad garantizada por código.', at3_desc: 'El mismo Policy Manager que protege tu hardware también valida cada paquete de datos saliente. Si un campo no está en la whitelist, nunca sale de tu máquina. No es una promesa — es código.',
+    atlas_prize_label: '🏆 DIX Atlas Challenge — Mensual',
+    atlas_prize_title: 'Top 3 mejoras ganan DIX Daemon v2. Gratis. Para siempre.',
+    atlas_prize_desc: 'Comparte tu puntuación públicamente. Los 3 usuarios con mayor mejora (antes → después) cada mes ganan una licencia vitalicia de DIX v2 — para la plataforma que elijan.',
+    atlas_step1_title: '1. Escanea gratis',    atlas_step1_desc: 'Ejecuta el escaneo gratuito. Ve tu puntuación antes y después.',
+    atlas_step2_title: '2. Comparte tu score', atlas_step2_desc: 'Publícalo en X/Twitter con #MyDIXScore y activa el opt-in de Atlas.',
+    atlas_step3_title: '3. Gana la v2',        atlas_step3_desc: 'Los 3 con mayor mejora cada mes reciben DIX v2 gratis para siempre.',
+    lb_title:'DIX Atlas — Ranking Mensual', lb_sub:'Ordenado por mayor mejora · Se reinicia el 1 de cada mes', lb_live:'● En vivo', lb_demo_note:'Datos demo — el ranking en vivo se activa cuando los usuarios se unen al Atlas',
+    lbh_rank:'#', lbh_alias:'Usuario', lbh_hw:'Hardware', lbh_distro:'Distro', lbh_score:'Puntuación', lbh_delta:'Mejora',
+    form_title:'Únete a DIX Atlas. Entra al ranking.', form_sub:'Recibe tu posición, resultados mensuales, newsletter DIX Intel y acceso anticipado a Windows y macOS.',
+    form_btn:'Unirse al Atlas →', form_legal:'Sin spam. Sin terceros. Cancela cuando quieras. Cumple el RGPD.',
+    nl1:'Resultados mensuales del Atlas', nl2:'Consejos de rendimiento Linux', nl3:'Acceso anticipado a Windows y macOS', nl4:'Tu posición vs. la comunidad',
+    atlas_consent_label: 'Tu elección. Siempre.',
+    atlas_consent_desc: 'Se pregunta una sola vez antes de tu primer escaneo. Sin opt-in = escaneo completo, puntuación completa, cero datos enviados. DIX funciona igual.',
+    atlas_optin: '✓ Unirse al Atlas y competir\nCompartir datos anónimos · Entrar al ranking',
+    atlas_optout: '✗ Mantenerlo privado\nSin datos compartidos · Sin ranking',
+
+    price_title: 'Elige tu nivel.', price_sub: 'Empieza gratis. Pasa a Pro cuando estés listo.',
+    tier_free_label: 'DIX Free', tier_free_sub: 'Escaneo + puntuación. Siempre gratis.',
+    ff1: 'Escaneo completo del sistema — 847 parámetros', ff2: 'Puntuación 0–100 — descubre dónde estás',
+    ff3: 'Ver 1 anuncio corto (20s) por escaneo', ff4: 'Opt-in: <strong>contribuir a DIX Atlas</strong>',
+    ff5: 'Optimización no aplicada', tier_free_btn: 'Descargar Gratis',
+    tier_pro_label: 'DIX Pro',
+    pf4: 'Sin anuncios. Nunca.', pf5: 'Todas las actualizaciones v1 incluidas', pf6: 'Tus datos permanecen en tu máquina',
+    tier_daemon_label: 'DIX Daemon', tier_daemon_sub: 'Optimización adaptativa siempre activa.',
+    df1: 'Daemon en segundo plano — siempre optimizando', df2: 'Auto-detecta: gaming, compilación, stream, idle',
+    df3: 'Cero intervención del usuario', df4: 'Perfil Streamer — OBS + juego, sin cortes',
+    df5: 'Windows + macOS incluidos', tier_daemon_btn: 'Llega con v2 — Únete a la lista de espera',
+  }
+};
+
+/* ══════════════ MOTOR I18N ══════════════ */
+let currentLang = 'en';
+
+function applyLang(lang) {
+  const dict = T[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+  document.getElementById('lt-en').classList.toggle('active', lang === 'en');
+  document.getElementById('lt-es').classList.toggle('active', lang === 'es');
+  document.documentElement.lang = lang;
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'en' ? 'es' : 'en';
+  applyLang(currentLang);
+}
+
+/* ══════════════ FADE-IN OBSERVER ══════════════ */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(el => {
+    if (el.isIntersecting) {
+      el.target.classList.add('visible');
+      if (el.target.closest('#score-section')) {
+        setTimeout(() => document.getElementById('progress-fill').classList.add('animated'), 300);
+      }
+      observer.unobserve(el.target);
+    }
+  });
+}, { threshold: 0.15 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+/* ══════════════ LEADERBOARD DEMO ══════════════ */
+const DEMO_DATA = [
+  { rank:1, alias:'kernel_god',     hw:'AMD Ryzen 9 5900X',   distro:'Arch',    before:22, after:93, delta:71 },
+  { rank:2, alias:'nixmaster99',    hw:'Intel i7-12700K',     distro:'Fedora',  before:29, after:91, delta:62 },
+  { rank:3, alias:'penguin_lord',   hw:'AMD Ryzen 7 5800X',   distro:'Ubuntu',  before:31, after:90, delta:59 },
+  { rank:4, alias:'tux_engineer',   hw:'Intel i5-12400',      distro:'Debian',  before:34, after:91, delta:57 },
+  { rank:5, alias:'sysctl_wizard',  hw:'AMD Ryzen 5 5600X',   distro:'Manjaro', before:38, after:89, delta:51 },
+  { rank:6, alias:'linuxdev_esp',   hw:'Intel i9-10900K',     distro:'PopOS',   before:41, after:88, delta:47 },
+  { rank:7, alias:'arch_btw',       hw:'AMD Ryzen 7 3700X',   distro:'Arch',    before:44, after:87, delta:43 },
+  { rank:8, alias:'rustlover',      hw:'Intel i5-11600K',     distro:'Fedora',  before:46, after:86, delta:40 },
+];
+
+function renderLeaderboard() {
+  const tbody = document.getElementById('lb-body');
+  if (!tbody) return;
+  tbody.innerHTML = DEMO_DATA.map(r => {
+    const rankClass = r.rank === 1 ? 'rank-1' : r.rank === 2 ? 'rank-2' : r.rank === 3 ? 'rank-3' : '';
+    const medal = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : r.rank;
+    return `<tr>
+      <td class="${rankClass}" style="font-weight:700;">${medal}</td>
+      <td style="font-weight:600;color:var(--text);">${r.alias}</td>
+      <td style="color:var(--muted);font-size:.8rem;">${r.hw}</td>
+      <td><span class="distro-badge">${r.distro}</span></td>
+      <td><span class="score-pill"><span class="s-before">${r.before}</span><span class="s-arrow">→</span><span class="s-after">${r.after}</span></span></td>
+      <td><span class="delta-badge">+${r.delta} pts</span></td>
+    </tr>`;
+  }).join('');
+}
+renderLeaderboard();
+
+/* ══════════════ ATLAS FORM ══════════════ */
+const BREVO_LIST_ID  = 2;
+const PROXY_URL      = 'https://dix-proxy.dixsystem.workers.dev';
+
+async function submitAtlas(e) {
+  e.preventDefault();
+  const alias = document.getElementById('f-alias').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const msg   = document.getElementById('form-msg');
+  const btn   = e.target.querySelector('.btn-atlas');
+
+  btn.textContent = '...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${PROXY_URL}/subscribe`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, listId: BREVO_LIST_ID }),
+    });
+
+    if (res.ok || res.status === 204) {
+      msg.textContent = '✓ Welcome to DIX Atlas! Check your inbox.';
+      msg.className   = 'form-msg ok';
+      e.target.reset();
+    } else {
+      const data = await res.json();
+      if (data.code === 'duplicate_parameter') {
+        msg.textContent = '✓ Already in the Atlas! You\'re on the ranking.';
+        msg.className   = 'form-msg ok';
+      } else {
+        throw new Error(data.message || 'Error');
+      }
+    }
+  } catch (err) {
+    msg.textContent = '✗ Something went wrong. Try again.';
+    msg.className   = 'form-msg err';
+  }
+
+  btn.textContent = 'Join Atlas →';
+  btn.disabled = false;
+}
+
+/* ══════════════ SCORE COUNTER ══════════════ */
+function animateCount(el, from, to, duration) {
+  const start = performance.now();
+  const update = (time) => {
+    const p = Math.min((time - start) / duration, 1);
+    el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
+}
+const scoreObs = new IntersectionObserver((entries) => {
+  entries.forEach(el => {
+    if (el.isIntersecting) {
+      animateCount(document.getElementById('score-before'), 0, 34, 1200);
+      animateCount(document.getElementById('score-after'),  0, 91, 2000);
+      scoreObs.unobserve(el.target);
+    }
+  });
+}, { threshold: 0.3 });
+scoreObs.observe(document.getElementById('score-section'));
+</script>
+
+</body>
+</html>

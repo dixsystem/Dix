@@ -1,0 +1,52 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Rust / Tauri
+src-tauri/target/
+
+# Variables de entorno y secretos — NUNCA subir al repositorio
+.env
+.env.*
+*.key
+*.pem
+*.p12
+
+# Claude Code (configuración local del IDE)
+.claude/
+
+# Resultados de tests y benchmarks locales
+batch_results/
+bench_results/
+bench_live.log
+stress_5000.sh
+batch_500.sh
+batch_5000.sh
+roulette.sh
+run_mock.sh
+mock_profiles/
+sabios/
+
+# Archivos de desarrollo temporal
+src-tauri/src/main.rs.save
