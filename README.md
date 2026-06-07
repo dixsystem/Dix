@@ -45,19 +45,19 @@ Dix connects to Claude AI, scans 16 system parameters in real time, and generate
 
 ### Debian / Ubuntu / Linux Mint (.deb)
 ```bash
-wget https://github.com/dixsystem/dix/releases/latest/download/Dix_1.0.0_amd64.deb
+wget https://github.com/Dixsystem/Dix/releases/latest/download/Dix_1.0.0_amd64.deb
 sudo dpkg -i Dix_1.0.0_amd64.deb
 ```
 
 ### Fedora / openSUSE / RHEL (.rpm)
 ```bash
-wget https://github.com/dixsystem/dix/releases/latest/download/Dix-1.0.0-1.x86_64.rpm
+wget https://github.com/Dixsystem/Dix/releases/latest/download/Dix-1.0.0-1.x86_64.rpm
 sudo rpm -i Dix-1.0.0-1.x86_64.rpm
 ```
 
 ### Any distribution (.AppImage)
 ```bash
-wget https://github.com/dixsystem/dix/releases/latest/download/Dix_1.0.0_amd64.AppImage
+wget https://github.com/Dixsystem/Dix/releases/latest/download/Dix_1.0.0_amd64.AppImage
 chmod +x Dix_1.0.0_amd64.AppImage
 ./Dix_1.0.0_amd64.AppImage
 ```
