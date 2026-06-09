@@ -33,13 +33,28 @@ Dix connects to Claude AI, scans 16 system parameters in real time, and generate
 
 ## Features
 
-- **AI-powered analysis** — Claude reads your hardware and generates a personalized script
+- **AI-powered analysis** — Claude API analyzes your hardware profile and generates a personalized optimization script
 - **One-click optimization** — apply all tweaks with a single button, pkexec handles privileges
-- **Safe by design** — GPU never touched, strict parameter limits enforced
+- **Safe by design** — GPU never touched, strict parameter limits enforced in Rust
 - **Rollback included** — revert any change instantly
 - **Score system** — before/after score so you see exactly what improved
 - **Free demo** — 1 full analysis free, no account required
 - **Auto-updater** — stays up to date automatically via GitHub Releases
+
+## Privacy & Security
+
+| What happens | Where |
+|---|---|
+| Hardware scan (CPU governor, sysctl values, disk scheduler, etc.) | **100% local** |
+| AI analysis | **Claude API** — anonymized hardware parameters only |
+| Optimization script execution | **100% local** |
+| System changes + rollback | **100% local** |
+
+**What is sent to Claude API:** kernel parameters and hardware model names (CPU, GPU, RAM size, distro). No hostname, no username, no IP address, no file paths, no process list. The exact whitelist is enforced in [`src-tauri/src/policy.rs`](src-tauri/src/policy.rs).
+
+**You see the generated script before it runs.** Dix shows you the exact bash commands before applying anything. You can review, cancel, or proceed.
+
+An active internet connection is required for the AI analysis step only.
 
 ## Installation
 
