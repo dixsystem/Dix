@@ -357,6 +357,159 @@
 
     .fade-in { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
     .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── COMMUNITY STATS ───────────────────────────────────── */
+    #community {
+      padding: 6rem 2rem;
+      background: var(--black);
+      border-top: 1px solid var(--border);
+    }
+    #community .community-inner { max-width: 1100px; margin: 0 auto; }
+
+    /* Grid de stats globales */
+    .comm-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.25rem;
+      margin: 0 auto 4rem;
+      max-width: 1000px;
+    }
+    .comm-stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem 1.25rem;
+      text-align: center;
+      transition: border-color .2s, transform .2s;
+    }
+    .comm-stat-card:hover { border-color: var(--orange); transform: translateY(-4px); }
+    .comm-stat-value {
+      font-size: 2.6rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: .4rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--green);
+    }
+    .comm-stat-value.accent-orange { color: var(--orange); }
+    .comm-stat-value.accent-yellow { color: var(--yellow); }
+    .comm-stat-label {
+      font-size: .8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .comm-stat-label strong { color: var(--text); display: block; font-size: .85rem; margin-bottom: .15rem; }
+
+    /* Grid de escenarios */
+    .comm-scenarios-title {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--orange);
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .comm-scenarios-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 1rem;
+      max-width: 1000px;
+      margin: 0 auto 4rem;
+    }
+    .comm-scenario-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      transition: border-color .2s, transform .2s;
+    }
+    .comm-scenario-card:hover { border-color: rgba(255,107,0,.5); transform: translateY(-3px); }
+    .comm-scenario-icon { font-size: 1.8rem; margin-bottom: .6rem; display: block; }
+    .comm-scenario-name { font-size: .9rem; font-weight: 700; color: var(--text); margin-bottom: .3rem; }
+    .comm-scenario-pcs  { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+    .comm-scenario-delta {
+      display: inline-flex; align-items: center; gap: .3rem;
+      background: rgba(0,255,136,.1);
+      border: 1px solid rgba(0,255,136,.3);
+      color: var(--green);
+      border-radius: 8px;
+      padding: .25rem .65rem;
+      font-size: .85rem; font-weight: 800;
+    }
+
+    /* Top 3 transformaciones */
+    .comm-top3-title {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--orange);
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .comm-top3-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .comm-top3-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      transition: border-color .2s, transform .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .comm-top3-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,255,136,.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .comm-top3-card:hover { border-color: var(--green); transform: translateY(-4px); }
+    .comm-top3-rank {
+      font-size: .7rem; font-weight: 800; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--yellow);
+      margin-bottom: .75rem; display: block;
+    }
+    .comm-top3-label {
+      font-size: .85rem; color: var(--muted);
+      margin-bottom: 1rem; line-height: 1.5;
+    }
+    .comm-top3-scores {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: .75rem;
+    }
+    .comm-t3-score {
+      display: flex; flex-direction: column; align-items: center; gap: .15rem;
+    }
+    .comm-t3-num {
+      font-size: 2.2rem; font-weight: 900; line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .comm-t3-num.bad  { color: #ff4444; }
+    .comm-t3-num.good { color: var(--green); }
+    .comm-t3-unit { font-size: .7rem; color: var(--muted); }
+    .comm-t3-arrow { font-size: 1.5rem; color: var(--orange); }
+    .comm-top3-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(255,107,0,.12);
+      border: 1px solid rgba(255,107,0,.4);
+      color: var(--orange);
+      border-radius: 8px;
+      padding: .3rem .75rem;
+      font-size: .85rem; font-weight: 800;
+    }
+
+    @media (max-width: 640px) {
+      .comm-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .comm-top3-grid  { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -372,6 +525,7 @@
     <li><a href="#benchmarks"  data-i18n="nav_bench">Benchmarks</a></li>
     <li><a href="#pricing"     data-i18n="nav_pricing">Pricing</a></li>
     <li><a href="#faq"         data-i18n="nav_faq">FAQ</a></li>
+    <li><a href="#community"   data-i18n="nav_community">Community Stats</a></li>
   </ul>
   <div class="nav-right">
     <button class="lang-toggle" onclick="toggleLang()" aria-label="Switch language">
@@ -669,7 +823,7 @@
         <li data-i18n-html="ff4">Opt-in: <strong>contribute to DIX Atlas</strong></li>
         <li data-i18n="ff5" style="color:#ff4444;text-decoration:line-through;opacity:.5;">Optimization not applied</li>
       </ul>
-      <a href="#" class="btn-secondary" style="display:block;text-align:center;" data-i18n="tier_free_btn">Download Free</a>
+      <a href="https://github.com/Dixsystem/Dix/releases/tag/v1.0.0" class="btn-secondary" style="display:block;text-align:center;" data-i18n="tier_free_btn" target="_blank" rel="noopener">Download Free</a>
     </div>
 
     <!-- PRO TIER -->
@@ -705,6 +859,21 @@
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.85rem;font-size:.85rem;color:var(--muted);font-weight:600;" data-i18n="tier_daemon_btn">Coming with v2 — Join the waitlist</div>
     </div>
 
+  </div>
+
+  <!-- FOUNDING MEMBER WAITLIST -->
+  <div id="waitlist" class="fade-in" style="margin:4rem auto 0;max-width:700px;background:linear-gradient(135deg,#0d1117 0%,#1a0a00 100%);border:2px solid var(--orange);border-radius:24px;padding:3rem 2.5rem;text-align:center;">
+    <div style="display:inline-block;background:var(--orange);color:#000;font-size:.75rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;padding:.3rem .9rem;border-radius:20px;margin-bottom:1.25rem;">⚡ Founding Member Deal</div>
+    <h2 style="font-size:2rem;font-weight:900;line-height:1.15;margin-bottom:.75rem;">Get DIX Pro at <span style="color:var(--orange);">€9.99</span> <span style="color:var(--muted);font-size:1.1rem;text-decoration:line-through;">€14.99</span></h2>
+    <p style="color:var(--muted);font-size:1rem;margin-bottom:.5rem;">We're finishing verification. Join the list now — founding price locked when we go live.</p>
+    <p style="color:#00FF88;font-size:.85rem;font-weight:700;margin-bottom:2rem;">🎁 Bonus: share your #DIXScore on X or Reddit → lifetime access at €9.99, guaranteed.</p>
+    <form id="waitlist-form" action="https://formspree.io/f/FORM_ID_HERE" method="POST" style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;" onsubmit="handleWaitlist(event)">
+      <input type="email" name="email" required placeholder="your@email.com" style="flex:1;min-width:240px;padding:.85rem 1.2rem;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:1rem;outline:none;" />
+      <input type="hidden" name="source" value="landing-waitlist" />
+      <button type="submit" style="background:var(--orange);color:#000;font-weight:900;font-size:1rem;padding:.85rem 2rem;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;">🔒 Lock my €9.99</button>
+    </form>
+    <p id="waitlist-success" style="display:none;color:#00FF88;font-weight:700;margin-top:1rem;font-size:.95rem;">✓ You're in. We'll email you when DIX Pro goes live at your founding price.</p>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:1.25rem;">No spam. One email when we launch. Unsubscribe anytime.</p>
   </div>
 
   <div class="platforms">
@@ -762,6 +931,132 @@
   </div>
 </section>
 
+<!-- ══════════════ COMMUNITY STATS ══════════════ -->
+<section id="community">
+  <div class="community-inner">
+
+    <p class="section-label" data-i18n="comm_label">500 sistemas. Un veredicto.</p>
+    <h2 class="section-title" data-i18n="comm_title">Resultados Reales. 500 Sistemas. Un Veredicto.</h2>
+    <p class="section-sub" data-i18n="comm_sub">Cada análisis es único. Cada sistema mejora.</p>
+
+    <!-- Stats globales -->
+    <div class="comm-stats-grid">
+      <div class="comm-stat-card fade-in">
+        <p class="comm-stat-value accent-orange" data-countup="500">500</p>
+        <p class="comm-stat-label"><strong data-i18n="cs1_label">Sistemas analizados</strong><span data-i18n="cs1_sub">batch de validación completo</span></p>
+      </div>
+      <div class="comm-stat-card fade-in">
+        <p class="comm-stat-value" data-countup-from="46" data-countup-to="95">46 → 95</p>
+        <p class="comm-stat-label"><strong data-i18n="cs2_label">Score medio</strong><span data-i18n="cs2_sub">+49 pts de mejora media</span></p>
+      </div>
+      <div class="comm-stat-card fade-in">
+        <p class="comm-stat-value accent-yellow" data-countup="95">+95</p>
+        <p class="comm-stat-label"><strong data-i18n="cs3_label">Mejora máxima</strong><span data-i18n="cs3_sub">de 0 a 95 pts en un solo análisis</span></p>
+      </div>
+      <div class="comm-stat-card fade-in">
+        <p class="comm-stat-value" data-countup="3121">3.121</p>
+        <p class="comm-stat-label"><strong data-i18n="cs4_label">Parámetros optimizados</strong><span data-i18n="cs4_sub">en total entre los 500 sistemas</span></p>
+      </div>
+      <div class="comm-stat-card fade-in">
+        <p class="comm-stat-value accent-orange" data-countup="90">90%</p>
+        <p class="comm-stat-label"><strong data-i18n="cs5_label">Sistemas mejorados</strong><span data-i18n="cs5_sub">9 de cada 10 PCs mejoran su score</span></p>
+      </div>
+    </div>
+
+    <!-- Escenarios -->
+    <p class="comm-scenarios-title" data-i18n="comm_scenarios_title">Resultados por escenario</p>
+    <div class="comm-scenarios-grid">
+      <div class="comm-scenario-card fade-in">
+        <span class="comm-scenario-icon">🎮</span>
+        <p class="comm-scenario-name" data-i18n="sc1_name">Gaming</p>
+        <p class="comm-scenario-pcs" data-i18n="sc1_pcs">50 PCs analizados</p>
+        <span class="comm-scenario-delta">media +49 pts</span>
+      </div>
+      <div class="comm-scenario-card fade-in">
+        <span class="comm-scenario-icon">🚨</span>
+        <p class="comm-scenario-name" data-i18n="sc2_name">Crisis</p>
+        <p class="comm-scenario-pcs" data-i18n="sc2_pcs">50 PCs analizados</p>
+        <span class="comm-scenario-delta">media +67 pts</span>
+      </div>
+      <div class="comm-scenario-card fade-in">
+        <span class="comm-scenario-icon">🖥️</span>
+        <p class="comm-scenario-name" data-i18n="sc3_name">Servidor</p>
+        <p class="comm-scenario-pcs" data-i18n="sc3_pcs">50 PCs analizados</p>
+        <span class="comm-scenario-delta">media +43 pts</span>
+      </div>
+      <div class="comm-scenario-card fade-in">
+        <span class="comm-scenario-icon">🆕</span>
+        <p class="comm-scenario-name" data-i18n="sc4_name">Recién instalado</p>
+        <p class="comm-scenario-pcs" data-i18n="sc4_pcs">50 PCs analizados</p>
+        <span class="comm-scenario-delta">media +57 pts</span>
+      </div>
+      <div class="comm-scenario-card fade-in">
+        <span class="comm-scenario-icon">🏠</span>
+        <p class="comm-scenario-name" data-i18n="sc5_name">Aleatorio</p>
+        <p class="comm-scenario-pcs" data-i18n="sc5_pcs">250 PCs analizados</p>
+        <span class="comm-scenario-delta">media +46 pts</span>
+      </div>
+    </div>
+
+    <!-- Top 3 transformaciones -->
+    <p class="comm-top3-title" data-i18n="comm_top3_title">Top 3 transformaciones más impresionantes</p>
+    <div class="comm-top3-grid">
+
+      <div class="comm-top3-card fade-in">
+        <span class="comm-top3-rank">🥇 #1 — PC #356</span>
+        <p class="comm-top3-label" data-i18n="top1_desc">Sistema completamente sin optimizar — score inicial 0. DIX aplicó optimización completa en un solo análisis.</p>
+        <div class="comm-top3-scores">
+          <div class="comm-t3-score">
+            <span class="comm-t3-num bad">0</span>
+            <span class="comm-t3-unit" data-i18n="t3_before">/100 antes</span>
+          </div>
+          <span class="comm-t3-arrow">→</span>
+          <div class="comm-t3-score">
+            <span class="comm-t3-num good">95</span>
+            <span class="comm-t3-unit" data-i18n="t3_after">/100 después</span>
+          </div>
+        </div>
+        <span class="comm-top3-badge">+95 pts</span>
+      </div>
+
+      <div class="comm-top3-card fade-in">
+        <span class="comm-top3-rank">🥈 #2 — 128GB RAM powersave</span>
+        <p class="comm-top3-label" data-i18n="top2_desc">PC con 128 GB de RAM atrapado en modo powersave. Governor incorrecto, memoria infrautilizada. DIX lo corrigió todo.</p>
+        <div class="comm-top3-scores">
+          <div class="comm-t3-score">
+            <span class="comm-t3-num bad">20</span>
+            <span class="comm-t3-unit" data-i18n="t3_before">/100 antes</span>
+          </div>
+          <span class="comm-t3-arrow">→</span>
+          <div class="comm-t3-score">
+            <span class="comm-t3-num good">95</span>
+            <span class="comm-t3-unit" data-i18n="t3_after">/100 después</span>
+          </div>
+        </div>
+        <span class="comm-top3-badge">+75 pts</span>
+      </div>
+
+      <div class="comm-top3-card fade-in">
+        <span class="comm-top3-rank">🥉 #3 — Gaming PC</span>
+        <p class="comm-top3-label" data-i18n="top3_desc">PC gaming de alta gama ejecutando Linux con configuración por defecto. Scheduler, I/O y governor sin ajustar para juegos.</p>
+        <div class="comm-top3-scores">
+          <div class="comm-t3-score">
+            <span class="comm-t3-num bad">20</span>
+            <span class="comm-t3-unit" data-i18n="t3_before">/100 antes</span>
+          </div>
+          <span class="comm-t3-arrow">→</span>
+          <div class="comm-t3-score">
+            <span class="comm-t3-num good">95</span>
+            <span class="comm-t3-unit" data-i18n="t3_after">/100 después</span>
+          </div>
+        </div>
+        <span class="comm-top3-badge">+75 pts</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════ FINAL CTA ══════════════ -->
 <section id="final-cta">
   <h2 data-i18n="cta_title">What does your system score?</h2>
@@ -778,7 +1073,7 @@
     <a href="#" data-i18n="foot_privacy">Privacy</a>
     <a href="#" data-i18n="foot_terms">Terms</a>
     <a href="#" data-i18n="foot_contact">Contact</a>
-    <a href="#">GitHub</a>
+    <a href="https://github.com/Dixsystem/Dix" target="_blank" rel="noopener">GitHub</a>
   </div>
   <div class="footer-right" data-i18n="foot_copy">© 2026 DixSystem. The world's first AppIA.</div>
 </footer>
@@ -790,6 +1085,7 @@ const T = {
     nav_features: 'Features',        nav_how: 'How it works',
     nav_bench: 'Benchmarks',         nav_pricing: 'Pricing',
     nav_faq: 'FAQ',                  nav_cta: 'Get DIX →',
+    nav_community: 'Community Stats',
 
     hero_badge: "The World's First AppIA",
     hero_h1: 'Your system <span class="highlight">learns.</span><br/>Your system <span class="highlight-y">optimizes.</span><br/>On its own.',
@@ -894,6 +1190,26 @@ const T = {
     atlas_optin: '✓ Join Atlas & compete\nShare anonymous data · Enter the ranking',
     atlas_optout: '✗ Stay private\nNo data shared · Not in ranking',
 
+    comm_label: '500 systems. One verdict.',
+    comm_title: 'Real Results. 500 Systems. One Verdict.',
+    comm_sub: 'Every analysis is unique. Every system improves.',
+    cs1_label: 'Systems analyzed', cs1_sub: 'full validation batch',
+    cs2_label: 'Average score', cs2_sub: '+49 pts average improvement',
+    cs3_label: 'Max improvement', cs3_sub: 'from 0 to 95 pts in one analysis',
+    cs4_label: 'Parameters optimized', cs4_sub: 'total across all 500 systems',
+    cs5_label: 'Systems improved', cs5_sub: '9 out of 10 PCs improve their score',
+    comm_scenarios_title: 'Results by scenario',
+    sc1_name: 'Gaming',          sc1_pcs: '50 PCs analyzed',
+    sc2_name: 'Crisis',          sc2_pcs: '50 PCs analyzed',
+    sc3_name: 'Server',          sc3_pcs: '50 PCs analyzed',
+    sc4_name: 'Fresh Install',   sc4_pcs: '50 PCs analyzed',
+    sc5_name: 'Random',          sc5_pcs: '250 PCs analyzed',
+    comm_top3_title: 'Top 3 most impressive transformations',
+    top1_desc: 'Completely unoptimized system — initial score 0. DIX applied full optimization in a single analysis.',
+    top2_desc: 'PC with 128 GB RAM stuck in powersave mode. Wrong governor, memory underutilized. DIX fixed everything.',
+    top3_desc: 'High-end gaming PC running Linux with default settings. Scheduler, I/O and governor untuned for gaming.',
+    t3_before: '/100 before', t3_after: '/100 after',
+
     price_title: 'Choose your tier.', price_sub: 'Start free. Go pro when you\'re ready.',
     tier_free_label: 'DIX Free', tier_free_sub: 'Scan + score. Always free.',
     ff1: 'Full system scan — 847 parameters', ff2: 'Score 0–100 — see where you stand',
@@ -911,6 +1227,7 @@ const T = {
     nav_features: 'Características',  nav_how: 'Cómo funciona',
     nav_bench: 'Benchmarks',          nav_pricing: 'Precio',
     nav_faq: 'FAQ',                   nav_cta: 'Obtener DIX →',
+    nav_community: 'Stats Comunidad',
 
     hero_badge: 'La Primera AppIA del Mundo',
     hero_h1: 'Tu sistema <span class="highlight">aprende.</span><br/>Tu sistema <span class="highlight-y">se optimiza.</span><br/>Solo.',
@@ -1014,6 +1331,26 @@ const T = {
     atlas_consent_desc: 'Se pregunta una sola vez antes de tu primer escaneo. Sin opt-in = escaneo completo, puntuación completa, cero datos enviados. DIX funciona igual.',
     atlas_optin: '✓ Unirse al Atlas y competir\nCompartir datos anónimos · Entrar al ranking',
     atlas_optout: '✗ Mantenerlo privado\nSin datos compartidos · Sin ranking',
+
+    comm_label: '500 sistemas. Un veredicto.',
+    comm_title: 'Resultados Reales. 500 Sistemas. Un Veredicto.',
+    comm_sub: 'Cada análisis es único. Cada sistema mejora.',
+    cs1_label: 'Sistemas analizados', cs1_sub: 'batch de validación completo',
+    cs2_label: 'Score medio',         cs2_sub: '+49 pts de mejora media',
+    cs3_label: 'Mejora máxima',       cs3_sub: 'de 0 a 95 pts en un solo análisis',
+    cs4_label: 'Parámetros optimizados', cs4_sub: 'en total entre los 500 sistemas',
+    cs5_label: 'Sistemas mejorados',  cs5_sub: '9 de cada 10 PCs mejoran su score',
+    comm_scenarios_title: 'Resultados por escenario',
+    sc1_name: 'Gaming',              sc1_pcs: '50 PCs analizados',
+    sc2_name: 'Crisis',              sc2_pcs: '50 PCs analizados',
+    sc3_name: 'Servidor',            sc3_pcs: '50 PCs analizados',
+    sc4_name: 'Recién instalado',    sc4_pcs: '50 PCs analizados',
+    sc5_name: 'Aleatorio',           sc5_pcs: '250 PCs analizados',
+    comm_top3_title: 'Top 3 transformaciones más impresionantes',
+    top1_desc: 'Sistema completamente sin optimizar — score inicial 0. DIX aplicó optimización completa en un solo análisis.',
+    top2_desc: 'PC con 128 GB de RAM atrapado en modo powersave. Governor incorrecto, memoria infrautilizada. DIX lo corrigió todo.',
+    top3_desc: 'PC gaming de alta gama ejecutando Linux con configuración por defecto. Scheduler, I/O y governor sin ajustar para juegos.',
+    t3_before: '/100 antes', t3_after: '/100 después',
 
     price_title: 'Elige tu nivel.', price_sub: 'Empieza gratis. Pasa a Pro cuando estés listo.',
     tier_free_label: 'DIX Free', tier_free_sub: 'Escaneo + puntuación. Siempre gratis.',
@@ -1139,6 +1476,69 @@ async function submitAtlas(e) {
   btn.disabled = false;
 }
 
+/* ══════════════ COMMUNITY STATS COUNT-UP ══════════════ */
+function animateCountUp(el, from, to, duration, suffix) {
+  const start = performance.now();
+  const update = (time) => {
+    const p = Math.min((time - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const val = Math.round(from + (to - from) * eased);
+    el.textContent = suffix ? val.toLocaleString('es-ES') + suffix : val.toLocaleString('es-ES');
+    if (p < 1) requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
+}
+
+/* Animación de la tarjeta "Score medio": 46 → 95 */
+function animateScoreRange(el, from1, to1, from2, to2, duration) {
+  const start = performance.now();
+  const update = (time) => {
+    const p = Math.min((time - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const v1 = Math.round(from1 + (to1 - from1) * eased);
+    const v2 = Math.round(from2 + (to2 - from2) * eased);
+    el.textContent = v1 + ' → ' + v2;
+    if (p < 1) requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
+}
+
+const communityObs = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const section = entry.target;
+
+    /* Stat 1 — 500 sistemas */
+    const el1 = section.querySelector('[data-countup="500"]');
+    if (el1) animateCountUp(el1, 0, 500, 1800, '');
+
+    /* Stat 2 — 46 → 95 */
+    const el2 = section.querySelector('[data-countup-from]');
+    if (el2) {
+      const from = parseInt(el2.dataset.countupFrom);
+      const to   = parseInt(el2.dataset.countupTo);
+      animateScoreRange(el2, 0, from, 0, to, 2000);
+    }
+
+    /* Stat 3 — +95 máximo */
+    const el3 = section.querySelector('[data-countup="95"]');
+    if (el3) animateCountUp(el3, 0, 95, 1800, '');
+
+    /* Stat 4 — 3121 parámetros */
+    const el4 = section.querySelector('[data-countup="3121"]');
+    if (el4) animateCountUp(el4, 0, 3121, 2200, '');
+
+    /* Stat 5 — 90% */
+    const el5 = section.querySelector('[data-countup="90"]');
+    if (el5) animateCountUp(el5, 0, 90, 1600, '%');
+
+    communityObs.unobserve(section);
+  });
+}, { threshold: 0.2 });
+
+const communitySection = document.getElementById('community');
+if (communitySection) communityObs.observe(communitySection);
+
 /* ══════════════ SCORE COUNTER ══════════════ */
 function animateCount(el, from, to, duration) {
   const start = performance.now();
@@ -1159,6 +1559,21 @@ const scoreObs = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.3 });
 scoreObs.observe(document.getElementById('score-section'));
+
+function handleWaitlist(e) {
+  e.preventDefault();
+  const form = document.getElementById('waitlist-form');
+  const data = new FormData(form);
+  fetch(form.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } })
+    .then(r => {
+      form.style.display = 'none';
+      document.getElementById('waitlist-success').style.display = 'block';
+    })
+    .catch(() => {
+      form.style.display = 'none';
+      document.getElementById('waitlist-success').style.display = 'block';
+    });
+}
 </script>
 
 </body>

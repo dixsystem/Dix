@@ -20,6 +20,7 @@ reqwest               = { version = "0.12", features = ["json"] }
 tokio                 = { version = "1", features = ["full"] }
 obfstr                = "0.4"
 
+
 [profile.release]
 codegen-units = 1
 lto           = true

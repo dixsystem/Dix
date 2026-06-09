@@ -82,6 +82,205 @@ function scoreColor(s: number) {
   return s >= 80 ? C.green : s >= 55 ? C.yellow : C.red;
 }
 
+// ─── Generador de imagen para compartir ──────────────────────────────────────
+
+async function generateShareCard(
+  scoreBefore: number,
+  scoreAfter: number,
+  cpuModel: string,
+  memTotalMb: number,
+  distro: string,
+  distroVersion: string,
+  dixImgSrc: string,
+): Promise<string> {
+  const W = 1200, H = 630;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+
+  // Cargar imagen de DIX en paralelo con el dibujado
+  const dixImg = await new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = dixImgSrc;
+  });
+
+  // Fondo
+  ctx.fillStyle = "#0d1117";
+  ctx.fillRect(0, 0, W, H);
+
+  // Borde exterior naranja
+  ctx.strokeStyle = "#FF6B00";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(2, 2, W - 4, H - 4);
+
+  // Línea decorativa superior
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, "transparent");
+  grad.addColorStop(0.3, "#FF6B00");
+  grad.addColorStop(0.7, "#FF6B00");
+  grad.addColorStop(1, "transparent");
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(W, 5); ctx.stroke();
+
+  // Logo DIX — texto
+  ctx.fillStyle = "#FF6B00";
+  ctx.font = "bold 52px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("DIX", 60, 80);
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "18px 'Inter', system-ui, sans-serif";
+  ctx.fillText("Linux Kernel Optimizer", 148, 73);
+
+  // URL derecha
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "16px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("dixsystem.com", W - 60, 73);
+
+  // Separador horizontal
+  ctx.strokeStyle = "#21262d";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(60, 100); ctx.lineTo(W - 60, 100); ctx.stroke();
+
+  // Título central
+  ctx.fillStyle = "#e6edf3";
+  ctx.font = "bold 34px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("My Linux performance score", W / 2, 158);
+
+  // ── Score ANTES ────────────────────────────────────────────────────────────
+  const cx1 = 260, cy = 355, radius = 115, strokeW = 17;
+  const colorBefore = scoreColor(scoreBefore);
+  const colorAfter  = scoreColor(scoreAfter);
+
+  ctx.strokeStyle = "#21262d";
+  ctx.lineWidth = strokeW;
+  ctx.beginPath();
+  ctx.arc(cx1, cy, radius, -Math.PI / 2, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.strokeStyle = colorBefore;
+  ctx.lineWidth = strokeW;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(cx1, cy, radius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * scoreBefore) / 100);
+  ctx.stroke();
+  ctx.fillStyle = colorBefore;
+  ctx.font = "bold 70px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(String(scoreBefore), cx1, cy + 22);
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "20px 'Inter', system-ui, sans-serif";
+  ctx.fillText("/100", cx1, cy + 50);
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
+  ctx.fillText("BEFORE", cx1, cy + radius + 32);
+
+  // ── Imagen DIX en el centro ────────────────────────────────────────────────
+  if (dixImg) {
+    const imgSize = 170;
+    const imgX = W / 2 - imgSize / 2;
+    const imgY = cy - imgSize / 2 - 10;
+    // Halo naranja suave detrás de DIX
+    const halo = ctx.createRadialGradient(W / 2, cy, 0, W / 2, cy, imgSize * 0.7);
+    halo.addColorStop(0, "rgba(255,107,0,0.18)");
+    halo.addColorStop(1, "transparent");
+    ctx.fillStyle = halo;
+    ctx.fillRect(imgX - 20, imgY - 20, imgSize + 40, imgSize + 40);
+    ctx.drawImage(dixImg, imgX, imgY, imgSize, imgSize);
+  }
+
+  // Delta encima de DIX
+  const delta = scoreAfter - scoreBefore;
+  if (delta > 0) {
+    ctx.fillStyle = "#00FF88";
+    ctx.font = "bold 28px 'Inter', system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`+${delta} pts`, W / 2, cy + radius + 32);
+  }
+
+  // Flechas a cada lado de DIX
+  const arrowY = cy;
+  // Flecha izquierda (desde ring antes hasta DIX)
+  ctx.strokeStyle = "#FF6B00";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(cx1 + radius + 10, arrowY); ctx.lineTo(W / 2 - 95, arrowY); ctx.stroke();
+  // Flecha derecha (desde DIX hasta ring después)
+  const cx2 = W - 260;
+  ctx.beginPath(); ctx.moveTo(W / 2 + 95, arrowY); ctx.lineTo(cx2 - radius - 10, arrowY); ctx.stroke();
+  // Punta de flecha derecha
+  ctx.fillStyle = "#FF6B00";
+  ctx.beginPath();
+  ctx.moveTo(cx2 - radius - 10, arrowY);
+  ctx.lineTo(cx2 - radius - 28, arrowY - 11);
+  ctx.lineTo(cx2 - radius - 28, arrowY + 11);
+  ctx.closePath(); ctx.fill();
+
+  // ── Score DESPUÉS ──────────────────────────────────────────────────────────
+  ctx.strokeStyle = "#21262d";
+  ctx.lineWidth = strokeW;
+  ctx.beginPath();
+  ctx.arc(cx2, cy, radius, -Math.PI / 2, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.strokeStyle = colorAfter;
+  ctx.lineWidth = strokeW;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(cx2, cy, radius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * scoreAfter) / 100);
+  ctx.stroke();
+  ctx.fillStyle = colorAfter;
+  ctx.font = "bold 70px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(String(scoreAfter), cx2, cy + 22);
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "20px 'Inter', system-ui, sans-serif";
+  ctx.fillText("/100", cx2, cy + 50);
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
+  ctx.fillText("AFTER", cx2, cy + radius + 32);
+
+  // Separador inferior
+  ctx.strokeStyle = "#21262d";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(60, H - 105); ctx.lineTo(W - 60, H - 105); ctx.stroke();
+
+  // Hardware info
+  const ramGb = Math.round((memTotalMb + 512) / 1024);
+  const cpuShort = cpuModel.replace(/\(R\)|\(TM\)|CPU\s+@.*/gi, "").trim().slice(0, 42);
+  const hwLine = `${cpuShort}  ·  ${ramGb} GB RAM  ·  ${distro} ${distroVersion}`.trim();
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "16px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(hwLine, W / 2, H - 72);
+
+  // Hashtags
+  ctx.fillStyle = "#FF6B00";
+  ctx.font = "bold 19px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("#DIXScore  ·  #Linux  ·  dixsystem.com", W / 2, H - 38);
+
+  return canvas.toDataURL("image/png");
+}
+
+// Descarga una data URL como archivo en Tauri (blob URL evita que el WebView la intercepte)
+function downloadDataUrl(dataUrl: string, filename: string) {
+  fetch(dataUrl)
+    .then((r) => r.blob())
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    });
+}
+
 // Score determinista basado en métricas reales — evita inconsistencias entre sesiones
 function computeScore(scan: SystemScan): number {
   let score = 100;
@@ -534,6 +733,7 @@ export default function App() {
   const [updateState, setUpdateState]       = useState<"idle" | "downloading" | "done">("idle");
   const [hwSummary, setHwSummary] = useState<{ cpu: string; ram: string; distro: string } | null>(null);
   const [idleScan, setIdleScan]   = useState<SystemScan | null>(null);
+  const [shareCardUrl, setShareCardUrl] = useState<string | null>(null);
 
   // Mostrar todas las métricas inmediatamente cuando llegan
   useEffect(() => {
@@ -819,12 +1019,39 @@ export default function App() {
                 />
               </div>
 
-              {/* Score antes/después cuando está en done */}
+              {/* Score antes/después + botón compartir cuando está en done */}
               {view === "done" && analysis && (
-                <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center", padding: "10px 14px", borderTop: `1px solid ${C.border}` }}>
-                  <ScoreRing score={analysis.score_actual}     label="Antes" size={72} />
-                  <div style={{ fontSize: 22, color: C.muted }}>→</div>
-                  <ScoreRing score={analysis.score_optimizado} label="Ahora"  size={72} />
+                <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 14px" }}>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center" }}>
+                    <ScoreRing score={analysis.score_actual}     label="Antes" size={72} />
+                    <div style={{ fontSize: 22, color: C.muted }}>→</div>
+                    <ScoreRing score={analysis.score_optimizado} label="Ahora"  size={72} />
+                  </div>
+                  {scan && (
+                    <button
+                      onClick={() => {
+                        generateShareCard(
+                          analysis.score_actual,
+                          analysis.score_optimizado,
+                          scan.cpu_model,
+                          scan.mem_total_mb,
+                          scan.distro_id,
+                          scan.distro_version,
+                          dixIdle,
+                        ).then(setShareCardUrl);
+                      }}
+                      style={{
+                        marginTop: 10, width: "100%",
+                        background: `linear-gradient(135deg, ${C.orange}, #ff8533)`,
+                        color: "#fff", border: "none", borderRadius: 8,
+                        padding: "8px 0", fontSize: 12, fontWeight: 800,
+                        cursor: "pointer", letterSpacing: "0.5px",
+                        boxShadow: `0 2px 12px ${C.orange}55`,
+                      }}
+                    >
+                      📤 COMPARTIR MI SCORE
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1364,6 +1591,68 @@ export default function App() {
               Ya tengo una clave — Activar licencia
             </button>
             <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: C.muted }} onClick={() => setShowDemoModal(false)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal compartir score ── */}
+      {shareCardUrl && analysis && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+          <div className="card fade-in" style={{ padding: "24px", maxWidth: 680, width: "100%", border: `1px solid ${C.orange}55` }}>
+            {/* Cabecera */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>Tu tarjeta de score lista</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Comparte en Twitter, Reddit o LinkedIn y consigue DIX a precio de founding member</div>
+              </div>
+              <button onClick={() => setShareCardUrl(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 20, padding: 4 }}>✕</button>
+            </div>
+
+            {/* Preview de la imagen */}
+            <img
+              src={shareCardUrl}
+              alt="DIX Score Card"
+              style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.border}`, marginBottom: 16 }}
+            />
+
+            {/* Texto para copiar */}
+            <div style={{ background: "#010409", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
+              My Linux score went from {analysis.score_actual} to {analysis.score_optimizado}/100 with DIX 🚀{"\n"}
+              Try it free → dixsystem.com #DIXScore #Linux
+            </div>
+
+            {/* Botones */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => downloadDataUrl(shareCardUrl, "dix-score.png")}
+                style={{
+                  flex: 1, textAlign: "center",
+                  background: `linear-gradient(135deg, ${C.orange}, #ff8533)`,
+                  color: "#fff", border: "none", borderRadius: 8,
+                  padding: "11px 0", fontSize: 13, fontWeight: 800,
+                  cursor: "pointer", boxShadow: `0 2px 12px ${C.orange}55`,
+                }}
+              >
+                ⬇ Descargar imagen
+              </button>
+              <button
+                onClick={() => {
+                  const text = `My Linux score went from ${analysis.score_actual} to ${analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DIXScore #Linux`;
+                  navigator.clipboard.writeText(text).catch(() => {});
+                }}
+                style={{
+                  flex: 1, background: C.card, color: C.text,
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                  padding: "11px 0", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                📋 Copiar texto
+              </button>
+            </div>
+
+            <div style={{ marginTop: 12, fontSize: 11, color: C.muted, textAlign: "center" }}>
+              Comparte la imagen + el texto en cualquier red y mándanos el enlace para conseguir precio founding member
+            </div>
           </div>
         </div>
       )}

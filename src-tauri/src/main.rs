@@ -10,6 +10,7 @@ mod memory;
 mod claude_gateway;
 mod executor;
 mod cache;
+mod atlas;
 
 use executor::RollbackInfo;
 use memory::Session;
@@ -80,8 +81,27 @@ async fn analyze_system(scan_json: String) -> Result<AnalysisResponse, String> {
     });
     cache::record_history(&mut opt_cache, &stable_acp, false, elapsed_ms);
     cache::save_cache(&opt_cache).ok();
-    if memory::get_license_key().is_none() {
+
+    let is_demo = memory::get_license_key().is_none();
+    if is_demo {
         memory::increment_demo_count().ok();
+    }
+
+    // Atlas — telemetría anónima: extraer scores y optimizaciones del JSON de análisis
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result) {
+        let score_antes   = parsed["score_actual"].as_u64().unwrap_or(0) as u32;
+        let score_despues = parsed["score_optimizado"].as_u64().unwrap_or(0) as u32;
+        let opts: Vec<String> = parsed["optimizaciones"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .filter_map(|o| {
+                let titulo = o["titulo"].as_str().unwrap_or("");
+                let cat    = o["categoria"].as_str().unwrap_or("");
+                if titulo.is_empty() { None } else { Some(format!("{}: {}", cat, titulo)) }
+            })
+            .collect();
+        atlas::report(&scan, score_antes, score_despues, opts);
     }
 
     Ok(AnalysisResponse {
