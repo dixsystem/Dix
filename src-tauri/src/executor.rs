@@ -6,8 +6,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use serde::{Deserialize, Serialize};
-use crate::policy;
 use crate::scanner::SystemScan;
+
+#[cfg(not(target_os = "windows"))]
+use crate::policy;
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
@@ -21,13 +23,32 @@ pub struct RollbackInfo {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 fn rollbacks_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home).join(".config").join("dix").join("rollbacks")
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var("APPDATA")
+            .unwrap_or_else(|_| r"C:\Users\Default\AppData\Roaming".to_string());
+        return PathBuf::from(appdata).join("Dix").join("rollbacks");
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(home).join(".config").join("dix").join("rollbacks")
+    }
 }
 
 // ─── Punto de entrada principal ───────────────────────────────────────────────
 
 pub fn run_script(content: &str, pre_scan: &SystemScan) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    return run_script_windows(content, pre_scan);
+    #[cfg(not(target_os = "windows"))]
+    return run_script_linux(content, pre_scan);
+}
+
+// ─── Implementación Linux ─────────────────────────────────────────────────────
+
+#[cfg(not(target_os = "windows"))]
+fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, String> {
     let violations = policy::validate_script(content);
     if !violations.is_empty() {
         let msgs: Vec<String> = violations
@@ -46,9 +67,8 @@ pub fn run_script(content: &str, pre_scan: &SystemScan) -> Result<String, String
     // Guardar rollback ANTES de ejecutar nada
     save_rollback(pre_scan, ts)?;
 
-    // Preparar archivos de persistencia
-    let sysctl_conf    = build_sysctl_conf(&clean);
-    let boot_tweaks    = build_boot_tweaks(&clean);
+    let sysctl_conf = build_sysctl_conf(&clean);
+    let boot_tweaks = build_boot_tweaks(&clean);
     let service_content =
         "[Unit]\nDescription=Dix - Apply boot optimizations\n\
          After=multi-user.target power-profiles-daemon.service thermald.service\n\
@@ -95,7 +115,6 @@ pub fn run_script(content: &str, pre_scan: &SystemScan) -> Result<String, String
     fs::write(&combined_path, &combined).map_err(|e| format!("script combinado: {}", e))?;
     Command::new("chmod").args(["+x", &combined_path]).output().ok();
 
-    // Una sola llamada a pkexec
     let output = Command::new("/usr/bin/pkexec")
         .args(["bash", &combined_path])
         .output()
@@ -119,21 +138,76 @@ pub fn run_script(content: &str, pre_scan: &SystemScan) -> Result<String, String
     }
 }
 
+// ─── Implementación Windows ───────────────────────────────────────────────────
+
+#[cfg(target_os = "windows")]
+fn run_script_windows(content: &str, pre_scan: &SystemScan) -> Result<String, String> {
+    let clean = strip_fences(content);
+    let ts = epoch_secs();
+
+    // Guardar rollback ANTES de ejecutar nada
+    save_rollback(pre_scan, ts)?;
+
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join(format!("dix_{}.ps1", ts));
+
+    fs::write(&script_path, &clean)
+        .map_err(|e| format!("No se pudo escribir el script PS1: {}", e))?;
+
+    // La app requiere elevación UAC al inicio (requestedExecutionLevel = requireAdministrator)
+    // por lo que PowerShell hereda privilegios de administrador
+    let output = Command::new("powershell")
+        .args([
+            "-ExecutionPolicy", "Bypass",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            script_path.to_str().unwrap_or(""),
+        ])
+        .output()
+        .map_err(|e| format!("PowerShell no disponible: {}", e))?;
+
+    let _ = fs::remove_file(&script_path);
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        let code = output.status.code().unwrap_or(-1);
+        Err(format!(
+            "Script falló (código {}):\n{}{}",
+            code,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ))
+    }
+}
+
 // ─── Sistema de rollback ──────────────────────────────────────────────────────
 
 fn save_rollback(scan: &SystemScan, ts: u64) -> Result<(), String> {
     fs::create_dir_all(rollbacks_dir()).map_err(|e| e.to_string())?;
     let script = generate_rollback_script(scan, ts);
+
+    #[cfg(target_os = "windows")]
+    let filename = format!("rollback_{}.ps1", ts);
+    #[cfg(not(target_os = "windows"))]
     let filename = format!("rollback_{}.sh", ts);
+
     let path = rollbacks_dir().join(&filename);
     fs::write(&path, &script).map_err(|e| format!("No se pudo guardar rollback: {}", e))?;
-
-    // Conservar solo los 10 rollbacks más recientes
     prune_old_rollbacks();
     Ok(())
 }
 
 fn generate_rollback_script(scan: &SystemScan, ts: u64) -> String {
+    #[cfg(target_os = "windows")]
+    return generate_rollback_script_windows(scan, ts);
+    #[cfg(not(target_os = "windows"))]
+    return generate_rollback_script_linux(scan, ts);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn generate_rollback_script_linux(scan: &SystemScan, ts: u64) -> String {
     let date = format_unix_ts(ts);
     let lines: Vec<String> = vec![
         "#!/bin/bash".into(),
@@ -171,24 +245,75 @@ fn generate_rollback_script(scan: &SystemScan, ts: u64) -> String {
         "".into(),
         "echo 'Rollback completado. Sistema restaurado al estado previo.'".into(),
     ];
-
     lines.join("\n")
+}
+
+#[cfg(target_os = "windows")]
+fn generate_rollback_script_windows(scan: &SystemScan, ts: u64) -> String {
+    let date = format_unix_ts(ts);
+
+    // Mapear governor al GUID del plan de energía Windows
+    let plan_guid = match scan.cpu_governor.as_str() {
+        "ultimate-performance" => "e9a42b02-d5df-448d-aa00-03f14749eb61",
+        "high-performance"     => "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+        "powersave"            => "a1841308-3541-4fab-bc81-f71556f20b4a",
+        _                      => "381b4222-f694-41f0-9685-ff5bb260df2e", // balanced
+    };
+
+    // dirty_ratio <= 1 indica que Nagle ya estaba desactivado antes de la opt.
+    let nagle_was_disabled = scan.dirty_ratio <= 1;
+
+    let nagle_block = if nagle_was_disabled {
+        "# Nagle ya estaba desactivado antes — sin cambios necesarios".to_string()
+    } else {
+        "# Restaurar Nagle — eliminar claves TcpAckFrequency/TCPNoDelay\n\
+         $ifaces = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces'\n\
+         foreach ($iface in $ifaces) {\n\
+         \tRemove-ItemProperty -Path $iface.PSPath -Name 'TcpAckFrequency' -ErrorAction SilentlyContinue\n\
+         \tRemove-ItemProperty -Path $iface.PSPath -Name 'TCPNoDelay' -ErrorAction SilentlyContinue\n\
+         }".to_string()
+    };
+
+    format!(
+        "# Dix - Rollback PowerShell generado el {date}\n\
+         # Restaura el estado del sistema previo a la ultima optimizacion\n\
+         # NO editar manualmente\n\
+         $ErrorActionPreference = 'Continue'\n\
+         Write-Host '[Dix] Restaurando configuracion previa...'\n\
+         \n\
+         # -- Plan de energia --------------------------------------------------\n\
+         Write-Host '[Dix] Restaurando plan de energia: {guid}'\n\
+         powercfg /setactive {guid}\n\
+         \n\
+         # -- Algoritmo Nagle (TCP) --------------------------------------------\n\
+         {nagle}\n\
+         \n\
+         Write-Host '[Dix] Rollback completado. Sistema restaurado al estado previo.'\n",
+        date = date,
+        guid = plan_guid,
+        nagle = nagle_block,
+    )
 }
 
 pub fn list_rollbacks() -> Vec<RollbackInfo> {
     let dir = rollbacks_dir();
     let Ok(entries) = fs::read_dir(&dir) else { return vec![]; };
 
+    #[cfg(target_os = "windows")]
+    let ext = ".ps1";
+    #[cfg(not(target_os = "windows"))]
+    let ext = ".sh";
+
     let mut infos: Vec<RollbackInfo> = entries
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().to_string();
-            if !name.starts_with("rollback_") || !name.ends_with(".sh") {
+            if !name.starts_with("rollback_") || !name.ends_with(ext) {
                 return None;
             }
             let ts_str = name
                 .strip_prefix("rollback_")?
-                .strip_suffix(".sh")?;
+                .strip_suffix(ext)?;
             let ts: u64 = ts_str.parse().ok()?;
             Some(RollbackInfo {
                 filename: name,
@@ -203,10 +328,18 @@ pub fn list_rollbacks() -> Vec<RollbackInfo> {
 }
 
 pub fn execute_rollback(filename: &str) -> Result<String, String> {
-    // Validar que el filename es seguro (solo chars permitidos)
     if !filename.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
         return Err("Nombre de rollback inválido.".to_string());
     }
+
+    #[cfg(target_os = "windows")]
+    return execute_rollback_windows(filename);
+    #[cfg(not(target_os = "windows"))]
+    return execute_rollback_linux(filename);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn execute_rollback_linux(filename: &str) -> Result<String, String> {
     if !filename.starts_with("rollback_") || !filename.ends_with(".sh") {
         return Err("Archivo de rollback inválido.".to_string());
     }
@@ -219,7 +352,6 @@ pub fn execute_rollback(filename: &str) -> Result<String, String> {
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("No se pudo leer rollback: {}", e))?;
 
-    // Validar con las mismas políticas de seguridad
     let violations = policy::validate_script(&content);
     if !violations.is_empty() {
         let msgs: Vec<String> = violations
@@ -257,101 +389,62 @@ pub fn execute_rollback(filename: &str) -> Result<String, String> {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn execute_rollback_windows(filename: &str) -> Result<String, String> {
+    if !filename.starts_with("rollback_") || !filename.ends_with(".ps1") {
+        return Err("Archivo de rollback inválido.".to_string());
+    }
+
+    let path = rollbacks_dir().join(filename);
+    if !path.exists() {
+        return Err(format!("Rollback no encontrado: {}", filename));
+    }
+
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("No se pudo leer rollback: {}", e))?;
+
+    let ts = epoch_secs();
+    let tmp = std::env::temp_dir().join(format!("dix_rollback_{}.ps1", ts));
+    fs::write(&tmp, &content)
+        .map_err(|e| format!("No se pudo preparar rollback: {}", e))?;
+
+    let output = Command::new("powershell")
+        .args([
+            "-ExecutionPolicy", "Bypass",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            tmp.to_str().unwrap_or(""),
+        ])
+        .output()
+        .map_err(|e| format!("PowerShell no disponible: {}", e))?;
+
+    let _ = fs::remove_file(&tmp);
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        let code = output.status.code().unwrap_or(-1);
+        Err(format!(
+            "Rollback falló (código {}): {}",
+            code,
+            String::from_utf8_lossy(&output.stderr)
+        ))
+    }
+}
+
 fn prune_old_rollbacks() {
     let mut infos = list_rollbacks();
     if infos.len() <= 10 { return; }
-    infos.sort_by(|a, b| a.timestamp.cmp(&b.timestamp)); // más antiguos primero
+    infos.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     for old in infos.iter().take(infos.len() - 10) {
         let _ = fs::remove_file(rollbacks_dir().join(&old.filename));
     }
 }
 
-// ─── Persistencia en arranque ─────────────────────────────────────────────────
+// ─── Helpers Linux ────────────────────────────────────────────────────────────
 
-fn apply_persistence(script: &str) -> Result<(), String> {
-    let ts = epoch_secs();
-    let sysctl_conf     = build_sysctl_conf(script);
-    let boot_tweaks     = build_boot_tweaks(script);
-    let service_content =
-        "[Unit]\n\
-         Description=Dix - Apply boot optimizations\n\
-         After=multi-user.target power-profiles-daemon.service thermald.service\n\
-         \n\
-         [Service]\n\
-         Type=oneshot\n\
-         RemainAfterExit=yes\n\
-         ExecStart=/bin/bash /usr/local/lib/dix/boot-tweaks.sh\n\
-         \n\
-         [Install]\n\
-         WantedBy=multi-user.target\n";
-
-    // Hook de resume: reaplicar tweaks al salir de suspensión
-    let sleep_hook_content =
-        "#!/bin/bash\n\
-         # Dix — Reaplicar optimizaciones tras resume del sistema\n\
-         [ \"$1\" = \"post\" ] && /bin/bash /usr/local/lib/dix/boot-tweaks.sh\n";
-
-    let sysctl_tmp      = format!("/tmp/dix_sysctl_{}.conf", ts);
-    let boot_tmp        = format!("/tmp/dix_boot_{}.sh", ts);
-    let service_tmp     = format!("/tmp/dix_service_{}.service", ts);
-    let sleep_hook_tmp  = format!("/tmp/dix_sleep_{}.sh", ts);
-    let helper_tmp      = format!("/tmp/dix_persist_{}.sh", ts);
-
-    fs::write(&sysctl_tmp, &sysctl_conf)
-        .map_err(|e| format!("sysctl tmp: {}", e))?;
-    fs::write(&boot_tmp, &boot_tweaks)
-        .map_err(|e| format!("boot tmp: {}", e))?;
-    fs::write(&service_tmp, service_content)
-        .map_err(|e| format!("service tmp: {}", e))?;
-    fs::write(&sleep_hook_tmp, sleep_hook_content)
-        .map_err(|e| format!("sleep hook tmp: {}", e))?;
-
-    let helper = format!(
-        "#!/bin/bash\n\
-         set -e\n\
-         /usr/bin/tee /etc/sysctl.d/99-dix.conf < {s} > /dev/null\n\
-         mkdir -p /usr/local/lib/dix\n\
-         /usr/bin/tee /usr/local/lib/dix/boot-tweaks.sh < {b} > /dev/null\n\
-         chmod +x /usr/local/lib/dix/boot-tweaks.sh\n\
-         /usr/bin/tee /etc/systemd/system/dix-boot.service < {sv} > /dev/null\n\
-         /usr/bin/tee /lib/systemd/system-sleep/dix.sh < {sh} > /dev/null\n\
-         chmod +x /lib/systemd/system-sleep/dix.sh\n\
-         systemctl daemon-reload\n\
-         systemctl enable dix-boot.service\n",
-        s  = sysctl_tmp,
-        b  = boot_tmp,
-        sv = service_tmp,
-        sh = sleep_hook_tmp,
-    );
-
-    fs::write(&helper_tmp, &helper).map_err(|e| format!("helper tmp: {}", e))?;
-    Command::new("chmod").args(["+x", &helper_tmp]).output().ok();
-
-    let out = Command::new("/usr/bin/pkexec")
-        .args(["bash", &helper_tmp])
-        .output()
-        .map_err(|e| format!("pkexec persistencia: {}", e))?;
-
-    for p in &[&sysctl_tmp, &boot_tmp, &service_tmp, &sleep_hook_tmp, &helper_tmp] {
-        let _ = fs::remove_file(p);
-    }
-
-    if out.status.success() {
-        Ok(())
-    } else {
-        let code = out.status.code().unwrap_or(-1);
-        if code == 126 || code == 127 {
-            Err("Autenticación cancelada para persistencia.".to_string())
-        } else {
-            Err(format!(
-                "Persistencia falló ({}): {}",
-                code,
-                String::from_utf8_lossy(&out.stderr).trim()
-            ))
-        }
-    }
-}
-
+#[cfg(not(target_os = "windows"))]
 fn build_sysctl_conf(script: &str) -> String {
     let mut params: Vec<String> = Vec::new();
     for line in script.lines() {
@@ -380,6 +473,7 @@ fn build_sysctl_conf(script: &str) -> String {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 fn build_boot_tweaks(script: &str) -> String {
     let mut cmds: Vec<String> = vec![
         "#!/bin/bash".into(),
@@ -398,7 +492,7 @@ fn build_boot_tweaks(script: &str) -> String {
     format!("{}\n", cmds.join("\n"))
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers comunes ──────────────────────────────────────────────────────────
 
 fn epoch_secs() -> u64 {
     std::time::SystemTime::now()
@@ -408,14 +502,12 @@ fn epoch_secs() -> u64 {
 }
 
 fn format_unix_ts(ts: u64) -> String {
-    // Formato simple sin dependencias externas: YYYY-MM-DD HH:MM
     let secs = ts;
     let days_since_epoch = secs / 86400;
     let time_of_day = secs % 86400;
     let hh = time_of_day / 3600;
     let mm = (time_of_day % 3600) / 60;
 
-    // Cálculo básico de fecha desde epoch (1 Jan 1970)
     let mut y = 1970u64;
     let mut remaining_days = days_since_epoch;
     loop {

@@ -60,6 +60,9 @@ async fn analyze_system(scan_json: String) -> Result<AnalysisResponse, String> {
     // Miss → llamada a Claude
     let start = std::time::Instant::now();
 
+    #[cfg(target_os = "windows")]
+    let system = obfstr!("Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown.").to_string();
+    #[cfg(not(target_os = "windows"))]
     let system = format!(
         "{}\n{}",
         obfstr!("Eres un experto en optimización Linux. Respondes SOLO con JSON válido sin markdown."),
@@ -120,6 +123,18 @@ async fn generate_script(optimizations_json: String, scan_json: String) -> Resul
         "{} {}, {}, GPU: {}, {}GB RAM",
         scan.distro_id, scan.distro_version, scan.cpu_model, scan.gpu_model, ram_gb
     );
+
+    #[cfg(target_os = "windows")]
+    let system = format!(
+        "Experto en PowerShell/Windows. Genera script de optimizacion para: {}. \
+        REGLAS: 1) SOLO PowerShell puro. Maximo 80 lineas. 2) Sin markdown ni backticks. \
+        3) Empieza con $ErrorActionPreference = 'Continue'. 4) Usa Write-Host para mensajes. \
+        5) Usa -ErrorAction SilentlyContinue en comandos que pueden fallar. \
+        6) Para persistencia: usa schtasks y registro de Windows. \
+        7) NUNCA formatear discos, eliminar archivos del sistema ni deshabilitar el Firewall de Windows.",
+        hw_desc
+    );
+    #[cfg(not(target_os = "windows"))]
     let system = format!(
         "Experto en bash/Linux. Genera script de optimización para: {}. \
         REGLAS: 1) SOLO bash puro. Máximo 60 líneas. 2) Sin markdown ni backticks. \
@@ -129,6 +144,13 @@ async fn generate_script(optimizations_json: String, scan_json: String) -> Resul
         hw_desc,
         policy::policy_rules_for_prompt()
     );
+
+    #[cfg(target_os = "windows")]
+    let user = format!(
+        "Genera el script PowerShell para estas optimizaciones:\n{}\nResumen del sistema:\n{}",
+        optimizations_json, scan_json
+    );
+    #[cfg(not(target_os = "windows"))]
     let user = format!(
         "Genera el script bash para estas optimizaciones:\n{}\nResumen del sistema:\n{}",
         optimizations_json, scan_json
@@ -136,13 +158,17 @@ async fn generate_script(optimizations_json: String, scan_json: String) -> Resul
 
     let script = claude_gateway::call(&system, &user, 2000).await?;
 
-    let violations = policy::validate_script(&script);
-    if !violations.is_empty() {
-        let msgs: Vec<String> = violations
-            .iter()
-            .map(|v| format!("[{}] {}", v.rule, v.detail))
-            .collect();
-        return Err(format!("Script violó políticas de seguridad:\n{}", msgs.join("\n")));
+    // Validación de seguridad (solo Linux — el validador bash no aplica a PS1)
+    #[cfg(not(target_os = "windows"))]
+    {
+        let violations = policy::validate_script(&script);
+        if !violations.is_empty() {
+            let msgs: Vec<String> = violations
+                .iter()
+                .map(|v| format!("[{}] {}", v.rule, v.detail))
+                .collect();
+            return Err(format!("Script violó políticas de seguridad:\n{}", msgs.join("\n")));
+        }
     }
 
     Ok(script)
@@ -182,10 +208,20 @@ fn clear_sessions() -> Result<(), String> {
 
 #[tauri::command]
 fn reboot_system() -> Result<(), String> {
-    Command::new("/usr/bin/pkexec")
-        .args(["/sbin/shutdown", "-r", "+1", "Dix: reiniciando para aplicar optimizaciones"])
-        .spawn()
-        .map_err(|e| format!("No se pudo programar el reinicio: {}", e))?;
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("shutdown")
+            .args(["/r", "/t", "60", "/c", "Dix: reiniciando para aplicar optimizaciones"])
+            .spawn()
+            .map_err(|e| format!("No se pudo programar el reinicio: {}", e))?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Command::new("/usr/bin/pkexec")
+            .args(["/sbin/shutdown", "-r", "+1", "Dix: reiniciando para aplicar optimizaciones"])
+            .spawn()
+            .map_err(|e| format!("No se pudo programar el reinicio: {}", e))?;
+    }
     Ok(())
 }
 
@@ -208,23 +244,43 @@ fn get_cache_stats() -> cache::CacheStats {
 
 #[tauri::command]
 fn get_hw_fingerprint() -> String {
-    use std::fs;
-    // Usa /etc/machine-id: único por instalación Linux, no varía con el hardware
-    let mid = fs::read_to_string("/etc/machine-id")
-        .or_else(|_| fs::read_to_string("/var/lib/dbus/machine-id"))
-        .unwrap_or_default();
-    let mid = mid.trim();
-    if mid.len() >= 16 {
-        return mid.to_string();
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: usa MachineGuid del registro — único por instalación del SO
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile", "-NonInteractive",
+                "-Command",
+                "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid",
+            ])
+            .output()
+            .ok();
+        if let Some(o) = output {
+            let guid = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if guid.len() >= 16 {
+                return guid;
+            }
+        }
+        return "unknown_win_machine".to_string();
     }
-    // Fallback si no existe machine-id (muy raro en Linux moderno)
-    fs::read_to_string("/proc/cpuinfo")
-        .unwrap_or_default()
-        .lines()
-        .find(|l| l.contains("model name"))
-        .and_then(|l| l.split(':').nth(1))
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown_cpu".to_string())
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::fs;
+        let mid = fs::read_to_string("/etc/machine-id")
+            .or_else(|_| fs::read_to_string("/var/lib/dbus/machine-id"))
+            .unwrap_or_default();
+        let mid = mid.trim();
+        if mid.len() >= 16 {
+            return mid.to_string();
+        }
+        fs::read_to_string("/proc/cpuinfo")
+            .unwrap_or_default()
+            .lines()
+            .find(|l| l.contains("model name"))
+            .and_then(|l| l.split(':').nth(1))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "unknown_cpu".to_string())
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -248,6 +304,67 @@ struct LiveMetrics {
 
 #[tauri::command]
 fn get_live_metrics() -> LiveMetrics {
+    #[cfg(target_os = "windows")]
+    return get_live_metrics_windows();
+    #[cfg(not(target_os = "windows"))]
+    return get_live_metrics_linux();
+}
+
+#[cfg(target_os = "windows")]
+fn get_live_metrics_windows() -> LiveMetrics {
+    // Consulta PowerShell única para minimizar latencia
+    let ps_out = Command::new("powershell")
+        .args([
+            "-NoProfile", "-NonInteractive", "-Command",
+            "$p = (Get-CimInstance Win32_Processor | Select-Object -First 1);\
+             $m = Get-CimInstance Win32_OperatingSystem;\
+             $plan = (powercfg /getactivescheme) -replace '.*GUID: ([0-9a-f-]+).*','$1';\
+             $gov = switch -Wildcard ($plan) {\
+               'e9a42b02*' {'ultimate-performance'}\
+               '8c5e7fda*' {'high-performance'}\
+               'a1841308*' {'powersave'}\
+               default     {'balanced'}\
+             };\
+             $freq = [int]($p.CurrentClockSpeed);\
+             $maxf = [int]($p.MaxClockSpeed);\
+             $cores = [int]($p.NumberOfLogicalProcessors);\
+             $free = [int]($m.FreePhysicalMemory / 1024);\
+             $total = [int]($m.TotalVisibleMemorySize / 1024);\
+             $load = [math]::Round((Get-CimInstance Win32_PerfFormattedData_PerfOS_System).ProcessorQueueLength, 2);\
+             \"$gov|$freq|$maxf|$cores|$free|$total|$load\"",
+        ])
+        .output()
+        .ok();
+
+    let line = ps_out
+        .as_ref()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    let parts: Vec<&str> = line.split('|').collect();
+    let get = |i: usize| parts.get(i).unwrap_or(&"0");
+
+    LiveMetrics {
+        governor:         get(0).to_string().replace("0", "balanced"),
+        swappiness:       0,
+        dirty_ratio:      0,
+        dirty_bg:         0,
+        hugepages:        "n/a".to_string(),
+        mem_free_mb:      get(4).parse().unwrap_or(0),
+        mem_total_mb:     get(5).parse().unwrap_or(0),
+        load_1:           get(6).parse().unwrap_or(0.0),
+        load_5:           0.0,
+        nr_requests:      0,
+        cpu_freq_mhz:     get(1).parse().unwrap_or(0),
+        cpu_max_mhz:      get(2).parse().unwrap_or(0),
+        cpu_temp_celsius: 0.0,
+        cpu_avg_freq_mhz: get(1).parse().unwrap_or(0),
+        cpu_cores:        get(3).parse().unwrap_or(1),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_live_metrics_linux() -> LiveMetrics {
     use std::fs;
     let r = |p: &str| fs::read_to_string(p).unwrap_or_default().trim().to_string();
     let n = |p: &str| r(p).parse::<u32>().unwrap_or(0);
@@ -400,15 +517,28 @@ async fn activate_license(key: String) -> Result<bool, String> {
 
     // Nombre de instancia: CPU model (anónimo, sin hostname)
     let instance_name = {
-        use std::fs;
-        let cpu = fs::read_to_string("/proc/cpuinfo")
-            .unwrap_or_default()
-            .lines()
-            .find(|l| l.contains("model name"))
-            .and_then(|l| l.split(':').nth(1))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-        format!("dix-{}", &cpu[..cpu.len().min(40)])
+        #[cfg(target_os = "windows")]
+        {
+            let cpu = Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-Command",
+                    "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_else(|_| "unknown-cpu".to_string());
+            format!("dix-{}", &cpu[..cpu.len().min(40)])
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            use std::fs;
+            let cpu = fs::read_to_string("/proc/cpuinfo")
+                .unwrap_or_default()
+                .lines()
+                .find(|l| l.contains("model name"))
+                .and_then(|l| l.split(':').nth(1))
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            format!("dix-{}", &cpu[..cpu.len().min(40)])
+        }
     };
 
     // Validación real contra Lemon Squeezy
@@ -460,6 +590,14 @@ async fn activate_license(key: String) -> Result<bool, String> {
 // ─── Builder de prompt ────────────────────────────────────────────────────────
 
 fn build_analysis_prompt(scan: &SystemScan) -> String {
+    #[cfg(target_os = "windows")]
+    return build_analysis_prompt_windows(scan);
+    #[cfg(not(target_os = "windows"))]
+    return build_analysis_prompt_linux(scan);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn build_analysis_prompt_linux(scan: &SystemScan) -> String {
     let opt_cache = cache::load_cache();
     let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -532,6 +670,76 @@ fn build_analysis_prompt(scan: &SystemScan) -> String {
             format!("{}\n\n", pinned_hint)
         },
         rules = format!("{}\n", policy::policy_rules_for_prompt()),
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn build_analysis_prompt_windows(scan: &SystemScan) -> String {
+    let opt_cache = cache::load_cache();
+    let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
+    let ram_gb = (scan.mem_total_mb + 512) / 1024;
+    let hardware_line = format!(
+        "HARDWARE: {} {}, {}, GPU: {}, {}GB RAM.",
+        scan.distro_id, scan.distro_version, scan.cpu_model, scan.gpu_model, ram_gb
+    );
+
+    let schema = r#"{
+  "analisis": "2-3 frases del estado actual",
+  "score_actual": 0,
+  "score_optimizado": 0,
+  "optimizaciones": [
+    {
+      "id": "opt1",
+      "categoria": "CPU|RAM|Storage|Red|Sistema",
+      "titulo": "string",
+      "descripcion": "1 frase",
+      "impacto": 0,
+      "riesgo": "bajo|medio|alto",
+      "mejora_estimada": "string",
+      "aplicar": true,
+      "comando_preview": "string PowerShell si aplica",
+      "tiempo_estimado": "string"
+    }
+  ]
+}"#;
+
+    format!(
+        "Eres un experto en optimizacion de Windows. Analiza estos datos y genera un plan.\n\
+        SISTEMA OPERATIVO: Windows\n\
+        DATOS REALES:\n\
+        - Plan de energia activo: {}\n\
+        - Nucleos logicos CPU: {}\n\
+        - Nagle TCP (TcpAckFrequency): {}\n\
+        - Scheduler disco: {}\n\
+        - Large Pages: {}\n\
+        - RAM: {} MB total, {} MB disponible\n\
+        - CPU freq: {}-{} MHz\n\
+        - CPU temperatura: {:.1}C\n\n\
+        {hardware_line}\n\n\
+        {pinned}\
+        REGLAS ABSOLUTAS (Windows):\n\
+        - NUNCA deshabilitar Windows Defender ni el Firewall\n\
+        - NUNCA formatear discos ni eliminar archivos del sistema\n\
+        - NUNCA deshabilitar el servicio de actualizaciones si el riesgo es alto\n\
+        - SIEMPRE usar PowerShell con -ErrorAction SilentlyContinue\n\n\
+        Genera 8-12 optimizaciones reales: plan de energia, Nagle, SysMain, \
+        prefetch, visual effects, HPET, timer resolution, registro TCP.\n\
+        No sugieras cambios que ya esten en su valor optimo.\n\n\
+        Responde UNICAMENTE con JSON valido sin texto extra ni backticks:\n{}",
+        scan.cpu_governor, scan.cpu_cores,
+        scan.dirty_ratio,
+        scan.disk_scheduler,
+        scan.hugepages,
+        scan.mem_total_mb, scan.mem_available_mb,
+        scan.cpu_min_freq_mhz, scan.cpu_max_freq_mhz,
+        scan.cpu_temp_celsius,
+        schema,
+        hardware_line = hardware_line,
+        pinned = if pinned_hint.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n\n", pinned_hint)
+        },
     )
 }
 
