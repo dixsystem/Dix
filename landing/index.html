@@ -616,9 +616,9 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <div class="bench-label" data-i18n="b3_label">Under sustained load, same workload</div>
       </div>
       <div class="bench-card reveal">
-        <div class="bench-value" data-counter="91" data-suffix="/100" data-prefix="">34</div>
+        <div class="bench-value" data-counter="91" data-suffix="" data-prefix="34→">34→91</div>
         <div class="bench-unit" data-i18n="b4_unit">DIX Score</div>
-        <div class="bench-label" data-i18n="b4_label">System score before → after optimization</div>
+        <div class="bench-label" data-i18n="b4_label">Real score measured on hardware</div>
       </div>
     </div>
     <p class="bench-note" data-i18n="bench_note">Results vary by hardware. <span>Score is measured, not estimated by AI.</span></p>
@@ -869,7 +869,7 @@ const t = {
     b1_unit:'Compile time', b1_label:'Rust project build time reduction',
     b2_unit:'Gaming', b2_label:'Average FPS gain across tested titles',
     b3_unit:'CPU Temperature', b3_label:'Under sustained load, same workload',
-    b4_unit:'DIX Score', b4_label:'System score before → after optimization',
+    b4_unit:'DIX Score', b4_label:'Real score measured on hardware',
     bench_note:'Results vary by hardware. <span>Score is measured, not estimated by AI.</span>',
     atlas_label:'Community', atlas_title:'DIX ATLAS — COLLECTIVE INTELLIGENCE',
     atlas_sub:'Anonymous, opt-in telemetry. Every user who shares their results makes DIX smarter.',
@@ -940,7 +940,7 @@ const t = {
     b1_unit:'Tiempo compilación', b1_label:'Reducción en builds de proyectos Rust',
     b2_unit:'Gaming', b2_label:'FPS promedio ganados en títulos probados',
     b3_unit:'Temperatura CPU', b3_label:'Con carga sostenida, misma tarea',
-    b4_unit:'Score DIX', b4_label:'Puntuación del sistema antes → después',
+    b4_unit:'Score DIX', b4_label:'Score real medido en hardware',
     bench_note:'Los resultados varían según el hardware. <span>El score es medido, no estimado por IA.</span>',
     atlas_label:'Comunidad', atlas_title:'DIX ATLAS — INTELIGENCIA COLECTIVA',
     atlas_sub:'Telemetría anónima y voluntaria. Cada usuario que comparte sus resultados mejora DIX para todos.',
