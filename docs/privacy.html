@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — DixSystem</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+    a { color: #FF6B00; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header {
+      border-bottom: 1px solid #21262d;
+      padding: 20px 0;
+    }
+    header .inner {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header a {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #FF6B00;
+    }
+    main {
+      max-width: 760px;
+      margin: 56px auto;
+      padding: 0 24px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+    .meta {
+      color: #8b949e;
+      font-size: 14px;
+      margin-bottom: 48px;
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #FF6B00;
+      margin-top: 40px;
+      margin-bottom: 12px;
+    }
+    p { margin-bottom: 16px; color: #c9d1d9; }
+    ul {
+      margin: 0 0 16px 20px;
+      color: #c9d1d9;
+    }
+    ul li { margin-bottom: 6px; }
+    .highlight {
+      background: #161b22;
+      border-left: 3px solid #FF6B00;
+      padding: 14px 18px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      color: #c9d1d9;
+    }
+    footer {
+      border-top: 1px solid #21262d;
+      text-align: center;
+      padding: 28px 24px;
+      color: #8b949e;
+      font-size: 14px;
+    }
+    footer a { color: #8b949e; }
+    footer a:hover { color: #FF6B00; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <a href="https://dixsystem.com">DixSystem</a>
+  </div>
+</header>
+
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective date: June 2026</p>
+
+  <h2>1. Who we are</h2>
+  <p>DixSystem is the developer and publisher of DIX, an AI-powered Linux kernel optimization application. For the purposes of GDPR, DixSystem (Spain) is the data controller. You can reach us at <a href="mailto:privacy@dixsystem.com">privacy@dixsystem.com</a>.</p>
+
+  <h2>2. What data DIX collects</h2>
+  <p>When you run an analysis, DIX reads the following kernel and hardware parameters from your local system and sends them to the analysis backend:</p>
+  <ul>
+    <li>CPU governor (e.g., <code>performance</code>, <code>powersave</code>)</li>
+    <li>I/O scheduler (e.g., <code>mq-deadline</code>, <code>kyber</code>)</li>
+    <li>RAM size (in GB)</li>
+    <li>Linux distribution and kernel version</li>
+    <li>Selected sysctl values (swappiness, dirty_ratio, hugepage mode, NUMA balancing state)</li>
+    <li>GPU power state (discrete/integrated — model name only)</li>
+  </ul>
+  <p>These parameters are technical, anonymous, and contain no personal data.</p>
+
+  <h2>3. What DIX does NOT collect</h2>
+  <div class="highlight">
+    DIX never reads, stores, or transmits: your hostname, username, IP address, file paths, process list, browser history, keystrokes, or any file contents.
+  </div>
+  <p>The exact whitelist of parameters that may be sent is enforced in the application source code at <code>src-tauri/src/policy.rs</code>.</p>
+
+  <h2>4. Where your data goes</h2>
+  <p>The kernel parameter snapshot is sent to the <strong>Anthropic Claude API</strong> solely to generate your optimization recommendations. Anthropic processes this data as a sub-processor under their API terms of service. No data is stored on DixSystem servers beyond what is strictly necessary to return the analysis result.</p>
+  <p>Anthropic's privacy policy is available at <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">anthropic.com/privacy</a>.</p>
+
+  <h2>5. DIX Atlas (opt-in telemetry)</h2>
+  <p>DIX Atlas is an optional feature that, if you explicitly enable it, contributes anonymous hardware-performance pairs to a collective dataset used to improve future recommendations.</p>
+  <ul>
+    <li><strong>Opt-in only.</strong> It is disabled by default. You must actively enable it.</li>
+    <li><strong>What is shared:</strong> a one-way hash of your hardware ID, the kernel profile applied, and the measured performance delta. Nothing identifiable.</li>
+    <li><strong>What is never shared:</strong> your license key, name, email, IP, or any system identifier in plain form.</li>
+    <li><strong>Withdrawal:</strong> you can disable Atlas at any time from the application settings. Disabling it stops all future submissions immediately.</li>
+  </ul>
+
+  <h2>6. Legal basis (GDPR)</h2>
+  <p>Processing of kernel parameters for analysis purposes is carried out on the legal basis of <strong>contract performance</strong> (Article 6(1)(b) GDPR) — it is necessary to deliver the service you purchased. Atlas telemetry, where enabled, is processed on the basis of <strong>consent</strong> (Article 6(1)(a) GDPR).</p>
+
+  <h2>7. Data retention</h2>
+  <p>Analysis requests are not stored beyond the time required to generate and return the response. License validation records are retained for the duration of the license. Atlas contributions are stored in aggregated, anonymized form with no retention limit.</p>
+
+  <h2>8. Your rights</h2>
+  <p>Under GDPR you have the right to access, rectify, or erase personal data we hold about you, and to object to or restrict processing. To exercise any of these rights, contact <a href="mailto:privacy@dixsystem.com">privacy@dixsystem.com</a>. We will respond within 30 days.</p>
+
+  <h2>9. Changes to this policy</h2>
+  <p>We may update this policy as the application evolves. Material changes will be communicated via the application or the website. Continued use after the effective date constitutes acceptance.</p>
+
+  <h2>10. Contact</h2>
+  <p><a href="mailto:privacy@dixsystem.com">privacy@dixsystem.com</a></p>
+</main>
+
+<footer>
+  <p>© 2026 DixSystem &nbsp;·&nbsp; <a href="https://dixsystem.com">dixsystem.com</a></p>
+</footer>
+
+</body>
+</html>

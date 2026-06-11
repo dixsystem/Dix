@@ -1,107 +1,85 @@
-<p align="center">
-  <img src="src-tauri/icons/128x128@2x.png" width="120" alt="Dix logo"/>
-</p>
+# DIX — The World's First AppIA
 
-<h1 align="center">Dix</h1>
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
+![Tauri v2](https://img.shields.io/badge/Tauri_v2-24C8DB?style=flat&logo=tauri&logoColor=white)
+![Claude AI](https://img.shields.io/badge/Claude_AI-D4A574?style=flat&logo=anthropic&logoColor=white)
 
-<p align="center">
-  <strong>The first AppIA for Linux.</strong><br/>
-  AI analyzes your system and maximizes performance automatically.
-</p>
-
-<p align="center">
-  <a href="https://dixsystem.com"><img src="https://img.shields.io/badge/website-dixsystem.com-orange?style=flat-square" alt="Website"/></a>
-  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=flat-square" alt="Version"/>
-  <img src="https://img.shields.io/badge/platform-Linux-green?style=flat-square" alt="Platform"/>
-  <img src="https://img.shields.io/badge/license-BSL_1.1-red?style=flat-square" alt="License"/>
-</p>
+<!-- DEMO GIF: replace this comment with ![DIX demo](docs/demo.gif) once recorded -->
 
 ---
 
-## What is Dix?
+## What is DIX
 
-Dix connects to Claude AI, scans 16 system parameters in real time, and generates a custom optimization script for your exact hardware. One click. No technical knowledge required.
+DIX reads your hardware and kernel state, sends it to a Claude-powered analysis layer, and applies a tailored set of kernel parameter changes — all in under a minute. It does not guess. It measures your actual CPU governor, scheduler, memory pressure, and I/O stack, then generates a script specific to your machine.
 
-## Real results — tested on Intel i5-12400 + RTX 3060 + 32GB DDR4
+No generic tweaks. No placebo toggles. Real kernel tuning, validated before execution.
 
-| Metric | Before | After | Improvement |
-|---|---|---|---|
-| Global score | 62/100 | 91/100 | **+47%** |
-| CPU performance (sysbench) | 6,700 ev/s | 7,760 ev/s | **+15%** |
-| TCP throughput (BBR) | baseline | active | **+40%** |
-| NVMe latency (kyber) | baseline | optimized | **-30%** |
+---
 
-## Features
+## How it works
 
-- **AI-powered analysis** — Claude API analyzes your hardware profile and generates a personalized optimization script
-- **One-click optimization** — apply all tweaks with a single button, pkexec handles privileges
-- **Safe by design** — GPU never touched, strict parameter limits enforced in Rust
-- **Rollback included** — revert any change instantly
-- **Score system** — before/after score so you see exactly what improved
-- **Free demo** — 1 full analysis free, no account required
-- **Auto-updater** — stays up to date automatically via GitHub Releases
+**1. Scan** — DIX reads `/proc`, `/sys`, and hardware identifiers to build a full picture of your current system state.
 
-## Privacy & Security
+**2. Analyze** — That snapshot is analyzed by Claude AI. The model returns a prioritized list of optimizations with estimated impact scores for your exact hardware.
 
-| What happens | Where |
-|---|---|
-| Hardware scan (CPU governor, sysctl values, disk scheduler, etc.) | **100% local** |
-| AI analysis | **Claude API** — anonymized hardware parameters only |
-| Optimization script execution | **100% local** |
-| System changes + rollback | **100% local** |
+**3. Apply** — A validated bash script is generated, reviewed by a static policy engine, and executed via `pkexec`. Every change is snapshotted first for one-click rollback.
 
-**What is sent to Claude API:** kernel parameters and hardware model names (CPU, GPU, RAM size, distro). No hostname, no username, no IP address, no file paths, no process list. The exact whitelist is enforced in [`src-tauri/src/policy.rs`](src-tauri/src/policy.rs).
+---
 
-**You see the generated script before it runs.** Dix shows you the exact bash commands before applying anything. You can review, cancel, or proceed.
+## Install
 
-An active internet connection is required for the AI analysis step only.
+Download the latest `.deb` from [Releases](../../releases) and install:
 
-## Installation
-
-### Debian / Ubuntu / Linux Mint (.deb)
 ```bash
-wget https://github.com/Dixsystem/Dix/releases/latest/download/Dix_1.0.0_amd64.deb
-sudo dpkg -i Dix_1.0.0_amd64.deb
+sudo apt install ./Dix_1.0.0_amd64.deb
 ```
 
-### Fedora / openSUSE / RHEL (.rpm)
+Then launch **DIX** from your application menu or run:
+
 ```bash
-wget https://github.com/Dixsystem/Dix/releases/latest/download/Dix-1.0.0-1.x86_64.rpm
-sudo rpm -i Dix-1.0.0-1.x86_64.rpm
+dix
 ```
 
-### Any distribution (.AppImage)
-```bash
-wget https://github.com/Dixsystem/Dix/releases/latest/download/Dix_1.0.0_amd64.AppImage
-chmod +x Dix_1.0.0_amd64.AppImage
-./Dix_1.0.0_amd64.AppImage
-```
+An AppImage is also available for distributions without `apt`.
+
+---
 
 ## Requirements
 
-- Linux x86_64
-- `pkexec` (included in most distributions)
-- Active internet connection for AI analysis
+- Ubuntu 20.04+ (or any systemd-based distro with equivalent kernel)
+- Kernel 5.4 or newer
+- `pkexec` (PolicyKit) — required for privilege escalation
+- Active internet connection (analysis runs on the DIX proxy)
+- DIX license key — get one at [dixsystem.com](https://dixsystem.com)
 
-## Tested on
+---
 
-- Ubuntu 24.04 / 26.04
-- Fedora 40+
-- Linux Mint 21+
-- Arch Linux
+## Security
 
-## Get Dix Pro
+DIX enforces a strict static policy on every generated script before it touches `pkexec`. The following are permanently blocked, regardless of what the AI returns:
 
-[**dixsystem.com**](https://dixsystem.com) — €14.99 one-time payment. No subscription. Yours forever.
+| Rule | Detail |
+|------|--------|
+| No GPU changes | Any reference to `nvidia`, `nouveau`, or `/sys/class/drm` is rejected |
+| No `numa_balancing=0` | Disabling NUMA balancing is forbidden at the policy layer |
+| No `dirty_ratio > 15` | `vm.dirty_ratio` is capped at 15 — values above are blocked |
+| No `hugepages=never` | `transparent_hugepage=never` is explicitly rejected |
+
+Scripts are also restricted to a whitelist of `sysctl` keys and `/sys/` paths. Any line that does not match — including `rm`, `curl`, `eval`, shell substitutions, and `/etc/` writes — causes the entire script to be rejected before execution.
+
+The API key for Claude never leaves the proxy server. The client binary contains no credentials.
+
+---
 
 ## License
 
-Dix is released under the [Business Source License 1.1](LICENSE).  
-Free for personal use. Commercial use requires written permission from DixSystem.  
-Converts to MIT License on June 5, 2030.
+Commercial — All rights reserved © 2026 DixSystem.
+
+This software is proprietary. Redistribution, reverse engineering, and modification are not permitted without written authorization from DixSystem.
 
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://dixsystem.com">DixSystem</a>
+  <a href="https://dixsystem.com">dixsystem.com</a> &nbsp;·&nbsp; @dixsystem
 </p>
