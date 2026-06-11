@@ -29,19 +29,22 @@ No generic tweaks. No placebo toggles. Real kernel tuning, validated before exec
 
 ## Install
 
-Download the latest `.deb` from [Releases](../../releases) and install:
+Download the package for your distribution from [Releases](../../releases).
 
+**Debian / Ubuntu / Linux Mint**
 ```bash
 sudo apt install ./Dix_1.0.0_amd64.deb
 ```
 
-Then launch **DIX** from your application menu or run:
-
+**Fedora / openSUSE / RHEL**
 ```bash
-dix
+sudo rpm -i Dix-1.0.0-1.x86_64.rpm
 ```
 
-An AppImage is also available for distributions without `apt`.
+**Any distribution (AppImage)**
+```bash
+chmod +x Dix_1.0.0_amd64.AppImage && ./Dix_1.0.0_amd64.AppImage
+```
 
 ---
 
