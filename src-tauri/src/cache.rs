@@ -122,8 +122,17 @@ pub fn decide_cache(current_acp: &str, cache: &OptimizationCache) -> CacheDecisi
 // ─── Persistencia ─────────────────────────────────────────────────────────────
 
 fn config_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home).join(".config").join("dix")
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var("APPDATA")
+            .unwrap_or_else(|_| r"C:\Users\Default\AppData\Roaming".to_string());
+        return PathBuf::from(appdata).join("Dix");
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(home).join(".config").join("dix")
+    }
 }
 
 fn cache_path() -> PathBuf {

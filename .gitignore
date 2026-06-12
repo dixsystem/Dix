@@ -50,3 +50,6 @@ sabios/
 
 # Archivos de desarrollo temporal
 src-tauri/src/main.rs.save
+
+# Local Netlify folder
+.netlify
