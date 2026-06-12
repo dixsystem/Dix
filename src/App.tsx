@@ -93,6 +93,7 @@ async function generateShareCard(
   distroVersion: string,
   dixImgSrc: string,
 ): Promise<string> {
+  const isWin = distro === "windows";
   const W = 1200, H = 630;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -132,7 +133,7 @@ async function generateShareCard(
   ctx.fillText("DIX", 60, 80);
   ctx.fillStyle = "#8b949e";
   ctx.font = "18px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Linux Kernel Optimizer", 148, 73);
+  ctx.fillText(isWin ? "Windows AI Optimizer" : "Linux Kernel Optimizer", 148, 73);
 
   // URL derecha
   ctx.fillStyle = "#8b949e";
@@ -149,7 +150,7 @@ async function generateShareCard(
   ctx.fillStyle = "#e6edf3";
   ctx.font = "bold 34px 'Inter', system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("My Linux performance score", W / 2, 158);
+  ctx.fillText(isWin ? "My Windows performance score" : "My Linux performance score", W / 2, 158);
 
   // ── Score ANTES ────────────────────────────────────────────────────────────
   const cx1 = 260, cy = 355, radius = 115, strokeW = 17;
@@ -260,7 +261,7 @@ async function generateShareCard(
   ctx.fillStyle = "#FF6B00";
   ctx.font = "bold 19px 'Inter', system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("#DIXScore  ·  #Linux  ·  dixsystem.com", W / 2, H - 38);
+  ctx.fillText(isWin ? "#DIXScore  ·  #Windows  ·  dixsystem.com" : "#DIXScore  ·  #Linux  ·  dixsystem.com", W / 2, H - 38);
 
   return canvas.toDataURL("image/png");
 }
@@ -320,20 +321,35 @@ function hardwareCeiling(scan: SystemScan): number {
 function computeScore(scan: SystemScan): number {
   const ceiling = hardwareCeiling(scan);
   let score = ceiling;
-  if (scan.cpu_governor !== "performance" && scan.cpu_governor !== "schedutil")
-    score -= scan.cpu_governor === "ondemand" ? 8 : 15;
-  if (scan.swappiness > 60)        score -= 12;
-  else if (scan.swappiness > 40)   score -= 8;
-  else if (scan.swappiness > 20)   score -= 4;
-  if (scan.dirty_ratio > 30)       score -= 10;
-  else if (scan.dirty_ratio > 20)  score -= 6;
-  else if (scan.dirty_ratio > 15)  score -= 3;
-  if (scan.hugepages === "always") score -= 10;
-  else if (scan.hugepages === "never") score -= 3;
-  if (!scan.irqbalance_active)     score -= 5;
-  if (scan.numa_balancing === "1") score -= 3;
-  const sched = scan.disk_scheduler;
-  if (sched && sched !== "none" && sched !== "kyber" && sched !== "mq-deadline" && sched !== "bfq") score -= 5;
+  const isWin = scan.distro_id === "windows";
+
+  if (isWin) {
+    // Plan de energía (cpu_governor en Windows)
+    if (scan.cpu_governor === "balanced") score -= 8;
+    else if (scan.cpu_governor === "powersave") score -= 15;
+    // irqbalance_active en Windows = estado AC (false = batería)
+    if (!scan.irqbalance_active) score -= 5;
+    // TCP Nagle: dirty_ratio==20 → Nagle activo (peor latencia gaming/streaming)
+    if (scan.dirty_ratio === 20) score -= 5;
+    // Large Pages no habilitadas
+    if (scan.hugepages !== "always") score -= 5;
+  } else {
+    if (scan.cpu_governor !== "performance" && scan.cpu_governor !== "schedutil")
+      score -= scan.cpu_governor === "ondemand" ? 8 : 15;
+    if (scan.swappiness > 60)        score -= 12;
+    else if (scan.swappiness > 40)   score -= 8;
+    else if (scan.swappiness > 20)   score -= 4;
+    if (scan.dirty_ratio > 30)       score -= 10;
+    else if (scan.dirty_ratio > 20)  score -= 6;
+    else if (scan.dirty_ratio > 15)  score -= 3;
+    if (scan.hugepages === "always") score -= 10;
+    else if (scan.hugepages === "never") score -= 3;
+    if (!scan.irqbalance_active)     score -= 5;
+    if (scan.numa_balancing === "1") score -= 3;
+    const sched = scan.disk_scheduler;
+    if (sched && sched !== "none" && sched !== "kyber" && sched !== "mq-deadline" && sched !== "bfq") score -= 5;
+  }
+
   if (scan.cpu_temp_celsius > 85)      score -= 10;
   else if (scan.cpu_temp_celsius > 75) score -= 5;
   return Math.max(30, Math.min(ceiling, score));
@@ -571,17 +587,36 @@ const METRIC_DEFS: MetricDef[] = [
   {
     id: "governor",
     label: "Velocidad CPU",
-    sublabel: "governor del procesador",
-    value: (m) => m.governor === "performance" ? "Máximo rendimiento" : m.governor === "schedutil" ? "Adaptativo (bueno)" : m.governor === "powersave" ? "Ahorro energético" : m.governor,
-    pct: (m) => m.governor === "performance" ? 100 : m.governor === "schedutil" ? 80 : 20,
-    status: (m) => m.governor === "performance" || m.governor === "schedutil" ? "green" : m.governor === "ondemand" ? "yellow" : "red",
+    sublabel: "governor / plan de energía",
+    value: (m) => {
+      const g = m.governor;
+      if (g === "performance" || g === "high-performance" || g === "ultimate-performance") return "Máximo rendimiento";
+      if (g === "schedutil") return "Adaptativo (bueno)";
+      if (g === "balanced") return "Balanceado";
+      if (g === "powersave") return "Ahorro energético";
+      if (g === "ondemand") return "Bajo demanda";
+      return g;
+    },
+    pct: (m) => {
+      const g = m.governor;
+      if (g === "performance" || g === "high-performance" || g === "ultimate-performance") return 100;
+      if (g === "schedutil" || g === "balanced") return 80;
+      if (g === "ondemand") return 50;
+      return 20;
+    },
+    status: (m) => {
+      const g = m.governor;
+      if (g === "performance" || g === "high-performance" || g === "ultimate-performance" || g === "schedutil") return "green";
+      if (g === "ondemand" || g === "balanced") return "yellow";
+      return "red";
+    },
   },
   {
     id: "freq",
     label: "Frecuencia del procesador",
     sublabel: "media de todos los cores en tiempo real",
     value: (m) => {
-      const isOptimal = m.governor === "performance" || m.governor === "schedutil";
+      const isOptimal = m.governor === "performance" || m.governor === "schedutil" || m.governor === "high-performance" || m.governor === "ultimate-performance";
       const avg = m.cpu_avg_freq_mhz || m.cpu_freq_mhz;
       if (isOptimal && m.cpu_max_mhz > 0 && avg < m.cpu_max_mhz * 0.35) {
         return `${avg.toLocaleString()} MHz — reposo, escalará automáticamente`;
@@ -595,7 +630,7 @@ const METRIC_DEFS: MetricDef[] = [
       return m.cpu_max_mhz > 0 ? Math.round((avg / m.cpu_max_mhz) * 100) : 50;
     },
     status: (m) => {
-      if (m.governor === "performance" || m.governor === "schedutil") return "green";
+      if (m.governor === "performance" || m.governor === "schedutil" || m.governor === "high-performance" || m.governor === "ultimate-performance") return "green";
       const avg = m.cpu_avg_freq_mhz || m.cpu_freq_mhz;
       const p = m.cpu_max_mhz > 0 ? avg / m.cpu_max_mhz : 0.5;
       return p > 0.6 ? "green" : p > 0.3 ? "yellow" : "red";
@@ -798,7 +833,7 @@ export default function App() {
         setHwSummary({
           cpu: s.cpu_model || "CPU detectada",
           ram: `${ramGb} GB RAM`,
-          distro: s.distro_id ? `${s.distro_id} ${s.distro_version}`.trim() : "Linux",
+          distro: s.distro_id ? `${s.distro_id} ${s.distro_version}`.trim() : "Sistema",
         });
         setIdleScan(s);
       }).catch(() => {});
@@ -1286,7 +1321,7 @@ export default function App() {
                       <span style={{ color: C.border }}>·</span>
                       <span>{hwSummary?.ram ?? "…"}</span>
                       <span style={{ color: C.border }}>·</span>
-                      <span>{hwSummary?.distro ?? "Linux"}</span>
+                      <span>{hwSummary?.distro ?? "Sistema"}</span>
                       {idleScan && <><span style={{ color: C.border }}>·</span><span>kernel {idleScan.kernel_version}</span></>}
                     </div>
 
@@ -1654,8 +1689,8 @@ export default function App() {
 
             {/* Texto para copiar */}
             <div style={{ background: "#010409", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
-              My Linux score went from {analysis.score_actual} to {analysis.score_optimizado}/100 with DIX 🚀{"\n"}
-              Try it free → dixsystem.com #DIXScore #Linux
+              My {scan?.distro_id === "windows" ? "Windows" : "Linux"} score went from {analysis.score_actual} to {analysis.score_optimizado}/100 with DIX 🚀{"\n"}
+              Try it free → dixsystem.com #DIXScore #{scan?.distro_id === "windows" ? "Windows" : "Linux"}
             </div>
 
             {/* Botones */}
@@ -1674,7 +1709,8 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
-                  const text = `My Linux score went from ${analysis.score_actual} to ${analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DIXScore #Linux`;
+                  const platform = scan?.distro_id === "windows" ? "Windows" : "Linux";
+                  const text = `My ${platform} score went from ${analysis.score_actual} to ${analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DIXScore #${platform}`;
                   navigator.clipboard.writeText(text).catch(() => {});
                 }}
                 style={{
