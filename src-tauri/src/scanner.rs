@@ -297,29 +297,74 @@ fn ps(cmd: &str) -> String {
         .unwrap_or_default()
 }
 
+// ── Métricas nativas Win32 ────────────────────────────────────────────────────
+
+#[cfg(target_os = "windows")]
+fn mem_native() -> (u64, u64) {
+    use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    let mut ms = MEMORYSTATUSEX {
+        dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+        ..Default::default()
+    };
+    if unsafe { GlobalMemoryStatusEx(&mut ms) }.is_ok() {
+        return (ms.ullTotalPhys / (1024 * 1024), ms.ullAvailPhys / (1024 * 1024));
+    }
+    (0, 0)
+}
+
+#[cfg(target_os = "windows")]
+fn cpu_count_native() -> usize {
+    use windows::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
+    let mut si: SYSTEM_INFO = unsafe { std::mem::zeroed() };
+    unsafe { GetSystemInfo(&mut si) };
+    si.dwNumberOfProcessors as usize
+}
+
+// Detecta el plan de energía activo leyendo el GUID via PowerGetActiveScheme.
+// Compara contra GUIDs conocidos de Windows; cae a "balanced" si la API falla.
+#[cfg(target_os = "windows")]
+fn power_plan_native() -> String {
+    use windows::Win32::System::Power::PowerGetActiveScheme;
+    use windows::Win32::System::Memory::LocalFree;
+    use windows::Win32::Foundation::HLOCAL;
+    use windows::Win32::System::Registry::HKEY;
+    use windows::core::GUID;
+
+    const HIGH_PERF: GUID = GUID { data1: 0x8c5e7fda, data2: 0xe8bf, data3: 0x4a96,
+        data4: [0x9a, 0x85, 0xa6, 0xe2, 0x3a, 0x8c, 0x63, 0x5c] };
+    const POWERSAVE: GUID = GUID { data1: 0xa1841308, data2: 0x3541, data3: 0x4fab,
+        data4: [0xbc, 0x81, 0xf7, 0x15, 0x56, 0xf2, 0x0b, 0x4a] };
+    const ULTIMATE:  GUID = GUID { data1: 0xe9a42b02, data2: 0xd5df, data3: 0x448d,
+        data4: [0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61] };
+
+    let mut scheme: *mut GUID = std::ptr::null_mut();
+    let err = unsafe { PowerGetActiveScheme(HKEY::default(), &mut scheme) };
+    if err.0 == 0 && !scheme.is_null() {
+        let active = unsafe { *scheme };
+        unsafe { LocalFree(HLOCAL(scheme.cast())) };
+        return match active {
+            g if g == HIGH_PERF => "high-performance",
+            g if g == POWERSAVE => "powersave",
+            g if g == ULTIMATE  => "ultimate-performance",
+            _                   => "balanced",
+        }.to_string();
+    }
+    "balanced".to_string()
+}
+
 #[cfg(target_os = "windows")]
 fn scan_windows() -> Result<SystemScan, String> {
     // CPU
     let cpu_model = ps("(Get-CimInstance Win32_Processor | Select-Object -First 1).Name");
-    let cpu_cores = ps("(Get-CimInstance Win32_Processor | Select-Object -First 1).NumberOfCores")
-        .parse::<usize>().unwrap_or(1);
+    let cpu_cores = cpu_count_native();
 
-    // Power plan → mapped to cpu_governor
-    let power_raw = ps("(Get-CimInstance -Namespace root/cimv2/power -ClassName Win32_PowerPlan | Where-Object {$_.IsActive}).ElementName");
-    let cpu_governor = match power_raw.to_lowercase().as_str() {
-        s if s.contains("ultimate") => "ultimate-performance".to_string(),
-        s if s.contains("high") => "high-performance".to_string(),
-        s if s.contains("power saver") || s.contains("ahorro") => "powersave".to_string(),
-        _ => "balanced".to_string(),
-    };
+    // Plan de energía → cpu_governor (nativo via Win32_System_Power)
+    let cpu_governor = power_plan_native();
 
-    // Memory
-    let mem_total_mb = ps("(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize")
-        .parse::<u64>().unwrap_or(0) / 1024;
-    let mem_available_mb = ps("(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory")
-        .parse::<u64>().unwrap_or(0) / 1024;
+    // Memoria (nativa via GlobalMemoryStatusEx)
+    let (mem_total_mb, mem_available_mb) = mem_native();
 
-    // Virtual memory pagefile → mapped to swappiness (0-100 scale)
+    // Uso del pagefile → proxy de swappiness
     let pf_size = ps("[Math]::Round((Get-CimInstance Win32_PageFileUsage).CurrentUsage)");
     let swappiness: u8 = if pf_size == "0" { 0 } else { 50 };
 

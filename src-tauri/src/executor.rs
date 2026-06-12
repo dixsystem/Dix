@@ -164,46 +164,73 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
 
 // ─── Implementación Windows ───────────────────────────────────────────────────
 
+// Ejecuta un .ps1 elevado vía Start-Process -Verb RunAs -Wait.
+// Captura stdout+stderr en un archivo temporal porque el proceso elevado
+// no hereda los handles de I/O del padre cuando se lanza con RunAs.
+#[cfg(target_os = "windows")]
+fn elevate_and_run(script: &std::path::Path) -> Result<String, String> {
+    let ts = epoch_secs();
+    let temp_dir = std::env::temp_dir();
+    let out_path  = temp_dir.join(format!("dix_{}_out.txt", ts));
+    let wrap_path = temp_dir.join(format!("dix_{}_wrap.ps1", ts));
+
+    // Wrapper: ejecuta el script real y vuelca output al archivo temporal
+    let wrap_content = format!(
+        "$ErrorActionPreference = 'Continue'\n\
+         $out = & powershell.exe -ExecutionPolicy Bypass -NonInteractive \
+         -File '{}' 2>&1\n\
+         $out | Out-File -FilePath '{}' -Encoding UTF8\n",
+        script.display().to_string().replace('\'', "''"),
+        out_path.display().to_string().replace('\'', "''"),
+    );
+    fs::write(&wrap_path, &wrap_content)
+        .map_err(|e| format!("No se pudo escribir wrapper de elevación: {}", e))?;
+
+    let wrap_str = wrap_path.display().to_string().replace('\'', "''");
+    let ps_cmd = format!(
+        "Start-Process powershell.exe -Verb RunAs -Wait \
+         -ArgumentList @('-ExecutionPolicy','Bypass','-NonInteractive','-File','{}')",
+        wrap_str
+    );
+
+    let output = Command::new("powershell.exe")
+        .args(["-ExecutionPolicy", "Bypass", "-NonInteractive", "-Command", &ps_cmd])
+        .output()
+        .map_err(|e| format!("powershell.exe no disponible: {}", e))?;
+
+    let _ = fs::remove_file(&wrap_path);
+
+    let code = output.status.code().unwrap_or(-1);
+    let captured = fs::read_to_string(&out_path).unwrap_or_default();
+    let _ = fs::remove_file(&out_path);
+
+    match code {
+        // 1223 = ERROR_CANCELLED (usuario rechazó UAC), 5 = ERROR_ACCESS_DENIED
+        1223 | 5 => Err("Autenticación cancelada.".to_string()),
+        0 => Ok(captured),
+        c => Err(format!(
+            "Script falló (código {}):\n{}{}",
+            c, captured,
+            String::from_utf8_lossy(&output.stderr)
+        )),
+    }
+}
+
 #[cfg(target_os = "windows")]
 fn run_script_windows(content: &str, pre_scan: &SystemScan) -> Result<String, String> {
     let clean = strip_fences(content);
     let ts = epoch_secs();
 
-    // Guardar rollback ANTES de ejecutar nada
     save_rollback(pre_scan, ts)?;
 
     let temp_dir = std::env::temp_dir();
     let script_path = temp_dir.join(format!("dix_{}.ps1", ts));
-
     fs::write(&script_path, &clean)
         .map_err(|e| format!("No se pudo escribir el script PS1: {}", e))?;
 
-    // La app requiere elevación UAC al inicio (requestedExecutionLevel = requireAdministrator)
-    // por lo que PowerShell hereda privilegios de administrador
-    let output = Command::new("powershell")
-        .args([
-            "-ExecutionPolicy", "Bypass",
-            "-NoProfile",
-            "-NonInteractive",
-            "-File",
-            script_path.to_str().unwrap_or(""),
-        ])
-        .output()
-        .map_err(|e| format!("PowerShell no disponible: {}", e))?;
-
+    let result = elevate_and_run(&script_path);
     let _ = fs::remove_file(&script_path);
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        let code = output.status.code().unwrap_or(-1);
-        Err(format!(
-            "Script falló (código {}):\n{}{}",
-            code,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        ))
-    }
+    result
 }
 
 // ─── Sistema de rollback ──────────────────────────────────────────────────────
@@ -432,29 +459,9 @@ fn execute_rollback_windows(filename: &str) -> Result<String, String> {
     fs::write(&tmp, &content)
         .map_err(|e| format!("No se pudo preparar rollback: {}", e))?;
 
-    let output = Command::new("powershell")
-        .args([
-            "-ExecutionPolicy", "Bypass",
-            "-NoProfile",
-            "-NonInteractive",
-            "-File",
-            tmp.to_str().unwrap_or(""),
-        ])
-        .output()
-        .map_err(|e| format!("PowerShell no disponible: {}", e))?;
-
+    let result = elevate_and_run(&tmp);
     let _ = fs::remove_file(&tmp);
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        let code = output.status.code().unwrap_or(-1);
-        Err(format!(
-            "Rollback falló (código {}): {}",
-            code,
-            String::from_utf8_lossy(&output.stderr)
-        ))
-    }
+    result
 }
 
 fn prune_old_rollbacks() {
