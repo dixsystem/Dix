@@ -11,6 +11,30 @@ use crate::scanner::SystemScan;
 #[cfg(not(target_os = "windows"))]
 use crate::policy;
 
+// Construye un Command para pkexec inyectando las variables de entorno que el
+// agente GNOME/Polkit necesita para localizar el bus de sesión y la pantalla.
+#[cfg(not(target_os = "windows"))]
+fn pkexec_cmd() -> Command {
+    let mut cmd = Command::new("/usr/bin/pkexec");
+    for var in &[
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+        "XAUTHORITY",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "XDG_RUNTIME_DIR",
+        "XDG_SESSION_TYPE",
+    ] {
+        if let Ok(val) = std::env::var(var) {
+            cmd.env(var, val);
+        }
+    }
+    // Fallback: si DISPLAY vacío, asumir :0
+    if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
+        cmd.env("DISPLAY", ":0");
+    }
+    cmd
+}
+
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -115,7 +139,7 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
     fs::write(&combined_path, &combined).map_err(|e| format!("script combinado: {}", e))?;
     Command::new("chmod").args(["+x", &combined_path]).output().ok();
 
-    let output = Command::new("/usr/bin/pkexec")
+    let output = pkexec_cmd()
         .args(["bash", &combined_path])
         .output()
         .map_err(|e| format!("/usr/bin/pkexec no disponible: {}", e))?;
@@ -366,7 +390,7 @@ fn execute_rollback_linux(filename: &str) -> Result<String, String> {
     fs::write(&tmp, &content).map_err(|e| format!("No se pudo preparar rollback: {}", e))?;
     Command::new("chmod").args(["+x", &tmp]).output().ok();
 
-    let output = Command::new("/usr/bin/pkexec")
+    let output = pkexec_cmd()
         .args(["bash", &tmp])
         .output()
         .map_err(|e| format!("pkexec no disponible: {}", e))?;
