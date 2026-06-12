@@ -82,7 +82,8 @@ nav.scrolled{border-bottom-color:rgba(255,107,0,.35)}
 
 /* ── HERO ── */
 #hero{position:relative;height:100vh;min-height:600px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.hero-bg{position:absolute;inset:0;background:url('dix_hero_full.png') center/cover no-repeat;filter:brightness(.55) saturate(1.2)}
+.hero-bg{position:absolute;inset:0;overflow:hidden;filter:brightness(.55) saturate(1.2)}
+.hero-bg video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(13,17,23,.25) 0%,rgba(13,17,23,.85) 100%)}
 .hero-particles{position:absolute;inset:0;pointer-events:none}
 .particle{position:absolute;width:3px;height:3px;background:var(--orange);border-radius:50%;opacity:.4;animation:float linear infinite}
@@ -367,7 +368,11 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 
 <!-- ══ HERO ══ -->
 <section id="hero">
-  <div class="hero-bg"></div>
+  <div class="hero-bg">
+    <video autoplay muted loop playsinline>
+      <source src="hero_video.mp4" type="video/mp4">
+    </video>
+  </div>
   <div class="hero-overlay"></div>
   <div class="hero-particles" id="particles"></div>
   <div class="hero-content">
