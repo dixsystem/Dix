@@ -281,9 +281,45 @@ function downloadDataUrl(dataUrl: string, filename: string) {
     });
 }
 
+// Techo físico de hardware — incluso con ajustes perfectos no se puede superar
+function hardwareCeiling(scan: SystemScan): number {
+  const model = (scan.cpu_model ?? "").toLowerCase();
+  const freq   = scan.cpu_max_freq_mhz  ?? 0;
+  const ram    = scan.mem_total_mb      ?? 0;
+  const cores  = scan.cpu_cores         ?? 1;
+
+  let ceiling = 95;
+
+  // Clase de CPU (línea de producto)
+  if (model.includes("celeron") || model.includes("pentium") || model.includes("atom"))
+    ceiling -= 12;
+  else if (model.includes("i3") || model.includes("ryzen 3") || /\ba[46]-/.test(model))
+    ceiling -= 8;
+  else if (model.includes("i5") || model.includes("ryzen 5"))
+    ceiling -= 3;
+  // i7/i9/Ryzen 7/9/Xeon/EPYC → sin penalización de clase
+
+  // Frecuencia boost máxima
+  if      (freq < 2500) ceiling -= 7;
+  else if (freq < 3200) ceiling -= 4;
+  else if (freq < 3800) ceiling -= 2;
+
+  // RAM instalada
+  if      (ram < 4096)  ceiling -= 8;
+  else if (ram < 8192)  ceiling -= 5;
+  else if (ram < 16384) ceiling -= 2;
+
+  // Hilos lógicos disponibles
+  if      (cores < 4) ceiling -= 5;
+  else if (cores < 8) ceiling -= 2;
+
+  return Math.max(70, Math.min(95, ceiling));
+}
+
 // Score determinista basado en métricas reales — evita inconsistencias entre sesiones
 function computeScore(scan: SystemScan): number {
-  let score = 100;
+  const ceiling = hardwareCeiling(scan);
+  let score = ceiling;
   if (scan.cpu_governor !== "performance" && scan.cpu_governor !== "schedutil")
     score -= scan.cpu_governor === "ondemand" ? 8 : 15;
   if (scan.swappiness > 60)        score -= 12;
@@ -300,7 +336,7 @@ function computeScore(scan: SystemScan): number {
   if (sched && sched !== "none" && sched !== "kyber" && sched !== "mq-deadline" && sched !== "bfq") score -= 5;
   if (scan.cpu_temp_celsius > 85)      score -= 10;
   else if (scan.cpu_temp_celsius > 75) score -= 5;
-  return Math.max(30, Math.min(100, score));
+  return Math.max(30, Math.min(ceiling, score));
 }
 
 function fmtDate(iso: string) {
@@ -803,10 +839,11 @@ export default function App() {
         scanJson: JSON.stringify(scanResult),
       });
       const parsed = safeParseJSON<AnalysisResult>(resp.analysis_json);
-      // Usar el delta de Claude anclado a nuestro score determinista — evita inversiones
+      // Delta de Claude anclado al score determinista; techo físico impide llegar a 100
+      const ceiling = hardwareCeiling(scanResult);
       const claudeDelta = Math.max(0, parsed.score_optimizado - parsed.score_actual);
       parsed.score_actual = computeScore(scanResult);
-      parsed.score_optimizado = Math.min(100, parsed.score_actual + claudeDelta);
+      parsed.score_optimizado = Math.min(ceiling, parsed.score_actual + claudeDelta);
       setAnalysis(parsed); setFromCache(resp.from_cache); setResponseMs(resp.response_time_ms);
 
       setScanStep(3);
