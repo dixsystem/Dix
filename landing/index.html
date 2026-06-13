@@ -304,7 +304,6 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
   .footer-bottom a{margin-left:0;margin-right:16px}
 }
 </style>
-<link rel="stylesheet" href="./src/dixbot.css">
 <link rel="stylesheet" href="./dixbot_v2.css">
 </head>
 <body>
@@ -1141,11 +1140,6 @@ const observer = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal, .step, .bench-card, .rm-item').forEach(el => observer.observe(el));
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-<script type="module">
-  import { DixBotMascot } from './src/dixbot.js';
-  window.DIXBOT = new DixBotMascot();
-  window.DIXBOT.mount(document.body);
-</script>
 <script src="./dixbot_v2.js"></script>
 </body>
 </html>
