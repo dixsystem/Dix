@@ -1,58 +1,650 @@
-(function(){
-'use strict';
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const now=()=>performance.now();
-const STATE={IDLE:'IDLE',WANDER:'WANDER',GRABBED:'GRABBED',FLYING:'FLYING',SLEEP:'SLEEP',SEARCH:'SEARCH',DIZZY:'DIZZY',CHAT_ACTIVE:'CHAT_ACTIVE'};
-const FRAME={WANDER:[0,1,2,3,4,5],IDLE:[1],SEARCH:[0,1,2,3,4,5],GRABBED:[5],FLYING:[7],SLEEP:[6],DIZZY:[7],CHAT_ACTIVE:[1]};
-class Dixbot{
- constructor(){
-  if(!window.Matter){this.showMissingMatter();return;}
-  this.Matter=window.Matter;this.Engine=Matter.Engine;this.Body=Matter.Body;this.Bodies=Matter.Bodies;this.Composite=Matter.Composite;
-  this.root=document.getElementById('dixbot-root');this.size=116;this.radius=42;this.state=STATE.WANDER;this.facing=-1;this.frame=0;this.frameTimer=0;this.lastTime=now();this.lastActivity=now();this.lastWander=0;this.lastCollisionCheck=0;this.lastMunch=0;this.lastGlitch=0;this.munching=false;this.glitching=false;this.pointer={x:window.innerWidth-180,y:window.innerHeight-180,lastX:0,lastY:0,vx:0,vy:0,down:false,downAt:0,moved:false};this.drag={active:false,ox:0,oy:0,lastDir:0,changes:0,lastShake:0};this.scroll={lastY:window.scrollY,lastAt:now()};this.environmentBounds=[];this.timers=new Set();this.coins=[];this.coinEls=new Map();this.stuck=false;
-  this.shadow=document.createElement('div');this.shadow.className='dixbot-shadow';document.body.appendChild(this.shadow);
-  this.bubble=document.createElement('div');this.bubble.className='dixbot-bubble';document.body.appendChild(this.bubble);
-  this.createChat();this.createPhysics();this.cacheEnvironmentBounds();this.bindEvents();this.setState(STATE.WANDER);requestAnimationFrame(t=>this.tick(t));window.dixbot=this;window.DIXBOT=this;
- }
- showMissingMatter(){const el=document.getElementById('dixbot-root');if(el){el.style.transform='translate3d(calc(100vw - 170px), calc(100vh - 170px), 0)';el.style.backgroundPosition='0 0';}console.warn('DIXBOT: Matter.js no se ha cargado. Revisa conexión/CDN.');}
- createPhysics(){this.engine=this.Engine.create();this.engine.gravity.y=.58;this.world=this.engine.world;this.body=this.Bodies.circle(window.innerWidth-180,window.innerHeight-170,this.radius,{restitution:.36,friction:.78,frictionAir:.07,density:.002,label:'DIXBOT'});this.Body.setInertia(this.body,Infinity);this.Composite.add(this.world,this.body);this.createBounds();}
- createBounds(){if(this.bounds) this.bounds.forEach(b=>this.Composite.remove(this.world,b));const w=innerWidth,h=innerHeight,t=80;this.bounds=[this.Bodies.rectangle(w/2,h+40,w+160,80,{isStatic:true,label:'floor'}),this.Bodies.rectangle(w/2,-40,w+160,80,{isStatic:true,label:'ceiling'}),this.Bodies.rectangle(-40,h/2,80,h+160,{isStatic:true,label:'leftWall'}),this.Bodies.rectangle(w+40,h/2,80,h+160,{isStatic:true,label:'rightWall'})];this.Composite.add(this.world,this.bounds);}
- bindEvents(){window.addEventListener('resize',()=>{clearTimeout(this.resizeTimer);this.resizeTimer=setTimeout(()=>{this.createBounds();this.cacheEnvironmentBounds();this.keepInside();},130);},{passive:true});window.addEventListener('scroll',()=>this.onScroll(),{passive:true});window.addEventListener('pointermove',e=>this.onPointerMove(e),{passive:true});window.addEventListener('pointerdown',e=>this.onPointerDown(e),{passive:false});window.addEventListener('pointerup',e=>this.onPointerUp(e),{passive:true});window.addEventListener('pointercancel',e=>this.onPointerUp(e),{passive:true});}
- cacheEnvironmentBounds(){const nodes=[...document.querySelectorAll('p,h2,span,.hero-card,.navbar')];this.environmentBounds=nodes.filter(el=>el!==this.root&&el.isConnected).map(el=>{const r=el.getBoundingClientRect();return{el,tag:el.tagName.toLowerCase(),isText:['p','h2','span'].includes(el.tagName.toLowerCase()),isInteractive:el.classList.contains('hero-card')||el.classList.contains('navbar'),originalHTML:el.innerHTML,originalText:el.textContent,x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,disabledUntil:0,lastMunched:0,lastGlitched:0};}).filter(i=>i.width>8&&i.height>8);}
- tick(t){const dt=Math.min(32,t-this.lastTime||16);this.lastTime=t;this.Engine.update(this.engine,1000/60);this.updateState(t,dt);if(t-this.lastCollisionCheck>120){this.lastCollisionCheck=t;this.checkEnvironmentInteractions(t);}this.updateCoins();this.render(dt);requestAnimationFrame(x=>this.tick(x));}
- updateState(t,dt){if(this.state===STATE.WANDER){this.applyWander(t);this.evaluateIdle(t);}else if(this.state===STATE.SEARCH){this.applyMagnet();}else if(this.state===STATE.GRABBED){this.updateGrabbed();}else if(this.state===STATE.FLYING){this.evaluateWallImpact(t);this.evaluateLanding();}else if(this.state===STATE.DIZZY||this.state===STATE.CHAT_ACTIVE){this.Body.setVelocity(this.body,{x:0,y:0});this.Body.setAngularVelocity(this.body,0);}this.animateSprite(dt);}
- setState(s){if(!Object.values(STATE).includes(s)||this.state===s)return;this.state=s;this.root.dataset.state=s;this.root.classList.remove('dix-effect-grabbed','dix-effect-dizzy');if(s===STATE.GRABBED){this.Body.setStatic(this.body,true);this.root.classList.add('dix-effect-grabbed');this.hideBubble();}else if(s===STATE.DIZZY){this.Body.setStatic(this.body,true);this.root.classList.add('dix-effect-dizzy');}else if(s===STATE.CHAT_ACTIVE){this.Body.setStatic(this.body,true);}else{this.Body.setStatic(this.body,false);if(s===STATE.FLYING)this.Body.setInertia(this.body,.02);else this.Body.setInertia(this.body,Infinity);}this.frame=(FRAME[s]||[1])[0];this.applyFrame(this.frame);}
- applyWander(t){if(t-this.lastWander<850)return;this.lastWander=t;const p=this.body.position,v=this.body.velocity;if(p.x<110)this.facing=1;if(p.x>innerWidth-110)this.facing=-1;if(Math.abs(v.x)<1.25)this.Body.applyForce(this.body,p,{x:.0018*this.facing,y:0});if(Math.random()<.025&&Math.abs(v.y)<.35)this.Body.applyForce(this.body,p,{x:0,y:-.009});}
- evaluateIdle(t){const idle=t-this.lastActivity;if(idle>22000){this.setState(STATE.SLEEP);this.say('Zzz...',1200);return;}if(idle>5000)this.setState(STATE.SEARCH);}
- applyMagnet(){const p=this.body.position,dx=this.pointer.x-p.x,dy=this.pointer.y-p.y,d=Math.hypot(dx,dy);if(d<44){this.Body.setVelocity(this.body,{x:0,y:this.body.velocity.y});this.setState(STATE.IDLE);this.say('Te encontré.',1200);return;}this.facing=Math.sign(dx)||1;this.Body.applyForce(this.body,p,{x:.0024*this.facing,y:dy<-90?-.001:0});}
- onPointerMove(e){const t=now(),dt=Math.max(16,t-(this.pointer.lastAt||t));this.pointer.vx=((e.clientX-this.pointer.x)/dt)*16.67;this.pointer.vy=((e.clientY-this.pointer.y)/dt)*16.67;this.pointer.lastX=this.pointer.x;this.pointer.lastY=this.pointer.y;this.pointer.x=e.clientX;this.pointer.y=e.clientY;this.pointer.lastAt=t;this.lastActivity=t;if(this.state===STATE.GRABBED){this.pointer.moved=true;this.updateGrabbed();this.trackShake(t);}}
- onPointerDown(e){if(!this.hitBot(e.clientX,e.clientY))return;e.preventDefault();this.pointer.down=true;this.pointer.downAt=now();this.pointer.moved=false;this.pointer.x=e.clientX;this.pointer.y=e.clientY;this.pointer.vx=0;this.pointer.vy=0;this.lastActivity=now();this.drag.active=true;this.drag.ox=this.body.position.x-e.clientX;this.drag.oy=this.body.position.y-e.clientY;this.drag.lastDir=0;this.drag.changes=0;this.drag.lastShake=0;this.setState(STATE.GRABBED);this.say('¡Eh!',700);}
- onPointerUp(){if(!this.pointer.down)return;const held=now()-this.pointer.downAt,wasDrag=this.drag.active&&this.pointer.moved,speed=Math.hypot(this.pointer.vx,this.pointer.vy);this.pointer.down=false;this.drag.active=false;this.lastActivity=now();if(!wasDrag&&held<260){this.activateChatMode();return;}if(this.state===STATE.GRABBED)this.throwBot(speed);}
- updateGrabbed(){if(!this.drag.active||this.state!==STATE.GRABBED)return;this.Body.setPosition(this.body,{x:this.pointer.x+this.drag.ox,y:this.pointer.y+this.drag.oy});this.Body.setVelocity(this.body,{x:0,y:0});this.Body.setAngularVelocity(this.body,0);}
- throwBot(speed){this.Body.setStatic(this.body,false);this.Body.setInertia(this.body,.02);this.Body.setVelocity(this.body,{x:this.pointer.vx*1.06,y:this.pointer.vy*1.06});this.Body.setAngularVelocity(this.body,clamp(this.pointer.vx*.012,-.35,.35));this.setState(speed>6.5?STATE.FLYING:STATE.WANDER);}
- evaluateLanding(){const p=this.body.position,v=this.body.velocity,near=p.y>innerHeight-this.radius-30,calm=Math.abs(v.y)<1.8&&Math.abs(v.x)<2.3;if(near&&calm&&!this.stuck){this.Body.setAngle(this.body,0);this.Body.setAngularVelocity(this.body,0);this.root.classList.add('dix-effect-impact');this.clearClassLater(this.root,'dix-effect-impact',190);this.setState(STATE.WANDER);}}
- evaluateWallImpact(t){const p=this.body.position,v=this.body.velocity,s=Math.hypot(v.x,v.y),left=p.x<this.radius+8,right=p.x>innerWidth-this.radius-8;if((left||right)&&s>19&&!this.stuck){this.stuck=true;this.Body.setPosition(this.body,{x:left?this.radius+10:innerWidth-this.radius-10,y:p.y});this.Body.setVelocity(this.body,{x:0,y:0});this.Body.setStatic(this.body,true);this.root.classList.add('dix-effect-stuck');this.say('Me he clavado...',1100);this.setTimeoutSafe(()=>{this.stuck=false;this.root.classList.remove('dix-effect-stuck');this.Body.setStatic(this.body,false);this.Body.setVelocity(this.body,{x:left?2.2:-2.2,y:-1.4});this.setState(STATE.FLYING);},1200);}if(s>=5&&s<=15)this.checkElectricBreak(t);}
- checkEnvironmentInteractions(t){if([STATE.GRABBED,STATE.DIZZY,STATE.CHAT_ACTIVE,STATE.SLEEP].includes(this.state))return;const br=this.botRect();for(const item of this.environmentBounds){if(!item.el.isConnected||t<item.disabledUntil)continue;if(!this.overlap(br,item))continue;if(item.isText&&this.state===STATE.WANDER){this.executeTextMuncher(item,t);return;}if(item.isInteractive){const s=Math.hypot(this.body.velocity.x,this.body.velocity.y);if(s>=5&&s<=15){this.executeElectricBreak(item,t);return;}}}}
- executeTextMuncher(item,t){if(this.munching||t-this.lastMunch<6000||t-item.lastMunched<9000)return;const words=(item.el.textContent||'').trim().split(/\s+/).filter(Boolean);if(words.length<3)return;this.munching=true;this.lastMunch=t;item.lastMunched=t;item.disabledUntil=t+6500;this.Body.setVelocity(this.body,{x:0,y:this.body.velocity.y});this.root.classList.add('dix-effect-munch');item.el.classList.add('dix-effect-being-munched');this.say('Ñam...',900);let i=0,limit=Math.min(words.length,9),original=item.originalText;const eat=()=>{i++;item.el.textContent=words.slice(i).join(' ')||' ';if(i<limit)this.setTimeoutSafe(eat,115);else this.setTimeoutSafe(()=>{this.root.classList.remove('dix-effect-munch');item.el.classList.remove('dix-effect-being-munched');this.munching=false;this.setTimeoutSafe(()=>{if(item.el.isConnected&&item.el.textContent.trim().length<2)item.el.textContent=original;},1800);},240);};eat();}
- checkElectricBreak(t){const br=this.botRect();for(const item of this.environmentBounds){if(item.isInteractive&&this.overlap(br,item)){this.executeElectricBreak(item,t);return;}}}
- executeElectricBreak(item,t){if(this.glitching||t-this.lastGlitch<1300||t-item.lastGlitched<1300)return;this.glitching=true;this.lastGlitch=t;item.lastGlitched=t;item.disabledUntil=t+1400;const original=item.originalHTML,chars='█▓▒░<>/\\{}[]$%#@!0101DIX',len=clamp((item.el.textContent||'').length,10,70);item.el.classList.add('dix-effect-glitch');let frames=0;const step=()=>{frames++;item.el.textContent=Array.from({length:len},()=>chars[Math.floor(Math.random()*chars.length)]).join('');if(frames<9)this.setTimeoutSafe(step,45);else{item.el.innerHTML=original;item.el.classList.remove('dix-effect-glitch');this.glitching=false;}};step();}
- onScroll(){const t=now(),y=scrollY,dt=Math.max(16,t-this.scroll.lastAt),vel=((y-this.scroll.lastY)/dt)*16.67;this.scroll.lastY=y;this.scroll.lastAt=t;this.lastActivity=t;this.applyScrollInertia(vel);}
- applyScrollInertia(vel){if([STATE.GRABBED,STATE.DIZZY,STATE.CHAT_ACTIVE,STATE.SLEEP].includes(this.state))return;const a=Math.abs(vel);if(a<42)return;this.Body.setStatic(this.body,false);this.Body.applyForce(this.body,this.body.position,{x:vel>0?-.0022:.0022,y:-Math.min(.038,a*.00058)});this.setState(STATE.FLYING);this.say('¡Uooh!',700);}
- trackShake(t){const dir=Math.sign(this.pointer.vx),abs=Math.abs(this.pointer.vx);if(abs<9||!dir)return;if(this.drag.lastDir&&dir!==this.drag.lastDir&&t-this.drag.lastShake>55){this.drag.changes++;this.drag.lastShake=t;}this.drag.lastDir=dir;if(this.drag.changes>=8)this.triggerPinataMode();}
- triggerPinataMode(){if(this.state===STATE.DIZZY)return;this.pointer.down=false;this.drag.active=false;this.drag.changes=0;this.setState(STATE.DIZZY);this.say('Estoy mareado...',1100);this.spawnPinataItems(12);this.setTimeoutSafe(()=>{if(this.state===STATE.DIZZY){this.Body.setStatic(this.body,false);this.Body.setVelocity(this.body,{x:.7*this.facing,y:-.5});this.setState(STATE.WANDER);}},2200);}
- spawnPinataItems(n){const icons=['◆','✦','⬡','●','D','✧','▣','⚙'];const p=this.body.position;for(let i=0;i<n;i++){const s=14+Math.random()*10,el=document.createElement('div');el.className='dix-pinata-item';el.textContent=icons[Math.floor(Math.random()*icons.length)];el.style.fontSize=s+'px';el.style.width=s+'px';el.style.height=s+'px';document.body.appendChild(el);const b=this.Bodies.circle(p.x+(Math.random()-.5)*22,p.y-10+(Math.random()-.5)*16,s/2,{restitution:.44,frictionAir:.035,density:.0005,label:'coin'});this.Body.setVelocity(b,{x:(Math.random()-.5)*8,y:-4-Math.random()*5});this.Body.setAngularVelocity(b,(Math.random()-.5)*.25);this.Composite.add(this.world,b);this.coins.push(b);this.coinEls.set(b.id,el);this.setTimeoutSafe(()=>{this.Composite.remove(this.world,b);el.remove();this.coinEls.delete(b.id);this.coins=this.coins.filter(x=>x.id!==b.id);},3900);}}
- updateCoins(){for(const b of this.coins){const el=this.coinEls.get(b.id);if(el)el.style.transform=`translate3d(${b.position.x}px,${b.position.y}px,0) translate(-50%,-50%) rotate(${b.angle}rad)`;}}
- animateSprite(dt){const list=FRAME[this.state]||[1];this.frameTimer+=dt;if(this.frameTimer>(this.state===STATE.WANDER||this.state===STATE.SEARCH?115:260)){this.frameTimer=0;const idx=list.indexOf(this.frame);this.frame=list[(idx+1)%list.length];this.applyFrame(this.frame);}}
- applyFrame(f){const col=f%4,row=Math.floor(f/4);this.root.style.backgroundPosition=`${col*33.333333}% ${row*100}%`;}
- render(){const p=this.body.position;let angle=0;if(this.state===STATE.FLYING&&!this.stuck)angle=clamp(this.body.angle*.42,-.85,.85);if(this.stuck)angle=p.x<innerWidth/2?-.38:.38;const sx=this.facing>=0?1:-1;this.root.style.transform=`translate3d(${p.x-this.size/2}px,${p.y-this.size/2}px,0) scaleX(${sx}) rotate(${angle}rad)`;const floor=innerHeight-18,d=Math.max(0,floor-p.y),sc=clamp(1.15-d/420,.46,1.15),op=clamp(.45-d/520,.08,.45);this.shadow.style.opacity=op;this.shadow.style.transform=`translate3d(${p.x-37}px,${floor-4}px,0) scale(${sc},${Math.max(.45,sc*.72)})`;this.bubble.style.left=p.x+24+'px';this.bubble.style.top=p.y-this.size*.78+'px';}
- activateChatMode(){this.setState(STATE.CHAT_ACTIVE);this.Body.setPosition(this.body,{x:innerWidth-135,y:innerHeight-165});this.Body.setVelocity(this.body,{x:0,y:0});this.chat.classList.add('is-open');this.say('Hola. Soy DIXBOT. ¿Te ayudo?',1800);}
- createChat(){this.chat=document.createElement('section');this.chat.className='dixbot-chat';this.chat.innerHTML='<div class="dixbot-chat__head"><div><div class="dixbot-chat__title">DIXBOT</div><div class="dixbot-chat__subtitle">Asistente de DixSystem</div></div><button class="dixbot-chat__close" aria-label="Cerrar">×</button></div><div class="dixbot-chat__body"><div class="dixbot-msg dixbot-msg--bot">Hola, soy DIXBOT. Estoy listo para integrarme como chatbot comercial.</div></div><div class="dixbot-chat__input"><input placeholder="Escribe aquí..."/><button>Enviar</button></div>';document.body.appendChild(this.chat);this.chat.querySelector('.dixbot-chat__close').addEventListener('click',()=>{this.chat.classList.remove('is-open');this.setState(STATE.WANDER);});}
- say(txt,ms=1300){this.bubble.textContent=txt;this.bubble.classList.add('is-visible');this.setTimeoutSafe(()=>{if(this.bubble.textContent===txt)this.hideBubble();},ms);}hideBubble(){this.bubble.classList.remove('is-visible');}
- wake(){if(this.state===STATE.SLEEP){this.lastActivity=now();this.setState(STATE.WANDER);this.say('Ya estoy.',900);}}
- keepInside(){this.Body.setPosition(this.body,{x:clamp(this.body.position.x,this.radius+15,innerWidth-this.radius-15),y:clamp(this.body.position.y,this.radius+15,innerHeight-this.radius-15)});}
- hitBot(x,y){const p=this.body.position,dx=x-p.x,dy=y-p.y;return dx*dx+dy*dy<(this.size*.58)*(this.size*.58);}
- botRect(){const p=this.body.position,s=this.size*.72,h=s/2;return{x:p.x-h+scrollX,y:p.y-h+scrollY,width:s,height:s};}
- overlap(a,b){return a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;}
- clearClassLater(el,c,ms){this.setTimeoutSafe(()=>el.classList.remove(c),ms);}setTimeoutSafe(fn,ms){const id=setTimeout(()=>{this.timers.delete(id);fn();},ms);this.timers.add(id);return id;}
+/**
+ * DIXBOT Living Mascot v5
+ * DixSystem-ready character controller.
+ *
+ * Philosophy:
+ * - Physics are controlled by the character system, not the other way around.
+ * - Walking must feel intentional, calm and readable.
+ * - Full body rotation is only allowed during thrown/flying/stuck states.
+ * - The visual baseline is corrected so DIXBOT never appears buried in the page.
+ */
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const now = () => performance.now();
+
+const STATE = Object.freeze({
+  WALK: 'walk',
+  IDLE: 'idle',
+  CURIOUS: 'curious',
+  SLEEP: 'sleep',
+  GRABBED: 'grabbed',
+  FLYING: 'flying',
+  LANDED: 'landed',
+  STUCK: 'stuck',
+  CHAT: 'chat',
+});
+
+const FRAME = Object.freeze({
+  WALK: [0, 1, 2, 3, 4, 5, 6, 7],
+  IDLE: [0],
+  CURIOUS: [2],
+  SLEEP: [6],
+  ANGRY: [5],
+  FALL: [7],
+  STUCK: [4],
+  CHAT: [1],
+});
+
+export class DixBotMascot {
+  constructor(options = {}) {
+    this.options = {
+      spriteUrl: options.spriteUrl ?? './assets/dixbot_spritesheet.png',
+      size: options.size ?? 92,
+      minSize: 80,
+      maxSize: 116,
+      floorPadding: options.floorPadding ?? 16,
+      wallPadding: options.wallPadding ?? 12,
+      startX: options.startX ?? window.innerWidth - 140,
+      startY: options.startY ?? window.innerHeight - 150,
+      chatTitle: options.chatTitle ?? 'DIXBOT',
+      chatSubtitle: options.chatSubtitle ?? 'Asistente de DixSystem',
+      welcomeMessage: options.welcomeMessage ?? 'Hola, soy DIXBOT.',
+      debug: Boolean(options.debug),
+    };
+
+    this.size = clamp(this.options.size, this.options.minSize, this.options.maxSize);
+    this.radius = this.size * 0.42;
+    this.visualFootOffset = this.size * 0.08; // prevents “sunk into the floor” effect
+
+    this.pos = {
+      x: clamp(this.options.startX, this.leftLimit(), this.rightLimit()),
+      y: clamp(this.options.startY, 80, this.floorY()),
+    };
+    this.vel = { x: 0, y: 0 };
+    this.target = { x: this.pos.x, y: this.floorY() };
+
+    this.state = STATE.IDLE;
+    this.facing = -1;
+    this.angle = 0;
+    this.visualAngle = 0;
+    this.scaleX = 1;
+    this.frame = 0;
+    this.frameTimer = 0;
+    this.walkCycleSpeed = 120;
+
+    this.energy = 80;
+    this.annoyance = 0;
+    this.trust = 70;
+
+    this.lastTime = 0;
+    this.lastHumanActivity = now();
+    this.lastAutonomyDecision = 0;
+    this.lastFloorDust = 0;
+    this.lastPointer = { x: 0, y: 0, t: 0 };
+    this.drag = null;
+    this.clickCandidate = false;
+    this.chatOpen = false;
+    this.isMounted = false;
+
+    this.boundTick = this.tick.bind(this);
+    this.boundPointerMoveGlobal = this.onGlobalPointerMove.bind(this);
+    this.boundResize = this.onResize.bind(this);
+  }
+
+  mount(parent = document.body) {
+    if (this.isMounted) return;
+    this.root = document.createElement('div');
+    this.root.className = 'dixbot-root';
+    this.root.style.setProperty('--dixbot-size', `${this.size}px`);
+    this.root.style.setProperty('--dixbot-sprite', `url("${this.options.spriteUrl}")`);
+
+    this.hitbox = document.createElement('div');
+    this.hitbox.className = 'dixbot-hitbox';
+    this.hitbox.dataset.state = this.state;
+
+    this.character = document.createElement('div');
+    this.character.className = 'dixbot-character';
+
+    this.sprite = document.createElement('div');
+    this.sprite.className = 'dixbot-sprite';
+
+    this.shadow = document.createElement('div');
+    this.shadow.className = 'dixbot-shadow';
+
+    this.bubble = document.createElement('div');
+    this.bubble.className = 'dixbot-bubble';
+
+    this.chat = this.createChat();
+
+    this.character.appendChild(this.sprite);
+    this.hitbox.appendChild(this.shadow);
+    this.hitbox.appendChild(this.character);
+    this.root.appendChild(this.hitbox);
+    this.root.appendChild(this.bubble);
+    this.root.appendChild(this.chat);
+    parent.appendChild(this.root);
+
+    this.hitbox.addEventListener('pointerdown', this.onPointerDown.bind(this));
+    window.addEventListener('pointermove', this.boundPointerMoveGlobal, { passive: true });
+    window.addEventListener('resize', this.boundResize);
+
+    this.setState(STATE.WALK);
+    this.say('Hola, soy DIXBOT 👋', 2200);
+    this.isMounted = true;
+    requestAnimationFrame(this.boundTick);
+  }
+
+  createChat() {
+    const chat = document.createElement('section');
+    chat.className = 'dixbot-chat';
+    chat.innerHTML = `
+      <div class="dixbot-chat__head">
+        <div>
+          <div class="dixbot-chat__title"></div>
+          <div class="dixbot-chat__subtitle"></div>
+        </div>
+        <button class="dixbot-chat__close" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <div class="dixbot-chat__body">
+        <div class="dixbot-msg dixbot-msg--bot"></div>
+      </div>
+      <form class="dixbot-chat__input">
+        <input placeholder="Pregúntame sobre DixSystem..." autocomplete="off" />
+        <button type="submit">Enviar</button>
+      </form>
+    `;
+    chat.querySelector('.dixbot-chat__title').textContent = this.options.chatTitle;
+    chat.querySelector('.dixbot-chat__subtitle').textContent = this.options.chatSubtitle;
+    chat.querySelector('.dixbot-msg').textContent = this.options.welcomeMessage;
+    chat.querySelector('.dixbot-chat__close').addEventListener('click', () => this.closeChat());
+    chat.querySelector('form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = chat.querySelector('input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      this.addBotMessage('Estoy preparado para conectarme a tu backend real. Ahora mismo soy la interfaz viva de DixSystem.');
+      this.celebrate();
+    });
+    return chat;
+  }
+
+  addBotMessage(text) {
+    const msg = document.createElement('div');
+    msg.className = 'dixbot-msg dixbot-msg--bot';
+    msg.textContent = text;
+    this.chat.querySelector('.dixbot-chat__body').appendChild(msg);
+  }
+
+  leftLimit() { return this.options.wallPadding + this.size * 0.5; }
+  rightLimit() { return window.innerWidth - this.options.wallPadding - this.size * 0.5; }
+  floorY() { return window.innerHeight - this.options.floorPadding - this.size * 0.5 + this.visualFootOffset; }
+  ceilingY() { return this.size * 0.5 + 10; }
+
+  setState(next) {
+    if (this.state === next) return;
+    this.state = next;
+    if (this.hitbox) this.hitbox.dataset.state = next;
+  }
+
+  wake() {
+    this.lastHumanActivity = now();
+    if (this.state === STATE.SLEEP) {
+      this.say('Ya voy, ya voy...');
+      this.setState(STATE.IDLE);
+      this.chooseNewWalkTarget();
+    }
+  }
+
+  sleep() {
+    this.vel.x = 0;
+    this.vel.y = 0;
+    this.pos.y = this.floorY();
+    this.angle = 0;
+    this.visualAngle = 0;
+    this.setState(STATE.SLEEP);
+    this.setFrame(FRAME.SLEEP[0]);
+    this.say('Me quedo vigilando en modo reposo...', 2600);
+  }
+
+  celebrate() {
+    this.wake();
+    this.setState(STATE.CURIOUS);
+    this.setFrame(2);
+    this.vel.y = -4.2;
+    this.spawnDust(this.pos.x, this.floorY(), 7);
+    this.say('¡DixSystem activo!');
+  }
+
+  say(text, duration = 2600) {
+    if (!this.bubble) return;
+    this.bubble.textContent = text;
+    this.positionBubble();
+    this.bubble.classList.add('is-visible');
+    clearTimeout(this.bubbleTimer);
+    this.bubbleTimer = setTimeout(() => this.bubble?.classList.remove('is-visible'), duration);
+  }
+
+  onGlobalPointerMove(event) {
+    this.lastHumanActivity = now();
+    this.lastPointer = { x: event.clientX, y: event.clientY, t: now() };
+    if (this.state === STATE.SLEEP && dist({ x: event.clientX, y: event.clientY }, this.pos) < 140) {
+      this.wake();
+      this.say('¿Me necesitabas?');
+    }
+  }
+
+  onPointerDown(event) {
+    event.preventDefault();
+    this.lastHumanActivity = now();
+    this.wake();
+
+    this.clickCandidate = true;
+    this.drag = {
+      pointerId: event.pointerId,
+      start: { x: event.clientX, y: event.clientY, t: now() },
+      current: { x: event.clientX, y: event.clientY, t: now() },
+      previous: { x: event.clientX, y: event.clientY, t: now() },
+      velocity: { x: 0, y: 0 },
+      offset: { x: this.pos.x - event.clientX, y: this.pos.y - event.clientY },
+    };
+
+    this.hitbox.setPointerCapture(event.pointerId);
+    this.hitbox.addEventListener('pointermove', this.onPointerMoveBound = this.onPointerMove.bind(this));
+    this.hitbox.addEventListener('pointerup', this.onPointerUpBound = this.onPointerUp.bind(this), { once: true });
+    this.hitbox.addEventListener('pointercancel', this.onPointerUpBound, { once: true });
+
+    this.annoyance = clamp(this.annoyance + 10, 0, 100);
+    this.setState(STATE.GRABBED);
+    this.setFrame(FRAME.ANGRY[0]);
+    this.vel.x = 0;
+    this.vel.y = 0;
+    this.say(this.annoyance > 45 ? '¡Con cuidado, humano!' : '¡Eh! ¿A dónde vamos?');
+  }
+
+  onPointerMove(event) {
+    if (!this.drag || event.pointerId !== this.drag.pointerId) return;
+    const t = now();
+    const dt = Math.max(12, t - this.drag.current.t);
+
+    this.drag.previous = this.drag.current;
+    this.drag.current = { x: event.clientX, y: event.clientY, t };
+    this.drag.velocity = {
+      x: ((this.drag.current.x - this.drag.previous.x) / dt) * 16.67,
+      y: ((this.drag.current.y - this.drag.previous.y) / dt) * 16.67,
+    };
+
+    if (dist(this.drag.start, this.drag.current) > 8) this.clickCandidate = false;
+
+    const desired = {
+      x: event.clientX + this.drag.offset.x,
+      y: event.clientY + this.drag.offset.y,
+    };
+
+    // Rigid enough to feel direct, smoothed enough to avoid spasms.
+    this.pos.x = lerp(this.pos.x, clamp(desired.x, this.leftLimit(), this.rightLimit()), 0.58);
+    this.pos.y = lerp(this.pos.y, clamp(desired.y, this.ceilingY(), this.floorY()), 0.58);
+    this.angle = 0;
+    this.visualAngle = 0;
+  }
+
+  onPointerUp(event) {
+    if (!this.drag || event.pointerId !== this.drag.pointerId) return;
+    this.hitbox.releasePointerCapture(event.pointerId);
+    this.hitbox.removeEventListener('pointermove', this.onPointerMoveBound);
+
+    const duration = now() - this.drag.start.t;
+    const travel = dist(this.drag.start, this.drag.current);
+    const speed = Math.hypot(this.drag.velocity.x, this.drag.velocity.y);
+
+    if (this.clickCandidate && duration < 260 && travel < 9) {
+      this.drag = null;
+      this.toggleChat();
+      return;
+    }
+
+    this.vel.x = clamp(this.drag.velocity.x * 1.05, -22, 22);
+    this.vel.y = clamp(this.drag.velocity.y * 1.05, -22, 22);
+    this.angle = 0;
+    this.visualAngle = 0;
+    this.drag = null;
+    this.setState(STATE.FLYING);
+    this.setFrame(FRAME.FALL[0]);
+
+    if (speed > 13) this.say('¡Woooooo!');
+  }
+
+  toggleChat() {
+    if (this.chatOpen) this.closeChat();
+    else this.openChat();
+  }
+
+  openChat() {
+    this.chatOpen = true;
+    this.hitbox.dataset.chat = 'open';
+    this.chat.classList.add('is-open');
+    this.setState(STATE.CHAT);
+    this.setFrame(FRAME.CHAT[0]);
+    this.vel.x = 0;
+    this.vel.y = 0;
+    this.target.x = window.innerWidth - 74;
+    this.target.y = this.floorY();
+    this.say('Modo asistente activado.', 1600);
+  }
+
+  closeChat() {
+    this.chatOpen = false;
+    this.hitbox.dataset.chat = 'closed';
+    this.chat.classList.remove('is-open');
+    this.setState(STATE.IDLE);
+    this.chooseNewWalkTarget();
+    this.say('Vuelvo a patrullar.');
+  }
+
+  onResize() {
+    this.pos.x = clamp(this.pos.x, this.leftLimit(), this.rightLimit());
+    this.pos.y = clamp(this.pos.y, this.ceilingY(), this.floorY());
+    this.target.x = clamp(this.target.x, this.leftLimit(), this.rightLimit());
+    this.target.y = this.floorY();
+  }
+
+  chooseNewWalkTarget() {
+    const margin = Math.max(90, this.size);
+    const min = margin;
+    const max = window.innerWidth - margin;
+    const nextX = clamp(min + Math.random() * (max - min), this.leftLimit(), this.rightLimit());
+    this.target = { x: nextX, y: this.floorY() };
+    this.facing = nextX >= this.pos.x ? 1 : -1;
+    this.setState(STATE.WALK);
+  }
+
+  tick(time) {
+    if (!this.lastTime) this.lastTime = time;
+    const dt = clamp((time - this.lastTime) / 16.67, 0.5, 2.0);
+    this.lastTime = time;
+
+    this.updateAutonomy(time);
+    this.updatePhysics(dt, time);
+    this.updateAnimation(dt, time);
+    this.render();
+
+    requestAnimationFrame(this.boundTick);
+  }
+
+  updateAutonomy(time) {
+    const inactiveFor = now() - this.lastHumanActivity;
+
+    if (!this.chatOpen && !this.drag && this.state !== STATE.FLYING && this.state !== STATE.STUCK) {
+      if (inactiveFor > 24000 && this.state !== STATE.SLEEP) {
+        this.sleep();
+        return;
+      }
+
+      if (time - this.lastAutonomyDecision > 4200) {
+        this.lastAutonomyDecision = time;
+        const r = Math.random();
+        if (this.state === STATE.WALK && Math.abs(this.target.x - this.pos.x) < 12) {
+          this.setState(STATE.IDLE);
+          this.vel.x = 0;
+        } else if (this.state === STATE.IDLE && r < 0.72) {
+          this.chooseNewWalkTarget();
+        } else if (this.state === STATE.IDLE && r < 0.86) {
+          this.setState(STATE.CURIOUS);
+          this.setFrame(FRAME.CURIOUS[0]);
+          if (Math.random() < 0.35) this.say('Estoy observando la web...');
+        } else if (this.state === STATE.CURIOUS) {
+          this.setState(STATE.IDLE);
+        }
+      }
+    }
+  }
+
+  updatePhysics(dt, time) {
+    const floor = this.floorY();
+
+    if (this.chatOpen && this.state === STATE.CHAT) {
+      this.pos.x = lerp(this.pos.x, this.target.x, 0.06 * dt);
+      this.pos.y = lerp(this.pos.y, floor, 0.07 * dt);
+      this.vel.x = 0;
+      this.vel.y = 0;
+      this.angle = 0;
+      this.visualAngle = lerp(this.visualAngle, 0, 0.14 * dt);
+      return;
+    }
+
+    if (this.state === STATE.SLEEP || this.state === STATE.GRABBED) {
+      this.vel.x *= 0.8;
+      this.vel.y *= 0.8;
+      this.pos.y = this.state === STATE.SLEEP ? lerp(this.pos.y, floor, 0.12 * dt) : this.pos.y;
+      this.angle = 0;
+      this.visualAngle = lerp(this.visualAngle, 0, 0.22 * dt);
+      return;
+    }
+
+    if (this.state === STATE.WALK || this.state === STATE.IDLE || this.state === STATE.CURIOUS || this.state === STATE.LANDED) {
+      // Grounded character locomotion: slow, intentional, no physical rotation.
+      const dx = this.target.x - this.pos.x;
+      const desiredSpeed = this.state === STATE.WALK ? clamp(dx * 0.022, -1.35, 1.35) : 0;
+      this.vel.x = lerp(this.vel.x, desiredSpeed, 0.055 * dt);
+      this.pos.x += this.vel.x * dt;
+      this.pos.y = lerp(this.pos.y, floor, 0.2 * dt);
+
+      if (Math.abs(this.vel.x) > 0.08) this.facing = this.vel.x > 0 ? 1 : -1;
+      if (this.state === STATE.WALK && Math.abs(dx) < 10) {
+        this.setState(STATE.IDLE);
+        this.vel.x = 0;
+      }
+
+      this.angle = 0;
+      this.visualAngle = lerp(this.visualAngle, 0, 0.18 * dt);
+      this.collideWallsGrounded();
+      return;
+    }
+
+    if (this.state === STATE.FLYING || this.state === STATE.STUCK) {
+      if (this.state === STATE.STUCK) {
+        this.vel.x *= 0.86;
+        this.vel.y *= 0.86;
+        return;
+      }
+
+      const gravity = 0.46;
+      const air = 0.988;
+      this.vel.y += gravity * dt;
+      this.vel.x *= Math.pow(air, dt);
+      this.vel.y *= Math.pow(air, dt);
+
+      this.pos.x += this.vel.x * dt;
+      this.pos.y += this.vel.y * dt;
+
+      this.angle += clamp(this.vel.x * 0.011, -0.13, 0.13) * dt;
+      this.visualAngle = lerp(this.visualAngle, clamp(this.angle, -0.65, 0.65), 0.16 * dt);
+
+      this.collideWhileFlying(time);
+    }
+  }
+
+  collideWallsGrounded() {
+    if (this.pos.x < this.leftLimit()) {
+      this.pos.x = this.leftLimit();
+      this.vel.x = Math.abs(this.vel.x) * 0.2;
+      this.chooseNewWalkTarget();
+    }
+    if (this.pos.x > this.rightLimit()) {
+      this.pos.x = this.rightLimit();
+      this.vel.x = -Math.abs(this.vel.x) * 0.2;
+      this.chooseNewWalkTarget();
+    }
+  }
+
+  collideWhileFlying(time) {
+    const floor = this.floorY();
+    const left = this.leftLimit();
+    const right = this.rightLimit();
+    let collided = false;
+    let impactX = this.pos.x;
+    let impactY = this.pos.y;
+
+    if (this.pos.x <= left) {
+      this.pos.x = left;
+      impactX = left;
+      this.handleWallImpact('left');
+      collided = true;
+    } else if (this.pos.x >= right) {
+      this.pos.x = right;
+      impactX = right;
+      this.handleWallImpact('right');
+      collided = true;
+    }
+
+    if (this.pos.y >= floor) {
+      this.pos.y = floor;
+      impactY = floor + this.size * 0.34;
+      const impact = Math.abs(this.vel.y);
+      this.vel.y = -this.vel.y * 0.34;
+      this.vel.x *= 0.76;
+      this.angle *= 0.35;
+      collided = true;
+
+      if (impact > 8) this.spawnDust(this.pos.x, impactY, 9);
+      if (impact < 2.2 && Math.abs(this.vel.x) < 1.1) {
+        this.vel.x = 0;
+        this.vel.y = 0;
+        this.setState(STATE.LANDED);
+        this.setFrame(FRAME.IDLE[0]);
+        this.spawnImpact(this.pos.x, impactY);
+        setTimeout(() => {
+          if (this.state === STATE.LANDED && !this.chatOpen) {
+            this.setState(STATE.IDLE);
+            this.chooseNewWalkTarget();
+          }
+        }, 420);
+      }
+    }
+
+    if (collided && time - this.lastFloorDust > 90) {
+      this.lastFloorDust = time;
+      this.spawnImpact(impactX, impactY);
+    }
+  }
+
+  handleWallImpact(side) {
+    const speed = Math.hypot(this.vel.x, this.vel.y);
+    if (speed > 18) {
+      this.vel.x = 0;
+      this.vel.y = 0;
+      this.setState(STATE.STUCK);
+      this.setFrame(FRAME.STUCK[0]);
+      this.angle = side === 'left' ? -0.28 : 0.28;
+      this.visualAngle = this.angle;
+      this.say('Creo que me he quedado clavado...');
+      setTimeout(() => {
+        if (this.state === STATE.STUCK) {
+          this.vel.y = 1.2;
+          this.vel.x = side === 'left' ? 1.8 : -1.8;
+          this.setState(STATE.FLYING);
+          this.setFrame(FRAME.FALL[0]);
+        }
+      }, 1400);
+      return;
+    }
+
+    this.vel.x = -this.vel.x * 0.42;
+    this.vel.y *= 0.82;
+    this.angle *= -0.25;
+  }
+
+  updateAnimation(dt) {
+    const moving = Math.abs(this.vel.x) > 0.16 && this.state === STATE.WALK;
+    const sequence = this.sequenceForState(moving);
+    const speed = moving ? clamp(170 - Math.abs(this.vel.x) * 28, 95, 170) : 520;
+
+    this.frameTimer += 16.67 * dt;
+    if (this.frameTimer > speed) {
+      this.frameTimer = 0;
+      const currentIndex = sequence.indexOf(this.frame);
+      const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % sequence.length : 0;
+      this.setFrame(sequence[nextIndex]);
+    }
+  }
+
+  sequenceForState(moving) {
+    if (this.state === STATE.WALK && moving) return FRAME.WALK;
+    if (this.state === STATE.SLEEP) return FRAME.SLEEP;
+    if (this.state === STATE.GRABBED) return FRAME.ANGRY;
+    if (this.state === STATE.FLYING) return FRAME.FALL;
+    if (this.state === STATE.STUCK) return FRAME.STUCK;
+    if (this.state === STATE.CHAT) return FRAME.CHAT;
+    if (this.state === STATE.CURIOUS) return FRAME.CURIOUS;
+    return FRAME.IDLE;
+  }
+
+  setFrame(index) {
+    this.frame = index;
+    if (!this.sprite) return;
+    const col = index % 4;
+    const row = Math.floor(index / 4);
+    this.sprite.style.backgroundPosition = `${col * 33.333333}% ${row * 100}%`;
+  }
+
+  render() {
+    this.hitbox.style.left = `${this.pos.x}px`;
+    this.hitbox.style.top = `${this.pos.y}px`;
+
+    const flip = this.facing < 0 ? -1 : 1;
+    const characterScaleX = flip;
+    this.character.style.transform = `rotate(${this.visualAngle}rad) scaleX(${characterScaleX})`;
+
+    const heightAboveFloor = clamp(this.floorY() - this.pos.y, 0, 220);
+    const shadowScale = clamp(1 - heightAboveFloor / 260, 0.42, 1);
+    this.shadow.style.transform = `translateX(-50%) scale(${shadowScale}, ${clamp(shadowScale * 0.72, .32, .76)})`;
+    this.shadow.style.opacity = `${clamp(0.78 - heightAboveFloor / 330, 0.18, 0.78)}`;
+
+    this.positionBubble();
+  }
+
+  positionBubble() {
+    if (!this.bubble) return;
+    const gap = 12;
+    const bubbleWidth = Math.min(260, window.innerWidth - 34);
+    let left = this.pos.x + this.size * 0.16;
+    let top = this.pos.y - this.size * 0.74;
+    left = clamp(left, 12, window.innerWidth - bubbleWidth - 12);
+    top = clamp(top, 12, window.innerHeight - 90);
+    this.bubble.style.left = `${left}px`;
+    this.bubble.style.top = `${top}px`;
+  }
+
+  spawnImpact(x, y) {
+    if (!this.root) return;
+    const el = document.createElement('span');
+    el.className = 'dixbot-impact';
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    this.root.appendChild(el);
+    setTimeout(() => el.remove(), 520);
+  }
+
+  spawnDust(x, y, count = 5) {
+    if (!this.root) return;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      el.className = 'dixbot-dust';
+      el.style.left = `${x + (Math.random() - .5) * 18}px`;
+      el.style.top = `${y}px`;
+      el.style.setProperty('--dx', `${(Math.random() - .5) * 54}px`);
+      el.style.setProperty('--dy', `${-10 - Math.random() * 24}px`);
+      this.root.appendChild(el);
+      setTimeout(() => el.remove(), 620);
+    }
+  }
+
+  destroy() {
+    window.removeEventListener('pointermove', this.boundPointerMoveGlobal);
+    window.removeEventListener('resize', this.boundResize);
+    this.root?.remove();
+    this.isMounted = false;
+  }
 }
-window.addEventListener('DOMContentLoaded',()=>{new Dixbot();});
-})();

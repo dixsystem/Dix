@@ -1144,7 +1144,10 @@ const observer = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal, .step, .bench-card, .rm-item').forEach(el => observer.observe(el));
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-<script src="chatbot.js"></script>
-<script src="./src/dixbot.js"></script>
+<script type="module">
+  import { DixBotMascot } from './src/dixbot.js';
+  window.DIXBOT = new DixBotMascot();
+  window.DIXBOT.mount(document.body);
+</script>
 </body>
 </html>

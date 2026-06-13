@@ -1,0 +1,76 @@
+{
+  "sourceVideo": "dixbot.mp4",
+  "sourceFps": 24.0,
+  "selectedFrameIndices": [
+    120,
+    126,
+    132,
+    138,
+    144,
+    150,
+    156,
+    162
+  ],
+  "cropBoxesXYWH": [
+    [
+      398,
+      145,
+      478,
+      478
+    ],
+    [
+      401,
+      125,
+      498,
+      498
+    ],
+    [
+      411,
+      135,
+      489,
+      489
+    ],
+    [
+      393,
+      135,
+      488,
+      488
+    ],
+    [
+      414,
+      127,
+      466,
+      466
+    ],
+    [
+      433,
+      147,
+      460,
+      460
+    ],
+    [
+      408,
+      145,
+      480,
+      480
+    ],
+    [
+      380,
+      119,
+      472,
+      472
+    ]
+  ],
+  "frameWidth": 256,
+  "frameHeight": 256,
+  "frames": 8,
+  "animationFps": 8,
+  "grid": {
+    "cols": 4,
+    "rows": 2
+  },
+  "sheetWidth": 1024,
+  "sheetHeight": 512,
+  "background": "transparent RGBA",
+  "note": "Automatic cutout from complex UI/video background; review edges before production."
+}
