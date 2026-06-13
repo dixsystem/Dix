@@ -291,63 +291,84 @@ class DixBot {
 
   _update(dt, now) {
     if ([this.STATE.HOUSE, this.STATE.CHAT].includes(this.state)) return;
+    if (this.state === this.STATE.SWING) { this._updateSwing(dt); return; }
+    if (this.state === this.STATE.GRABBED) return;
+    if (this.state === this.STATE.CLIMB) return;
+
+    const floor = document.documentElement.clientHeight - 200;
 
     // Sleep check
-    if (now - this.idleSince > 25000 && [this.STATE.WALK, this.STATE.IDLE, this.STATE.SIT].includes(this.state)) {
+    if (now - this.idleSince > 30000 && [this.STATE.WALK, this.STATE.IDLE, this.STATE.SIT].includes(this.state)) {
       this._sleep(); return;
     }
 
-    if (this.state === this.STATE.SWING) { this._updateSwing(dt); return; }
-    if (this.state === this.STATE.GRABBED) return;
-
-    // Física
-    if (this.state !== this.STATE.SIT && this.state !== this.STATE.CLIMB) {
+    // Física solo si no está sentado
+    if (this.state !== this.STATE.SIT) {
       this.vy += this.gravity * dt;
-      this.vx *= Math.pow(this.friction, dt);
+      this.vx *= Math.pow(0.96, dt);
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
     }
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
 
     // Suelo
-    const floor = document.documentElement.clientHeight - 200;
     if (this.y >= floor) {
       this.y = floor;
       this.vy = 0;
       this.onGround = true;
     }
 
-    // Paredes
-    if (this.x < 60) { this.x = 60; this.vx = Math.abs(this.vx); this.facing = 1; }
-    if (this.x > window.innerWidth - 60) { this.x = window.innerWidth - 60; this.vx = -Math.abs(this.vx); this.facing = -1; }
+    // Paredes — rebota suavemente
+    if (this.x < 80) { this.x = 80; this.vx = 0.8; this.facing = 1; }
+    if (this.x > window.innerWidth - 80) { this.x = window.innerWidth - 80; this.vx = -0.8; this.facing = -1; }
 
-    // Subirse a plataformas (trepar)
-    if (this.state === this.STATE.WALK && now - this.lastClimb > 12000 && Math.random() < 0.0008) {
-      const p = this._nearestPlatformAbove();
-      if (p) { this.lastClimb = now; this._climbTo(p); return; }
-    }
-
-    // Lanzar liana
-    if (this.state === this.STATE.WALK && now - this.lastSwing > 20000 && Math.random() < 0.0005) {
-      const p = this._nearestPlatformForSwing();
-      if (p) { this.lastSwing = now; this._startSwing(p); return; }
-    }
-
-    // Sentarse en borde
-    if (this.state === this.STATE.WALK && now - this.lastSit > 18000 && Math.random() < 0.0006) {
-      const p = this._nearestPlatformAbove();
-      if (p) { this.lastSit = now; this._sitOn(p); return; }
-    }
-
-    // Caminar
+    // Caminar tranquilo — velocidad máxima 1.2
     if (this.state === this.STATE.WALK) {
-      const spd = this.angerLevel >= 2 ? 2.2 : 1.4;
-      if (Math.abs(this.vx) < spd) this.vx += this.facing * 0.04 * dt;
-      // walk frame
+      const targetV = this.facing * 1.2;
+      this.vx += (targetV - this.vx) * 0.03 * dt;
+
+      // Animar walk
       this.walkTimer += dt;
-      if (this.walkTimer > 8) {
+      if (this.walkTimer > 10) {
         this.walkTimer = 0;
         this.poseFrame = this.poseFrame === 0 ? 1 : 0;
         this._setPose(this.poseFrame === 0 ? 'walk_a' : 'walk_b');
+      }
+    }
+
+    // Comportamientos aleatorios — con probabilidades muy bajas y cooldowns largos
+    if (this.state === this.STATE.WALK && this.onGround) {
+      const r = Math.random();
+
+      // Trepar a plataforma cercana (cada 20s máximo)
+      if (r < 0.0003 && now - this.lastClimb > 20000) {
+        const p = this._nearestPlatformAbove();
+        if (p) { this.lastClimb = now; this._climbTo(p); return; }
+      }
+
+      // Sentarse en borde (cada 25s máximo)
+      if (r < 0.0002 && now - this.lastSit > 25000) {
+        const p = this._nearestPlatformAbove();
+        if (p) { this.lastSit = now; this._sitOn(p); return; }
+      }
+
+      // Liana (cada 30s máximo)
+      if (r < 0.0001 && now - this.lastSwing > 30000) {
+        const p = this._nearestPlatformForSwing();
+        if (p) { this.lastSwing = now; this._startSwing(p); return; }
+      }
+
+      // Pausa ocasional — se para y mira
+      if (r < 0.0004 && now - (this.lastIdle||0) > 15000) {
+        this.lastIdle = now;
+        this._setState(this.STATE.IDLE);
+        this.vx = 0;
+        this._setPose('walk_a');
+        this._timer(() => {
+          if (this.state === this.STATE.IDLE) {
+            this.facing = Math.random() > 0.5 ? 1 : -1;
+            this._setState(this.STATE.WALK);
+          }
+        }, 2000 + Math.random() * 3000);
       }
     }
   }
