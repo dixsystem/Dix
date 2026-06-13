@@ -305,7 +305,7 @@ class DixBot {
     // Física solo si no está sentado
     if (this.state !== this.STATE.SIT) {
       this.vy += this.gravity * dt;
-      this.vx *= Math.pow(0.96, dt);
+      this.vx *= 1;
       this.x += this.vx * dt;
       this.y += this.vy * dt;
     }
@@ -323,8 +323,7 @@ class DixBot {
 
     // Caminar tranquilo — velocidad máxima 1.2
     if (this.state === this.STATE.WALK) {
-      const targetV = this.facing * 1.2;
-      this.vx += (targetV - this.vx) * 0.03 * dt;
+      this.vx = this.facing * 1.2;
 
       // Animar walk
       this.walkTimer += dt;
