@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' https://dix-proxy.dixsystem.workers.dev https://api.dixsystem.com; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

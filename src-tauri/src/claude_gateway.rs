@@ -74,10 +74,10 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
             .post(obfstr!("https://dix-proxy.dixsystem.workers.dev/v1/messages"))
             .header(obfstr!("content-type"), obfstr!("application/json"))
             .json(&body);
+        // Siempre incluir device fingerprint — el proxy lo usa para atar la licencia al hardware
+        req = req.header(obfstr!("X-Device-Id"), device_fingerprint());
         if let Some(license_key) = memory::get_license_key() {
             req = req.header(obfstr!("X-License-Key"), license_key);
-        } else {
-            req = req.header(obfstr!("X-Device-Id"), device_fingerprint());
         }
         req.send().await.map_err(|e| format!("Error de red: {}", e))?
     };
