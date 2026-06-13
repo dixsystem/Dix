@@ -31,7 +31,7 @@ class DixBot {
 
     // Física
     this.x = 80;
-    this.y = window.innerHeight - 180;
+    this.y = window.innerHeight - 220;
     this.vx = 1.4;
     this.vy = 0;
     this.facing = 1;
@@ -123,6 +123,8 @@ class DixBot {
     this.canvas.id = 'dix-canvas';
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
+    this.canvas.style.height = '100vh';
+    this.canvas.style.width = '100vw';
     document.body.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d');
 
@@ -307,7 +309,7 @@ class DixBot {
     this.y += this.vy * dt;
 
     // Suelo
-    const floor = window.innerHeight - 160;
+    const floor = window.innerHeight - 200;
     if (this.y >= floor) {
       this.y = floor;
       this.vy = 0;
@@ -584,7 +586,7 @@ Web: dixsystem.com. GitHub: github.com/dixsystem/dix`,
     this.root.style.transform = `translate3d(${this.x-half}px,${this.y-half}px,0) scaleX(${sx*stretch}) rotate(${angle}rad)`;
 
     // Sombra
-    const floor = window.innerHeight - 160;
+    const floor = window.innerHeight - 200;
     const dist = Math.max(0, floor - this.y);
     const sh = Math.max(0.3, 1.1 - dist/400);
     this.shadow.style.opacity = String(Math.max(0.04, 0.45 - dist/500));
