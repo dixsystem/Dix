@@ -9,7 +9,7 @@
 class DixbotV2 {
   constructor(opts = {}) {
     this.cfg = {
-      size: 120,
+      size: 160,
       base: opts.assetBase || './assets/poses/',
       basePrice: 14.99,
       calmPrice: 16.99,
