@@ -512,12 +512,11 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         </div>
         <div class="card-title" style="color:var(--gray)">DIX Windows</div>
         <div class="card-desc" data-i18n="p2_desc">The same kernel-level intelligence, adapted for Windows. Registry + service optimization powered by Claude AI.</div>
-        <div class="countdown-wrap" data-i18n="p2_launch">Launch target: <span id="cdWindows">calculating...</span></div>
         <div class="waitlist-input" style="margin-top:20px">
           <input type="email" id="emailWindows" placeholder="your@email.com">
           <button onclick="joinWaitlist('windows')" data-i18n="btn_waitlist">JOIN</button>
         </div>
-        <div class="waitlist-count" data-i18n="p2_waiting">847 people on the waitlist</div>
+        <div class="waitlist-count" data-i18n="p2_waiting">Join the waitlist</div>
       </div>
 
       <!-- CARD 3: DIX Kontrol -->
@@ -1091,12 +1090,9 @@ function fmtCountdown(target) {
   return `${d}d ${h.toString().padStart(2,'0')}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
 }
 const endOfMonth = new Date('2026-06-30T23:59:59').getTime();
-const windowsLaunch = new Date('2026-11-15T00:00:00').getTime();
 function updateCountdowns() {
   const mc = document.getElementById('cdMonthly');
-  const wc = document.getElementById('cdWindows');
   if (mc) mc.textContent = fmtCountdown(endOfMonth);
-  if (wc) wc.innerHTML = `<span>${fmtCountdown(windowsLaunch)}</span>`;
 }
 updateCountdowns();
 setInterval(updateCountdowns, 1000);
