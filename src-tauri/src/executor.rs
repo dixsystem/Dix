@@ -10,6 +10,8 @@ use crate::scanner::SystemScan;
 
 #[cfg(not(target_os = "windows"))]
 use crate::policy;
+#[cfg(not(target_os = "windows"))]
+use std::os::unix::fs::PermissionsExt;
 
 // Construye un Command para pkexec inyectando las variables de entorno que el
 // agente GNOME/Polkit necesita para localizar el bus de sesión y la pantalla.
@@ -35,6 +37,44 @@ fn pkexec_cmd() -> Command {
     cmd
 }
 
+// ─── Ejecución privilegiada reutilizable ─────────────────────────────────────
+
+#[cfg(not(target_os = "windows"))]
+pub fn run_privileged_script(content: &str) -> Result<String, String> {
+    let ts = epoch_secs();
+    let dir = run_dir();
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700))
+        .map_err(|e| e.to_string())?;
+    let path = dir.join(format!("dix_priv_{}.sh", ts));
+    fs::write(&path, content)
+        .map_err(|e| format!("No se pudo escribir script privilegiado: {}", e))?;
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o500))
+        .map_err(|e| e.to_string())?;
+
+    let output = pkexec_cmd()
+        .args(["bash", &path.to_string_lossy()])
+        .output()
+        .map_err(|e| format!("/usr/bin/pkexec no disponible: {}", e))?;
+    let _ = fs::remove_file(&path);
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        let code = output.status.code().unwrap_or(-1);
+        if code == 126 || code == 127 {
+            Err("Autenticación cancelada.".to_string())
+        } else {
+            Err(format!(
+                "Script falló (código {}):\n{}{}",
+                code,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            ))
+        }
+    }
+}
+
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -58,6 +98,13 @@ fn rollbacks_dir() -> PathBuf {
         let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
         PathBuf::from(home).join(".config").join("dix").join("rollbacks")
     }
+}
+
+// Directorio privado para scripts de ejecución efímeros (0700)
+#[cfg(not(target_os = "windows"))]
+fn run_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    PathBuf::from(home).join(".config").join("dix").join("run")
 }
 
 // ─── Punto de entrada principal ───────────────────────────────────────────────
@@ -103,18 +150,28 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
         "#!/bin/bash\n# Dix — Reaplicar optimizaciones tras resume\n\
          [ \"$1\" = \"post\" ] && /bin/bash /usr/local/lib/dix/boot-tweaks.sh\n";
 
-    let opt_path      = format!("/tmp/dix_opt_{}.sh", ts);
-    let sysctl_path   = format!("/tmp/dix_sysctl_{}.conf", ts);
-    let boot_path     = format!("/tmp/dix_boot_{}.sh", ts);
-    let service_path  = format!("/tmp/dix_service_{}.service", ts);
-    let sleep_path    = format!("/tmp/dix_sleep_{}.sh", ts);
-    let combined_path = format!("/tmp/dix_{}.sh", ts);
+    // Directorio privado 0700 — evita rutas predecibles en /tmp
+    let dir = run_dir();
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
 
-    fs::write(&opt_path, &clean).map_err(|e| format!("No se pudo escribir el script: {}", e))?;
-    fs::write(&sysctl_path, &sysctl_conf).map_err(|e| format!("sysctl tmp: {}", e))?;
-    fs::write(&boot_path, &boot_tweaks).map_err(|e| format!("boot tmp: {}", e))?;
-    fs::write(&service_path, service_content).map_err(|e| format!("service tmp: {}", e))?;
-    fs::write(&sleep_path, sleep_hook).map_err(|e| format!("sleep tmp: {}", e))?;
+    let opt_path      = dir.join(format!("dix_opt_{}.sh", ts));
+    let sysctl_path   = dir.join(format!("dix_sysctl_{}.conf", ts));
+    let boot_path     = dir.join(format!("dix_boot_{}.sh", ts));
+    let service_path  = dir.join(format!("dix_service_{}.service", ts));
+    let sleep_path    = dir.join(format!("dix_sleep_{}.sh", ts));
+    let combined_path = dir.join(format!("dix_{}.sh", ts));
+
+    let write_secure = |path: &PathBuf, data: &str| -> Result<(), String> {
+        fs::write(path, data).map_err(|e| format!("No se pudo escribir {}: {}", path.display(), e))?;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o500)).map_err(|e| e.to_string())
+    };
+
+    write_secure(&opt_path, &clean)?;
+    write_secure(&sysctl_path, &sysctl_conf)?;
+    write_secure(&boot_path, &boot_tweaks)?;
+    write_secure(&service_path, service_content)?;
+    write_secure(&sleep_path, sleep_hook)?;
 
     // Script combinado — una sola autenticación para todo
     let combined = format!(
@@ -133,14 +190,14 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
          systemctl daemon-reload 2>/dev/null || true\n\
          systemctl enable --now dix-boot.service 2>/dev/null || true\n\
          echo '[Dix] Listo.'\n",
-        opt = opt_path, s = sysctl_path, b = boot_path, sv = service_path, sh = sleep_path,
+        opt = opt_path.display(), s = sysctl_path.display(),
+        b = boot_path.display(), sv = service_path.display(), sh = sleep_path.display(),
     );
 
-    fs::write(&combined_path, &combined).map_err(|e| format!("script combinado: {}", e))?;
-    Command::new("chmod").args(["+x", &combined_path]).output().ok();
+    write_secure(&combined_path, &combined)?;
 
     let output = pkexec_cmd()
-        .args(["bash", &combined_path])
+        .args(["bash", combined_path.to_str().ok_or("ruta inválida")?])
         .output()
         .map_err(|e| format!("/usr/bin/pkexec no disponible: {}", e))?;
 

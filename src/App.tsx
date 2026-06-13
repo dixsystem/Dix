@@ -46,6 +46,21 @@ interface LiveMetrics {
   cpu_temp_celsius: number; cpu_avg_freq_mhz: number; cpu_cores: number;
 }
 
+interface BenchmarkResult {
+  cpu_events_per_sec: number;
+  ram_mb_per_sec: number;
+  disk_iops: number;
+  measured: boolean;
+  missing_tools: string[];
+}
+
+interface LostOpt {
+  key: string;
+  label: string;
+  expected: string;
+  current: string;
+}
+
 // ─── Constantes de color ──────────────────────────────────────────────────────
 
 const C = {
@@ -355,6 +370,38 @@ function computeScore(scan: SystemScan): number {
   return Math.max(30, Math.min(ceiling, score));
 }
 
+// Score calculado desde benchmarks reales (componentes ponderados)
+function computeScoreFromBenchmarks(scan: SystemScan, bench: BenchmarkResult): number {
+  if (!bench.measured || (bench.cpu_events_per_sec === 0 && bench.ram_mb_per_sec === 0 && bench.disk_iops === 0)) {
+    return computeScore(scan);
+  }
+  const ceiling = hardwareCeiling(scan);
+
+  // CPU 30% — baseline ~750 eventos/s por core a rendimiento normal
+  const cpuMax = scan.cpu_cores * 750;
+  const cpuScore = Math.min(bench.cpu_events_per_sec / cpuMax, 1.0) * 30;
+
+  // RAM 20% — DDR4-3200 práctico ~22 GB/s
+  const ramScore = Math.min(bench.ram_mb_per_sec / 22000, 1.0) * 20;
+
+  // Disco 25% — NVMe Gen3 bueno ~280K IOPS
+  const diskScore = Math.min(bench.disk_iops / 280000, 1.0) * 25;
+
+  // Parámetros kernel 25%
+  let kernelScore = 0;
+  const gov = scan.cpu_governor;
+  if (gov === "performance" || gov === "schedutil") kernelScore += 8;
+  else if (gov === "ondemand") kernelScore += 5;
+  if (scan.swappiness <= 20) kernelScore += 5;
+  else if (scan.swappiness <= 40) kernelScore += 3;
+  if (scan.hugepages !== "never") kernelScore += 5;
+  if (scan.numa_balancing !== "0") kernelScore += 3;
+  if (scan.dirty_ratio <= 15) kernelScore += 4;
+
+  const total = cpuScore + ramScore + diskScore + kernelScore;
+  return Math.max(30, Math.min(ceiling, Math.round(total)));
+}
+
 function fmtDate(iso: string) {
   try {
     return new Date(iso).toLocaleString("es", {
@@ -464,9 +511,10 @@ function LiveTerminal({
 
 function StepsPanel({ scanStep }: { scanStep: number }) {
   const steps = [
-    { step: 1, label: "Leyendo métricas del kernel", sublabel: "/proc · /sys · pactl" },
-    { step: 2, label: "Consultando Claude AI",        sublabel: "claude-sonnet-4-6" },
-    { step: 3, label: "Generando script bash",        sublabel: "optimizaciones personalizadas" },
+    { step: 1, label: "Leyendo métricas del kernel",       sublabel: "/proc · /sys · pactl" },
+    { step: 2, label: "Midiendo rendimiento del hardware",  sublabel: "sysbench cpu · memory · fio 4K" },
+    { step: 3, label: "Consultando Claude AI",              sublabel: "claude-sonnet-4-6" },
+    { step: 4, label: "Generando script bash",              sublabel: "optimizaciones personalizadas" },
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -512,9 +560,10 @@ function AnalysisProgress({
   scanStep: number; elapsed: number; fromCache: boolean; responseMs: number;
 }) {
   const steps = [
-    { step: 1, label: "Leyendo métricas del kernel", detail: "/proc · /sys · pactl" },
-    { step: 2, label: "Consultando Claude AI",        detail: "POST api.anthropic.com · claude-sonnet-4-6" },
-    { step: 3, label: "Generando script bash",        detail: "optimizaciones personalizadas" },
+    { step: 1, label: "Leyendo métricas del kernel",       detail: "/proc · /sys · pactl" },
+    { step: 2, label: "Midiendo rendimiento del hardware",  detail: "sysbench cpu · memory · fio 4K (~8s)" },
+    { step: 3, label: "Consultando Claude AI",              detail: "POST api.anthropic.com · claude-sonnet-4-6" },
+    { step: 4, label: "Generando script bash",              detail: "optimizaciones personalizadas" },
   ];
 
   return (
@@ -525,7 +574,11 @@ function AnalysisProgress({
       {steps.map(({ step, label, detail }) => {
         const done   = scanStep > step;
         const active = scanStep === step;
-        const pct    = done ? 100 : active && step === 2 ? Math.min(92, elapsed * 3) : active ? Math.min(88, elapsed * 12) : 0;
+        // step 2 = benchmarks (~8-10s), step 3 = Claude (~4-8s), resto rápido
+        const pct    = done ? 100
+          : active && step === 2 ? Math.min(90, elapsed * 10)
+          : active && step === 3 ? Math.min(92, elapsed * 3)
+          : active ? Math.min(88, elapsed * 12) : 0;
         return (
           <div key={step} style={{
             padding: "10px 12px", borderRadius: 8,
@@ -805,6 +858,9 @@ export default function App() {
   const [hwSummary, setHwSummary] = useState<{ cpu: string; ram: string; distro: string } | null>(null);
   const [idleScan, setIdleScan]   = useState<SystemScan | null>(null);
   const [shareCardUrl, setShareCardUrl] = useState<string | null>(null);
+  const [benchmarks, setBenchmarks] = useState<BenchmarkResult | null>(null);
+  const [lostOpts, setLostOpts]     = useState<LostOpt[]>([]);
+  const [reapplying, setReapplying] = useState(false);
 
   // Mostrar todas las métricas inmediatamente cuando llegan
   useEffect(() => {
@@ -836,6 +892,10 @@ export default function App() {
           distro: s.distro_id ? `${s.distro_id} ${s.distro_version}`.trim() : "Sistema",
         });
         setIdleScan(s);
+        // Verificar optimizaciones perdidas tras reinicio
+        invoke<LostOpt[]>("check_post_reboot", { scanJson: JSON.stringify(s) })
+          .then((lost) => { if (lost.length > 0) setLostOpts(lost); })
+          .catch(() => {});
       }).catch(() => {});
     }).catch(() => { setView("idle"); });
 
@@ -864,24 +924,33 @@ export default function App() {
     setError(null); setScanStep(0); setRevealedMetrics(0);
     setView("scanning");
     setScan(null); setAnalysis(null); setScript(""); setFromCache(false);
+    setBenchmarks(null);
     try {
       setScanStep(1);
       const scanResult = await invoke<SystemScan>("scan_system");
       setScan(scanResult); scanRef.current = scanResult;
 
+      // Paso 2: benchmarks en paralelo internamente (~8-10s)
       setScanStep(2);
-      const resp = await invoke<AnalysisResponse>("analyze_system", {
+      const bench = await invoke<BenchmarkResult>("run_benchmarks", {
         scanJson: JSON.stringify(scanResult),
       });
+      setBenchmarks(bench);
+
+      setScanStep(3);
+      const resp = await invoke<AnalysisResponse>("analyze_system", {
+        scanJson: JSON.stringify(scanResult),
+        benchJson: JSON.stringify(bench),
+      });
       const parsed = safeParseJSON<AnalysisResult>(resp.analysis_json);
-      // Delta de Claude anclado al score determinista; techo físico impide llegar a 100
+      // Score calculado desde benchmarks reales; delta de Claude preservado
       const ceiling = hardwareCeiling(scanResult);
       const claudeDelta = Math.max(0, parsed.score_optimizado - parsed.score_actual);
-      parsed.score_actual = computeScore(scanResult);
+      parsed.score_actual = computeScoreFromBenchmarks(scanResult, bench);
       parsed.score_optimizado = Math.min(ceiling, parsed.score_actual + claudeDelta);
       setAnalysis(parsed); setFromCache(resp.from_cache); setResponseMs(resp.response_time_ms);
 
-      setScanStep(3);
+      setScanStep(4);
       const selected = parsed.optimizaciones
         .filter((o) => o.aplicar)
         .map((o) => ({ titulo: o.titulo, descripcion: o.descripcion, comando_preview: o.comando_preview }));
@@ -890,7 +959,7 @@ export default function App() {
         scanJson: JSON.stringify(scanResult),
       });
       setScript(scriptText);
-      setScanStep(4);
+      setScanStep(5);
       await new Promise(r => setTimeout(r, 450));
       setView("results");
     } catch (e: unknown) {
@@ -915,11 +984,17 @@ export default function App() {
       setApplyLog(output || "Script ejecutado correctamente.");
       if (analysis && scanRef.current) {
         const postScan = await invoke<SystemScan>("scan_system").catch(() => scanRef.current!);
+
+        // Guardar estado aplicado para verificación post-reinicio
+        invoke("save_applied_state", { scanJson: JSON.stringify(postScan) }).catch(() => {});
+
         const sess: Session = {
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),
           score_before: analysis.score_actual,
-          score_after: computeScore(postScan),
+          score_after: benchmarks
+            ? computeScoreFromBenchmarks(postScan, benchmarks)
+            : computeScore(postScan),
           optimizations_applied: analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.titulo),
           scan_summary: `gov:${postScan.cpu_governor} swap:${postScan.swappiness} dirty:${postScan.dirty_ratio}%`,
         };
@@ -928,6 +1003,17 @@ export default function App() {
         setSessions(updated);
         const rb = await invoke<RollbackInfo[]>("list_rollbacks").catch(() => rollbacks);
         setRollbacks(rb);
+
+        // Re-ejecutar solo benchmarks de las categorías optimizadas
+        const affectedCats = [...new Set(
+          analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.categoria)
+        )];
+        if (affectedCats.length > 0) {
+          invoke<BenchmarkResult>("run_benchmarks_partial", {
+            scanJson: JSON.stringify(postScan),
+            categoriesJson: JSON.stringify(affectedCats),
+          }).then(setBenchmarks).catch(() => {});
+        }
       }
       setView("done"); setShowReboot(true);
       localStorage.setItem("dix_needs_reboot", "1");
@@ -935,6 +1021,19 @@ export default function App() {
       setError(e instanceof Error ? e.message : String(e));
       setView("results");
     }
+  };
+
+  const handleReapply = async () => {
+    setReapplying(true); setError(null);
+    try {
+      await invoke<string>("reapply_lost_opts", { lostJson: JSON.stringify(lostOpts) });
+      // Re-escanear y volver a verificar
+      const newScan = await invoke<SystemScan>("scan_system");
+      const stillLost = await invoke<LostOpt[]>("check_post_reboot", { scanJson: JSON.stringify(newScan) })
+        .catch(() => [] as LostOpt[]);
+      setLostOpts(stillLost);
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setReapplying(false); }
   };
 
   const handleRollback = async (filename: string) => {
@@ -989,7 +1088,7 @@ export default function App() {
     setView("idle"); setAnalysis(null); setScript(""); setScan(null);
     setApplyLog(""); setError(null); setScriptVisible(false);
     setShowReboot(false); setFromCache(false); setScanStep(0);
-    setRevealedMetrics(0); scanRef.current = null;
+    setRevealedMetrics(0); scanRef.current = null; setBenchmarks(null);
   };
 
   const handleReboot = async () => {
@@ -1289,6 +1388,46 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* Banner post-reinicio — optimizaciones perdidas */}
+                  {lostOpts.length > 0 && (
+                    <div style={{
+                      marginBottom: 14, padding: "12px 16px", borderRadius: 10,
+                      background: "#1a0e04", border: `1px solid ${C.orange}55`,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 16 }}>🔄</span>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.orange }}>
+                              {lostOpts.length} optimización{lostOpts.length > 1 ? "es" : ""} se perdió{lostOpts.length > 1 ? "ron" : ""} tras el reinicio
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
+                            {lostOpts.map((o) => (
+                              <div key={o.key} style={{ fontSize: 11, color: C.muted, display: "flex", gap: 6 }}>
+                                <span style={{ color: C.orange }}>·</span>
+                                <span><strong style={{ color: C.text }}>{o.label}</strong>: era {o.expected}, ahora {o.current}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              className="btn-primary"
+                              onClick={handleReapply}
+                              disabled={reapplying}
+                              style={{ padding: "7px 18px", fontSize: 12 }}
+                            >
+                              {reapplying ? "Reaplicando…" : "Reaplicar ahora"}
+                            </button>
+                            <button className="btn-secondary" onClick={() => setLostOpts([])} style={{ fontSize: 12 }}>
+                              Ignorar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Rollbacks */}
                   {showRollbacks && rollbacks.length > 0 && (
                     <div className="card" style={{ marginBottom: 16, overflow: "hidden" }}>
@@ -1489,6 +1628,46 @@ export default function App() {
                       <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65 }}>{analysis.analisis}</p>
                     </div>
                   </div>
+
+                  {/* Panel de métricas benchmark medidas */}
+                  {benchmarks && (
+                    <div style={{
+                      marginBottom: 16, padding: "10px 16px", borderRadius: 10,
+                      background: benchmarks.measured ? `${C.green}08` : "#1a1208",
+                      border: `1px solid ${benchmarks.measured ? C.green + "33" : C.border}`,
+                      display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                    }}>
+                      <span style={{
+                        fontSize: 9, fontWeight: 800, letterSpacing: "0.8px",
+                        color: benchmarks.measured ? "#000" : C.yellow,
+                        background: benchmarks.measured ? C.green : C.yellow,
+                        borderRadius: 4, padding: "2px 7px", flexShrink: 0,
+                      }}>
+                        {benchmarks.measured ? "MEDIDO" : "ESTIMADO"}
+                      </span>
+                      {benchmarks.measured ? (
+                        <span style={{ fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
+                          CPU:{" "}
+                          <strong style={{ color: C.green }}>{benchmarks.cpu_events_per_sec.toFixed(0)}</strong>
+                          {" "}ev/s · RAM:{" "}
+                          <strong style={{ color: C.green }}>{benchmarks.ram_mb_per_sec.toFixed(0)}</strong>
+                          {" "}MB/s · Disco:{" "}
+                          <strong style={{ color: C.green }}>
+                            {benchmarks.disk_iops >= 1000
+                              ? (benchmarks.disk_iops / 1000).toFixed(0) + "K"
+                              : benchmarks.disk_iops.toFixed(0)}
+                          </strong>
+                          {" "}IOPS
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: C.muted }}>
+                          {benchmarks.missing_tools.length > 0
+                            ? `Instala ${benchmarks.missing_tools.join(" y ")} para score medido`
+                            : "Score basado en parámetros del kernel"}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {scan && (
                     <details className="card" style={{ marginBottom: 16, overflow: "hidden" }}>

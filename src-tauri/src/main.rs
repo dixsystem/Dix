@@ -11,6 +11,8 @@ mod claude_gateway;
 mod executor;
 mod cache;
 mod atlas;
+mod benchmark;
+mod state;
 
 use executor::RollbackInfo;
 use memory::Session;
@@ -36,11 +38,14 @@ fn scan_system() -> Result<SystemScan, String> {
 }
 
 #[tauri::command]
-async fn analyze_system(scan_json: String) -> Result<AnalysisResponse, String> {
+async fn analyze_system(scan_json: String, bench_json: Option<String>) -> Result<AnalysisResponse, String> {
     // Modo creador — Alonso Torres, DixSystem. Sin límites.
 
     let scan: SystemScan = serde_json::from_str(&scan_json)
         .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+    let bench: Option<benchmark::BenchmarkResult> = bench_json
+        .as_deref()
+        .and_then(|j| serde_json::from_str(j).ok());
 
     let stable_acp = cache::encode_stable_acp(&scan);
     let mut opt_cache = cache::load_cache();
@@ -68,7 +73,7 @@ async fn analyze_system(scan_json: String) -> Result<AnalysisResponse, String> {
         obfstr!("Eres un experto en optimización Linux. Respondes SOLO con JSON válido sin markdown."),
         policy::policy_rules_for_prompt()
     );
-    let user = build_analysis_prompt(&scan);
+    let user = build_analysis_prompt(&scan, bench.as_ref());
     let result = claude_gateway::call(&system, &user, 4000).await?;
 
     let elapsed_ms = start.elapsed().as_millis() as u32;
@@ -587,17 +592,100 @@ async fn activate_license(key: String) -> Result<bool, String> {
     Ok(true)
 }
 
+// ─── Comandos de benchmark ────────────────────────────────────────────────────
+
+#[tauri::command]
+async fn run_benchmarks(scan_json: String) -> Result<benchmark::BenchmarkResult, String> {
+    #[cfg(target_os = "windows")]
+    return Ok(benchmark::BenchmarkResult::default());
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let scan: SystemScan = serde_json::from_str(&scan_json)
+            .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+        Ok(benchmark::run_all(scan.cpu_cores).await)
+    }
+}
+
+#[tauri::command]
+async fn run_benchmarks_partial(
+    scan_json: String,
+    categories_json: String,
+) -> Result<benchmark::BenchmarkResult, String> {
+    #[cfg(target_os = "windows")]
+    return Ok(benchmark::BenchmarkResult::default());
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let scan: SystemScan = serde_json::from_str(&scan_json)
+            .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+        let cats: Vec<String> = serde_json::from_str(&categories_json)
+            .map_err(|e| format!("Categories JSON inválido: {}", e))?;
+        Ok(benchmark::run_for_categories(scan.cpu_cores, &cats).await)
+    }
+}
+
+// ─── Comandos de estado post-reinicio ─────────────────────────────────────────
+
+#[tauri::command]
+fn save_applied_state(scan_json: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    return Ok(());
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let scan: SystemScan = serde_json::from_str(&scan_json)
+            .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+        state::save_from_scan(&scan)
+    }
+}
+
+#[tauri::command]
+fn check_post_reboot(scan_json: String) -> Vec<state::LostOpt> {
+    #[cfg(target_os = "windows")]
+    return vec![];
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let scan: SystemScan = match serde_json::from_str(&scan_json) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        match state::load() {
+            Some(applied) => state::compare(&scan, &applied),
+            None => vec![],
+        }
+    }
+}
+
+#[tauri::command]
+fn reapply_lost_opts(lost_json: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    return Ok("No aplicable en Windows.".to_string());
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let lost: Vec<state::LostOpt> = serde_json::from_str(&lost_json)
+            .map_err(|e| format!("LostOpt JSON inválido: {}", e))?;
+        if lost.is_empty() {
+            return Ok("No hay optimizaciones que reaplicar.".to_string());
+        }
+        let script = state::generate_reapply_script(&lost);
+        executor::run_privileged_script(&script)
+    }
+}
+
 // ─── Builder de prompt ────────────────────────────────────────────────────────
 
-fn build_analysis_prompt(scan: &SystemScan) -> String {
+fn build_analysis_prompt(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>) -> String {
     #[cfg(target_os = "windows")]
     return build_analysis_prompt_windows(scan);
     #[cfg(not(target_os = "windows"))]
-    return build_analysis_prompt_linux(scan);
+    return build_analysis_prompt_linux(scan, bench);
 }
 
 #[cfg(not(target_os = "windows"))]
-fn build_analysis_prompt_linux(scan: &SystemScan) -> String {
+fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>) -> String {
     let opt_cache = cache::load_cache();
     let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -606,6 +694,25 @@ fn build_analysis_prompt_linux(scan: &SystemScan) -> String {
         scan.distro_id, scan.distro_version, scan.kernel_version,
         scan.cpu_model, scan.gpu_model, ram_gb
     );
+
+    let bench_section = match bench {
+        Some(b) if b.measured => format!(
+            "BENCHMARKS REALES MEDIDOS (sysbench + fio):\n\
+            - CPU: {:.0} eventos/s ({} hilos, 5 segundos)\n\
+            - RAM: {:.0} MB/s (memory, 4 segundos)\n\
+            - Disco: {:.0} IOPS (fio 4K randread, 8 segundos)\n\
+            Usa estos números reales en el campo 'analisis' y en mejora_estimada.\n\n",
+            b.cpu_events_per_sec, scan.cpu_cores,
+            b.ram_mb_per_sec,
+            b.disk_iops,
+        ),
+        Some(b) if !b.missing_tools.is_empty() => format!(
+            "NOTA: Benchmarks no disponibles ({} no instalado). \
+            Análisis basado en parámetros del kernel.\n\n",
+            b.missing_tools.join(", ")
+        ),
+        _ => String::new(),
+    };
 
     let schema = r#"{
   "analisis": "2-3 frases del estado actual",
@@ -629,6 +736,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan) -> String {
 
     format!(
         "Analiza estos datos reales del sistema y genera un plan de optimización.\n\
+        {bench}\
         DATOS REALES:\n\
         - CPU Governor: {} ({} núcleos lógicos)\n\
         - vm.swappiness: {}\n\
@@ -663,6 +771,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan) -> String {
         scan.cpu_min_freq_mhz, scan.cpu_max_freq_mhz,
         scan.cpu_temp_celsius,
         schema,
+        bench = bench_section,
         hardware_line = hardware_line,
         pinned = if pinned_hint.is_empty() {
             String::new()
@@ -775,6 +884,11 @@ fn main() {
             get_demo_count,
             activate_license,
             get_live_metrics,
+            run_benchmarks,
+            run_benchmarks_partial,
+            save_applied_state,
+            check_post_reboot,
+            reapply_lost_opts,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
