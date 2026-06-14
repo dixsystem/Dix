@@ -2,6 +2,7 @@
 // Dix — La primera AppIA del Mundo
 // Prohibida la reproducción sin autorización expresa de DixSystem.
 
+use std::time::Duration;
 use obfstr::obfstr;
 use serde::{Deserialize, Serialize};
 use crate::memory;
@@ -43,7 +44,10 @@ struct Msg {
 }
 
 pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Error creando cliente HTTP: {}", e))?;
     let body = Request {
         model: obfstr!("claude-sonnet-4-6").to_string(),
         max_tokens,
