@@ -324,8 +324,7 @@ fn cpu_count_native() -> usize {
 #[cfg(target_os = "windows")]
 fn power_plan_native() -> String {
     use windows::Win32::System::Power::PowerGetActiveScheme;
-    use windows::Win32::System::Memory::LocalFree;
-    use windows::Win32::Foundation::HLOCAL;
+    use windows::Win32::Foundation::{LocalFree, HLOCAL};
     use windows::Win32::System::Registry::HKEY;
     use windows::core::GUID;
 
