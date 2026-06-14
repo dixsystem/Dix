@@ -61,6 +61,15 @@ interface LostOpt {
   current: string;
 }
 
+type Profile = "gaming" | "streaming" | "dev" | "server" | "balanced";
+const PROFILES: { id: Profile; icon: string; label: string; hint: string }[] = [
+  { id: "gaming",    icon: "🎮", label: "Gaming",     hint: "FPS máximos, latencia mínima" },
+  { id: "streaming", icon: "📡", label: "Streaming",  hint: "Red estable, encoding sin drops" },
+  { id: "dev",       icon: "💻", label: "Desarrollo", hint: "Compilación rápida, I/O rápido" },
+  { id: "server",    icon: "🖥️", label: "Servidor",   hint: "Throughput máximo, uptime" },
+  { id: "balanced",  icon: "⚖️", label: "Equilibrado","hint": "Balance general" },
+];
+
 // ─── Constantes de color ──────────────────────────────────────────────────────
 
 const C = {
@@ -555,10 +564,11 @@ function StepsPanel({ scanStep }: { scanStep: number }) {
 // ─── Panel de progreso del análisis ──────────────────────────────────────────
 
 function AnalysisProgress({
-  scanStep, elapsed, fromCache, responseMs,
+  scanStep, elapsed, fromCache, responseMs, profile,
 }: {
-  scanStep: number; elapsed: number; fromCache: boolean; responseMs: number;
+  scanStep: number; elapsed: number; fromCache: boolean; responseMs: number; profile: Profile;
 }) {
+  const prof = PROFILES.find(p => p.id === profile)!;
   const steps = [
     { step: 1, label: "Leyendo métricas del kernel",       detail: "/proc · /sys · pactl" },
     { step: 2, label: "Midiendo rendimiento del hardware",  detail: "sysbench cpu · memory · fio 4K (~8s)" },
@@ -568,8 +578,11 @@ function AnalysisProgress({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "16px 14px" }}>
-      <div style={{ fontSize: 10, color: C.muted, letterSpacing: "1px", marginBottom: 4 }}>
-        ● DIX — PROGRESO DEL ANÁLISIS
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: C.muted, letterSpacing: "1px" }}>● DIX — PROGRESO DEL ANÁLISIS</div>
+        <div style={{ fontSize: 10, background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: 4, padding: "2px 7px", color: C.orange, fontWeight: 700 }}>
+          {prof.icon} {prof.label}
+        </div>
       </div>
       {steps.map(({ step, label, detail }) => {
         const done   = scanStep > step;
@@ -842,6 +855,7 @@ export default function App() {
   const [rollingBack, setRollingBack]   = useState(false);
   const [scanStep, setScanStep]         = useState(0);
   const [revealedMetrics, setRevealedMetrics] = useState(0);
+  const [profile, setProfile] = useState<Profile>(() => (localStorage.getItem("dix_profile") as Profile) ?? "balanced");
   const scanRef      = useRef<SystemScan | null>(null);
   const startTimeRef = useRef<number>(0);
   const [elapsed, setElapsed] = useState(0);
@@ -941,6 +955,7 @@ export default function App() {
       const resp = await invoke<AnalysisResponse>("analyze_system", {
         scanJson: JSON.stringify(scanResult),
         benchJson: JSON.stringify(bench),
+        profile,
       });
       const parsed = safeParseJSON<AnalysisResult>(resp.analysis_json);
       // Score calculado desde benchmarks reales; delta de Claude preservado
@@ -957,6 +972,7 @@ export default function App() {
       const scriptText = await invoke<string>("generate_script", {
         optimizationsJson: JSON.stringify(selected),
         scanJson: JSON.stringify(scanResult),
+        profile,
       });
       setScript(scriptText);
       setScanStep(5);
@@ -1187,6 +1203,7 @@ export default function App() {
                   elapsed={elapsed}
                   fromCache={fromCache}
                   responseMs={responseMs}
+                  profile={profile}
                 />
               </div>
 
@@ -1506,6 +1523,43 @@ export default function App() {
                           <div style={{ fontSize: 11, color: C.border, marginTop: 10 }}>Analiza para ver tu puntuación real</div>
                         </div>
                       )}
+                    </div>
+
+                    {/* Selector de perfil */}
+                    <div style={{ width: "100%" }}>
+                      <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, fontWeight: 600 }}>
+                        Perfil de optimización
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+                        {PROFILES.map(p => {
+                          const active = profile === p.id;
+                          return (
+                            <button key={p.id}
+                              title={p.hint}
+                              onClick={() => { setProfile(p.id); localStorage.setItem("dix_profile", p.id); }}
+                              style={{
+                                background: active ? `${C.orange}18` : C.card,
+                                border: `1px solid ${active ? C.orange : C.border}`,
+                                borderRadius: 8,
+                                padding: "8px 4px",
+                                cursor: "pointer",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 3,
+                                transition: "all 0.15s",
+                              }}>
+                              <span style={{ fontSize: 16 }}>{p.icon}</span>
+                              <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, color: active ? C.orange : C.muted, letterSpacing: "0.3px" }}>
+                                {p.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 5, textAlign: "center" }}>
+                        {PROFILES.find(p => p.id === profile)?.hint}
+                      </div>
                     </div>
 
                     {/* CTA */}

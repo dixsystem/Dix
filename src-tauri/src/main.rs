@@ -38,7 +38,7 @@ fn scan_system() -> Result<SystemScan, String> {
 }
 
 #[tauri::command]
-async fn analyze_system(scan_json: String, bench_json: Option<String>) -> Result<AnalysisResponse, String> {
+async fn analyze_system(scan_json: String, bench_json: Option<String>, profile: Option<String>) -> Result<AnalysisResponse, String> {
     // Modo creador — Alonso Torres, DixSystem. Sin límites.
 
     let scan: SystemScan = serde_json::from_str(&scan_json)
@@ -46,6 +46,7 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>) -> Result
     let bench: Option<benchmark::BenchmarkResult> = bench_json
         .as_deref()
         .and_then(|j| serde_json::from_str(j).ok());
+    let profile_str = profile.as_deref().unwrap_or("balanced");
 
     let stable_acp = cache::encode_stable_acp(&scan);
     let mut opt_cache = cache::load_cache();
@@ -66,14 +67,18 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>) -> Result
     let start = std::time::Instant::now();
 
     #[cfg(target_os = "windows")]
-    let system = obfstr!("Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown.").to_string();
+    let system = format!(
+        "Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown.\n{}",
+        profile_hint(profile_str)
+    );
     #[cfg(not(target_os = "windows"))]
     let system = format!(
-        "{}\n{}",
+        "{}\n{}\n{}",
         obfstr!("Eres un experto en optimización Linux. Respondes SOLO con JSON válido sin markdown."),
-        policy::policy_rules_for_prompt()
+        policy::policy_rules_for_prompt(),
+        profile_hint(profile_str)
     );
-    let user = build_analysis_prompt(&scan, bench.as_ref());
+    let user = build_analysis_prompt(&scan, bench.as_ref(), profile_str);
     let result = claude_gateway::call(&system, &user, 4000).await?;
 
     let elapsed_ms = start.elapsed().as_millis() as u32;
@@ -120,7 +125,7 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>) -> Result
 }
 
 #[tauri::command]
-async fn generate_script(optimizations_json: String, scan_json: String) -> Result<String, String> {
+async fn generate_script(optimizations_json: String, scan_json: String, profile: Option<String>) -> Result<String, String> {
     let scan: SystemScan = serde_json::from_str(&scan_json)
         .map_err(|e| format!("Scan JSON inválido: {}", e))?;
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -128,6 +133,7 @@ async fn generate_script(optimizations_json: String, scan_json: String) -> Resul
         "{} {}, {}, GPU: {}, {}GB RAM",
         scan.distro_id, scan.distro_version, scan.cpu_model, scan.gpu_model, ram_gb
     );
+    let profile_str = profile.as_deref().unwrap_or("balanced");
 
     #[cfg(target_os = "windows")]
     let system = format!(
@@ -136,8 +142,9 @@ async fn generate_script(optimizations_json: String, scan_json: String) -> Resul
         3) Empieza con $ErrorActionPreference = 'Continue'. 4) Usa Write-Host para mensajes. \
         5) Usa -ErrorAction SilentlyContinue en comandos que pueden fallar. \
         6) Para persistencia: usa schtasks y registro de Windows. \
-        7) NUNCA formatear discos, eliminar archivos del sistema ni deshabilitar el Firewall de Windows.",
-        hw_desc
+        7) NUNCA formatear discos, eliminar archivos del sistema ni deshabilitar el Firewall de Windows.\n{}",
+        hw_desc,
+        profile_hint(profile_str)
     );
     #[cfg(not(target_os = "windows"))]
     let system = format!(
@@ -145,9 +152,10 @@ async fn generate_script(optimizations_json: String, scan_json: String) -> Resul
         REGLAS: 1) SOLO bash puro. Máximo 60 líneas. 2) Sin markdown ni backticks. \
         3) Empieza con #!/bin/bash. 4) Usa echo para mensajes. \
         5) Usa /sbin/sysctl con ruta absoluta para sysctl. \
-        6) Termina comandos que pueden fallar con || true. 7) Sin EOF ni heredocs.\n{}",
+        6) Termina comandos que pueden fallar con || true. 7) Sin EOF ni heredocs.\n{}\n{}",
         hw_desc,
-        policy::policy_rules_for_prompt()
+        policy::policy_rules_for_prompt(),
+        profile_hint(profile_str)
     );
 
     #[cfg(target_os = "windows")]
@@ -686,15 +694,25 @@ fn reapply_lost_opts(lost_json: String) -> Result<String, String> {
 
 // ─── Builder de prompt ────────────────────────────────────────────────────────
 
-fn build_analysis_prompt(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>) -> String {
+fn profile_hint(profile: &str) -> &'static str {
+    match profile {
+        "gaming"    => "PERFIL OBJETIVO: Gaming. Prioriza latencia CPU mínima (plan alto rendimiento, boost máximo), scheduler foreground, TCP sin Nagle, máxima RAM libre. Penaliza optimizaciones que sacrifiquen latencia por throughput.",
+        "streaming" => "PERFIL OBJETIVO: Streaming/Contenido. Prioriza throughput de red estable, CPU sin throttling térmico para encoding, I/O disco para grabación, temperatura baja para sesiones largas. Evita cambios que causen micro-stutters.",
+        "dev"       => "PERFIL OBJETIVO: Desarrollo. Prioriza velocidad de compilación (CPU máxima en builds), I/O escritura rápida, swappiness muy bajo para no paginar durante builds, inotify alto para file watchers.",
+        "server"    => "PERFIL OBJETIVO: Servidor. Prioriza throughput máximo red/disco, estabilidad absoluta, scheduling equitativo para múltiples procesos. NUNCA sacrifiques estabilidad por rendimiento puntual.",
+        _           => "PERFIL OBJETIVO: Equilibrado. Optimiza el balance general de rendimiento, estabilidad y consumo energético.",
+    }
+}
+
+fn build_analysis_prompt(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>, profile: &str) -> String {
     #[cfg(target_os = "windows")]
-    return build_analysis_prompt_windows(scan);
+    return build_analysis_prompt_windows(scan, profile);
     #[cfg(not(target_os = "windows"))]
-    return build_analysis_prompt_linux(scan, bench);
+    return build_analysis_prompt_linux(scan, bench, profile);
 }
 
 #[cfg(not(target_os = "windows"))]
-fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>) -> String {
+fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>, profile: &str) -> String {
     let opt_cache = cache::load_cache();
     let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -745,6 +763,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
 
     format!(
         "Analiza estos datos reales del sistema y genera un plan de optimización.\n\
+        {profile_line}\
         {bench}\
         DATOS REALES:\n\
         - CPU Governor: {} ({} núcleos lógicos)\n\
@@ -782,6 +801,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
         schema,
         bench = bench_section,
         hardware_line = hardware_line,
+        profile_line = format!("{}\n\n", profile_hint(profile)),
         pinned = if pinned_hint.is_empty() {
             String::new()
         } else {
@@ -792,7 +812,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
 }
 
 #[cfg(target_os = "windows")]
-fn build_analysis_prompt_windows(scan: &SystemScan) -> String {
+fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
     let opt_cache = cache::load_cache();
     let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -823,6 +843,7 @@ fn build_analysis_prompt_windows(scan: &SystemScan) -> String {
 
     format!(
         "Eres un experto en optimizacion de Windows. Analiza estos datos y genera un plan.\n\
+        {profile_line}\
         SISTEMA OPERATIVO: Windows\n\
         DATOS REALES:\n\
         - Plan de energia activo: {}\n\
@@ -853,6 +874,7 @@ fn build_analysis_prompt_windows(scan: &SystemScan) -> String {
         scan.cpu_temp_celsius,
         schema,
         hardware_line = hardware_line,
+        profile_line = format!("{}\n\n", profile_hint(profile)),
         pinned = if pinned_hint.is_empty() {
             String::new()
         } else {
