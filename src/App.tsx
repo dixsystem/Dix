@@ -1157,7 +1157,7 @@ export default function App() {
           ) : (
             <button className="btn-secondary" onClick={() => setView("activate")}
               style={{ fontSize: 11, color: C.orange, borderColor: `${C.orange}55`, fontWeight: 600 }}>
-              {demoCount >= 1 ? "🔒 DEMO AGOTADO" : `🎁 DEMO (${1 - demoCount} gratis)`}
+              {demoCount >= 3 ? "🔒 DEMO AGOTADO" : `🎁 DEMO (${3 - demoCount} gratis)`}
             </button>
           )}
         </div>
