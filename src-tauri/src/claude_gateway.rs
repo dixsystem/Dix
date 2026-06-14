@@ -125,13 +125,33 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
 }
 
 fn device_fingerprint() -> String {
-    std::fs::read_to_string("/proc/cpuinfo")
-        .unwrap_or_default()
-        .lines()
-        .find(|l| l.contains("model name"))
-        .and_then(|l| l.split(':').nth(1))
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown_cpu".to_string())
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let out = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command",
+                "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok();
+        if let Some(o) = out {
+            let guid = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if guid.len() >= 16 { return guid; }
+        }
+        return "unknown_win_machine".to_string();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::fs::read_to_string("/proc/cpuinfo")
+            .unwrap_or_default()
+            .lines()
+            .find(|l| l.contains("model name"))
+            .and_then(|l| l.split(':').nth(1))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "unknown_cpu".to_string())
+    }
 }
 
 fn strip_fences(input: &str) -> String {

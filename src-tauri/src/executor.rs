@@ -250,8 +250,11 @@ fn elevate_and_run(script: &std::path::Path) -> Result<String, String> {
         wrap_str
     );
 
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let output = Command::new("powershell.exe")
         .args(["-ExecutionPolicy", "Bypass", "-NonInteractive", "-Command", &ps_cmd])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("powershell.exe no disponible: {}", e))?;
 

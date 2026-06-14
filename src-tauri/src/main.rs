@@ -252,12 +252,15 @@ fn get_hw_fingerprint() -> String {
     #[cfg(target_os = "windows")]
     {
         // Windows: usa MachineGuid del registro — único por instalación del SO
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         let output = Command::new("powershell")
             .args([
                 "-NoProfile", "-NonInteractive",
                 "-Command",
                 "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid",
             ])
+            .creation_flags(CREATE_NO_WINDOW)
             .output()
             .ok();
         if let Some(o) = output {
@@ -317,6 +320,8 @@ fn get_live_metrics() -> LiveMetrics {
 
 #[cfg(target_os = "windows")]
 fn get_live_metrics_windows() -> LiveMetrics {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     // Consulta PowerShell única para minimizar latencia
     let ps_out = Command::new("powershell")
         .args([
@@ -338,6 +343,7 @@ fn get_live_metrics_windows() -> LiveMetrics {
              $load = [math]::Round((Get-CimInstance Win32_PerfFormattedData_PerfOS_System).ProcessorQueueLength, 2);\
              \"$gov|$freq|$maxf|$cores|$free|$total|$load\"",
         ])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok();
 
@@ -524,9 +530,12 @@ async fn activate_license(key: String) -> Result<bool, String> {
     let instance_name = {
         #[cfg(target_os = "windows")]
         {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             let cpu = Command::new("powershell")
                 .args(["-NoProfile", "-NonInteractive", "-Command",
                     "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"])
+                .creation_flags(CREATE_NO_WINDOW)
                 .output()
                 .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
                 .unwrap_or_else(|_| "unknown-cpu".to_string());

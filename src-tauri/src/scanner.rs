@@ -290,8 +290,11 @@ fn read_cpu_temp() -> f32 {
 
 #[cfg(target_os = "windows")]
 fn ps(cmd: &str) -> String {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", cmd])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default()
