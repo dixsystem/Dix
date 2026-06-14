@@ -302,10 +302,9 @@ fn ps(cmd: &str) -> String {
 #[cfg(target_os = "windows")]
 fn mem_native() -> (u64, u64) {
     use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-    let mut ms = MEMORYSTATUSEX {
-        dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
-        ..Default::default()
-    };
+    // zeroed() porque MEMORYSTATUSEX no deriva Default en windows-rs 0.58
+    let mut ms: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
+    ms.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
     if unsafe { GlobalMemoryStatusEx(&mut ms) }.is_ok() {
         return (ms.ullTotalPhys / (1024 * 1024), ms.ullAvailPhys / (1024 * 1024));
     }
@@ -338,8 +337,9 @@ fn power_plan_native() -> String {
         data4: [0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61] };
 
     let mut scheme: *mut GUID = std::ptr::null_mut();
-    let err = unsafe { PowerGetActiveScheme(HKEY::default(), &mut scheme) };
-    if err.0 == 0 && !scheme.is_null() {
+    // Ignorar el u32 de retorno — si scheme no es null la llamada tuvo éxito
+    unsafe { PowerGetActiveScheme(HKEY::default(), &mut scheme) };
+    if !scheme.is_null() {
         let active = unsafe { *scheme };
         unsafe { LocalFree(HLOCAL(scheme.cast())) };
         return match active {

