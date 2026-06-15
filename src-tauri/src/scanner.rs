@@ -356,76 +356,104 @@ fn power_plan_native() -> String {
 
 #[cfg(target_os = "windows")]
 fn scan_windows() -> Result<SystemScan, String> {
-    // CPU
-    let cpu_model = ps("(Get-CimInstance Win32_Processor | Select-Object -First 1).Name");
-    let cpu_cores = cpu_count_native();
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-    // Plan de energía → cpu_governor (nativo via Win32_System_Power)
+    // Valores nativos — sin PowerShell, instantáneos
+    let cpu_cores  = cpu_count_native();
     let cpu_governor = power_plan_native();
-
-    // Memoria (nativa via GlobalMemoryStatusEx)
     let (mem_total_mb, mem_available_mb) = mem_native();
 
-    // Uso del pagefile → proxy de swappiness
-    let pf_size = ps("[Math]::Round((Get-CimInstance Win32_PageFileUsage).CurrentUsage)");
-    let swappiness: u8 = if pf_size == "0" { 0 } else { 50 };
+    // UNA SOLA llamada PowerShell en lugar de 16 separadas.
+    // Antes: ~16 procesos powershell.exe × 500-1000ms c/u = 8-16s (+ Get-StoragePool que tardaba 30-60s).
+    // Ahora: 1 proceso, tiempo total ~3-5s.
+    let ps_script = "\
+$cpu  = Get-CimInstance Win32_Processor | Select-Object -First 1;\
+$os   = Get-CimInstance Win32_OperatingSystem;\
+$gpu  = Get-CimInstance Win32_VideoController | Where-Object {$_.PNPDeviceID -notlike 'ROOT*'} | Select-Object -First 1;\
+$nagle = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters' \
+    -Name TcpAckFrequency -ErrorAction SilentlyContinue).TcpAckFrequency;\
+$lp   = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management' \
+    -Name LargePageMinimum -ErrorAction SilentlyContinue).LargePageMinimum;\
+$disk = (Get-Disk -ErrorAction SilentlyContinue | Select-Object -First 1).FriendlyName;\
+$audio = (Get-Service -Name AudioSrv -ErrorAction SilentlyContinue).Status;\
+$temp = (Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature \
+    -ErrorAction SilentlyContinue | Select-Object -First 1).CurrentTemperature;\
+\"$($cpu.Name)|$nagle|$disk|$audio|$lp|$($cpu.MaxClockSpeed)|$($cpu.CurrentClockSpeed)|$($cpu.LoadPercentage)|$($gpu.Name)|$($os.Caption)|$([System.Environment]::OSVersion.Version.ToString())|$temp\"";
 
-    // TCP Nagle → mapped to dirty_ratio concept
-    let nagle = ps("(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters' -Name 'TcpAckFrequency' -ErrorAction SilentlyContinue).TcpAckFrequency");
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", ps_script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .unwrap_or_else(|_| std::process::Output {
+            status: std::process::ExitStatus::default(),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+
+    let line = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    // La salida puede tener múltiples líneas si PS imprime advertencias antes del resultado.
+    // Tomamos la última línea no vacía que contenga '|'.
+    let line = line.lines()
+        .rev()
+        .find(|l| l.contains('|'))
+        .unwrap_or("")
+        .to_string();
+
+    let parts: Vec<&str> = line.split('|').collect();
+    let get = |i: usize| parts.get(i).copied().unwrap_or("").trim();
+
+    let cpu_model = {
+        let v = get(0).to_string();
+        if v.is_empty() { "unknown CPU".to_string() } else { v }
+    };
+
+    let nagle = get(1);
     let dirty_ratio: u8 = if nagle == "1" { 5 } else { 20 };
-    let dirty_background_ratio: u8 = 10;
 
-    // Disk scheduler (Windows uses StorPort/AHCI — report driver)
-    let disk_scheduler = ps("(Get-Disk | Select-Object -First 1).FriendlyName").chars().take(20).collect::<String>();
-    let disk_scheduler = if disk_scheduler.is_empty() { "windows-default".to_string() } else { disk_scheduler };
+    let disk_name = get(2);
+    let disk_scheduler = if disk_name.is_empty() {
+        "windows-default".to_string()
+    } else {
+        disk_name[..disk_name.len().min(30)].to_string()
+    };
+    // Detectar NVMe por nombre del disco — sin Get-StoragePool
+    let nvme_queue_depth = if disk_scheduler.to_lowercase().contains("nvme") || disk_scheduler.to_lowercase().contains("ssd") {
+        "32".to_string()
+    } else {
+        "64".to_string()
+    };
 
-    // NVMe queue depth
-    let nvme_queue_depth = ps("(Get-StoragePool -IsPrimordial $true | Get-PhysicalDisk | Select-Object -First 1).BusType").to_lowercase();
-    let nvme_queue_depth = if nvme_queue_depth.contains("nvme") { "32".to_string() } else { "64".to_string() };
-
-    // Audio
-    let audio_raw = ps("(Get-Service -Name AudioSrv -ErrorAction SilentlyContinue).Status");
+    let audio_raw = get(3);
     let audio_server = if audio_raw.contains("Running") { "wasapi".to_string() } else { "unknown".to_string() };
 
-    // Large Pages → hugepages equivalent
-    let lp = ps("(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management' -Name 'LargePageMinimum' -ErrorAction SilentlyContinue).LargePageMinimum");
+    let lp = get(4);
     let hugepages = if lp == "0" { "always".to_string() } else { "madvise".to_string() };
 
-    // NUMA
-    let numa = ps("(Get-CimInstance Win32_ComputerSystem).NumberOfProcessors");
-    let numa_balancing = if numa.parse::<u32>().unwrap_or(1) > 1 { "1".to_string() } else { "0".to_string() };
+    let max_mhz     = get(5).parse::<u32>().unwrap_or(0);
+    let current_mhz = get(6).parse::<u32>().unwrap_or(0);
 
-    // CPU freq (from processor info)
-    let max_mhz = ps("(Get-CimInstance Win32_Processor | Select-Object -First 1).MaxClockSpeed")
-        .parse::<u32>().unwrap_or(0);
-    let current_mhz = ps("(Get-CimInstance Win32_Processor | Select-Object -First 1).CurrentClockSpeed")
-        .parse::<u32>().unwrap_or(0);
-
-    // IRQ balance → Windows doesn't have irqbalance, but has interrupt affinity policy
-    let irqbalance_active = ps("(Get-Service -Name 'AppHostSvc' -ErrorAction SilentlyContinue).Status").is_empty();
-
-    // Load avg (CPU usage as proxy)
-    let cpu_load = ps("(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average");
+    let cpu_load = get(7);
     let load_avg = format!("{} {} {}", cpu_load, cpu_load, cpu_load);
 
-    // GPU
-    let gpu_model = ps("(Get-CimInstance Win32_VideoController | Where-Object {$_.PNPDeviceID -notlike 'ROOT*'} | Select-Object -First 1).Name");
-    let gpu_model = if gpu_model.is_empty() { "unknown GPU".to_string() } else { gpu_model };
+    let gpu_raw = get(8);
+    let gpu_model = if gpu_raw.is_empty() { "unknown GPU".to_string() } else { gpu_raw.to_string() };
 
-    // OS version
-    let distro_id = "windows".to_string();
-    let distro_version = ps("(Get-CimInstance Win32_OperatingSystem).Caption");
-    let kernel_version = ps("[System.Environment]::OSVersion.Version.ToString()");
+    let distro_version = get(9).to_string();
+    let kernel_version = get(10).to_string();
 
-    // Temperature via WMI (may need admin)
-    let temp_raw = ps("(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Select-Object -First 1).CurrentTemperature");
+    let temp_raw = get(11);
     let cpu_temp_celsius = temp_raw.parse::<f32>().map(|t| (t / 10.0) - 273.15).unwrap_or(0.0);
 
     Ok(SystemScan {
-        cpu_governor, cpu_cores, swappiness, dirty_ratio, dirty_background_ratio,
-        disk_scheduler, audio_server, hugepages, numa_balancing, mem_total_mb,
-        mem_available_mb, load_avg, nvme_queue_depth, irqbalance_active,
+        cpu_governor, cpu_cores,
+        swappiness: 50, dirty_ratio, dirty_background_ratio: 10,
+        disk_scheduler, audio_server, hugepages,
+        numa_balancing: "0".to_string(),
+        mem_total_mb, mem_available_mb, load_avg, nvme_queue_depth,
+        irqbalance_active: false,
         cpu_min_freq_mhz: current_mhz, cpu_max_freq_mhz: max_mhz,
-        cpu_model, gpu_model, distro_id, distro_version, kernel_version, cpu_temp_celsius,
+        cpu_model, gpu_model,
+        distro_id: "windows".to_string(), distro_version, kernel_version, cpu_temp_celsius,
     })
 }

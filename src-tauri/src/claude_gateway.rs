@@ -45,7 +45,9 @@ struct Msg {
 
 pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_secs(120))         // proxy hace hasta 3 reintentos × ~30s
+        .connect_timeout(Duration::from_secs(15))  // fallo rápido si no hay red
+        .tcp_keepalive(Duration::from_secs(30))
         .build()
         .map_err(|e| format!("Error creando cliente HTTP: {}", e))?;
     let body = Request {
@@ -78,8 +80,13 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
             .post(obfstr!("https://dix-proxy.dixsystem.workers.dev/v1/messages"))
             .header(obfstr!("content-type"), obfstr!("application/json"))
             .json(&body);
-        // Siempre incluir device fingerprint — el proxy lo usa para atar la licencia al hardware
-        req = req.header(obfstr!("X-Device-Id"), device_fingerprint());
+        // device_fingerprint ejecuta PowerShell en Windows → bloqueante.
+        // spawn_blocking lo mueve a un thread dedicado, liberando el runtime de Tokio
+        // para que pueda gestionar timers y I/O de red sin cuelgues.
+        let fp = tokio::task::spawn_blocking(device_fingerprint)
+            .await
+            .unwrap_or_else(|_| "unknown_device".to_string());
+        req = req.header(obfstr!("X-Device-Id"), fp);
         if let Some(license_key) = memory::get_license_key() {
             req = req.header(obfstr!("X-License-Key"), license_key);
         }

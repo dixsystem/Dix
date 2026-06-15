@@ -811,7 +811,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
     )
 }
 
-#[cfg(target_os = "windows")]
+// Sin cfg-gate para poder testear en Linux la lógica del prompt Windows.
 fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
     let opt_cache = cache::load_cache();
     let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
@@ -940,4 +940,220 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
+}
+
+// ─── Tests simulados Windows ──────────────────────────────────────────────────
+// Se ejecutan en Linux para validar la lógica Windows sin necesitar un PC Windows.
+// Uso: cargo test tests_win -- --nocapture
+// Uso (red): cargo test tests_win -- --nocapture --include-ignored
+
+#[cfg(test)]
+mod tests_win {
+    use crate::scanner::SystemScan;
+    use crate::build_analysis_prompt_windows;
+    use crate::profile_hint;
+
+    fn mock_scan_gaming() -> SystemScan {
+        SystemScan {
+            cpu_governor: "balanced".to_string(), cpu_cores: 8,
+            swappiness: 50, dirty_ratio: 20, dirty_background_ratio: 10,
+            disk_scheduler: "Samsung SSD 980 PRO 1TB".to_string(),
+            audio_server: "wasapi".to_string(), hugepages: "madvise".to_string(),
+            numa_balancing: "0".to_string(),
+            mem_total_mb: 16384, mem_available_mb: 6144,
+            load_avg: "45 45 45".to_string(), nvme_queue_depth: "32".to_string(),
+            irqbalance_active: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 4800,
+            cpu_model: "Intel(R) Core(TM) i7-12700H @ 2.30GHz".to_string(),
+            gpu_model: "NVIDIA GeForce RTX 3060 Laptop GPU".to_string(),
+            distro_id: "windows".to_string(),
+            distro_version: "Microsoft Windows 11 Home".to_string(),
+            kernel_version: "10.0.22631.0".to_string(), cpu_temp_celsius: 72.0,
+        }
+    }
+
+    fn mock_scan_low_end() -> SystemScan {
+        SystemScan {
+            cpu_governor: "powersave".to_string(), cpu_cores: 4,
+            swappiness: 50, dirty_ratio: 20, dirty_background_ratio: 10,
+            disk_scheduler: "Seagate ST1000LM048-2E7172".to_string(),
+            audio_server: "unknown".to_string(), hugepages: "madvise".to_string(),
+            numa_balancing: "0".to_string(),
+            mem_total_mb: 8192, mem_available_mb: 2048,
+            load_avg: "80 80 80".to_string(), nvme_queue_depth: "64".to_string(),
+            irqbalance_active: false, cpu_min_freq_mhz: 400, cpu_max_freq_mhz: 2400,
+            cpu_model: "Intel(R) Core(TM) i5-8250U @ 1.60GHz".to_string(),
+            gpu_model: "Intel(R) UHD Graphics 620".to_string(),
+            distro_id: "windows".to_string(),
+            distro_version: "Microsoft Windows 10 Home".to_string(),
+            kernel_version: "10.0.19045.0".to_string(), cpu_temp_celsius: 88.0,
+        }
+    }
+
+    fn mock_scan_workstation() -> SystemScan {
+        SystemScan {
+            cpu_governor: "high-performance".to_string(), cpu_cores: 16,
+            swappiness: 50, dirty_ratio: 5, dirty_background_ratio: 10,
+            disk_scheduler: "Samsung MZVL21T0HCLR-00B00 (NVMe)".to_string(),
+            audio_server: "wasapi".to_string(), hugepages: "always".to_string(),
+            numa_balancing: "0".to_string(),
+            mem_total_mb: 65536, mem_available_mb: 40960,
+            load_avg: "20 20 20".to_string(), nvme_queue_depth: "32".to_string(),
+            irqbalance_active: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 5600,
+            cpu_model: "AMD Ryzen 9 7950X 16-Core Processor".to_string(),
+            gpu_model: "NVIDIA GeForce RTX 4090".to_string(),
+            distro_id: "windows".to_string(),
+            distro_version: "Microsoft Windows 11 Pro".to_string(),
+            kernel_version: "10.0.22631.0".to_string(), cpu_temp_celsius: 55.0,
+        }
+    }
+
+    // ── Tests unitarios (sin red) ──────────────────────────────────────────────
+
+    #[test]
+    fn test_scan_serializa_correctamente() {
+        let scan = mock_scan_gaming();
+        let json = serde_json::to_string(&scan).expect("Serialización del scan Windows falló");
+        assert!(json.contains("\"windows\""), "distro_id debe ser 'windows'");
+        assert!(json.contains("16384"), "mem_total_mb debe aparecer");
+        assert!(json.contains("i7-12700H"), "cpu_model debe aparecer");
+        let scan2: SystemScan = serde_json::from_str(&json).expect("Deserialización falló");
+        assert_eq!(scan2.cpu_model, scan.cpu_model);
+        assert_eq!(scan2.mem_total_mb, scan.mem_total_mb);
+        println!("✓ JSON roundtrip OK ({} bytes)", json.len());
+    }
+
+    #[test]
+    fn test_prompt_contiene_campos_criticos() {
+        let scan = mock_scan_gaming();
+        let prompt = build_analysis_prompt_windows(&scan, "gaming");
+        assert!(!prompt.is_empty(), "Prompt no puede estar vacío");
+        assert!(prompt.contains("Windows"), "Debe mencionar Windows");
+        assert!(prompt.contains("Gaming"), "Debe incluir el perfil");
+        assert!(prompt.contains("balanced"), "Debe incluir el plan de energía");
+        assert!(prompt.contains("score_actual"), "Debe incluir el schema JSON");
+        assert!(prompt.contains("optimizaciones"), "Debe incluir el campo optimizaciones");
+        assert!(prompt.len() > 500, "Prompt demasiado corto: {} chars", prompt.len());
+        println!("✓ Prompt gaming OK ({} chars)", prompt.len());
+    }
+
+    #[test]
+    fn test_todos_los_perfiles_windows() {
+        let perfiles = ["gaming", "streaming", "dev", "server", "balanced"];
+        for perfil in &perfiles {
+            let scan = mock_scan_gaming();
+            let prompt = build_analysis_prompt_windows(&scan, perfil);
+            assert!(!prompt.is_empty(), "Perfil '{}' generó prompt vacío", perfil);
+            assert!(prompt.contains("score_actual"), "Perfil '{}' sin schema", perfil);
+            println!("✓ Perfil '{}' → {} chars", perfil, prompt.len());
+        }
+    }
+
+    #[test]
+    fn test_escenario_low_end_windows10() {
+        let scan = mock_scan_low_end();
+        let prompt = build_analysis_prompt_windows(&scan, "balanced");
+        assert!(prompt.contains("8192"), "Debe incluir la RAM (8GB)");
+        assert!(prompt.contains("i5-8250U"), "Debe incluir el CPU");
+        assert!(prompt.contains("Windows 10"), "Debe indicar Windows 10");
+        assert!(prompt.contains("powersave"), "Debe incluir el plan de energía powersave");
+        println!("✓ Escenario low-end Windows 10 OK");
+    }
+
+    #[test]
+    fn test_escenario_workstation_windows11() {
+        let scan = mock_scan_workstation();
+        let prompt = build_analysis_prompt_windows(&scan, "dev");
+        assert!(prompt.contains("65536"), "Debe incluir 64GB RAM");
+        assert!(prompt.contains("Ryzen 9"), "Debe incluir el CPU");
+        assert!(prompt.contains("Desarrollo"), "Debe incluir perfil dev en español");
+        println!("✓ Escenario workstation Windows 11 OK");
+    }
+
+    #[test]
+    fn test_schema_json_en_prompt() {
+        let scan = mock_scan_gaming();
+        let prompt = build_analysis_prompt_windows(&scan, "balanced");
+        // El schema JSON debe aparecer completo en el prompt
+        assert!(prompt.contains("\"id\""), "Falta campo id en schema");
+        assert!(prompt.contains("\"categoria\""), "Falta campo categoria en schema");
+        assert!(prompt.contains("\"impacto\""), "Falta campo impacto en schema");
+        assert!(prompt.contains("\"riesgo\""), "Falta campo riesgo en schema");
+        assert!(prompt.contains("\"aplicar\""), "Falta campo aplicar en schema");
+        println!("✓ Schema JSON completo en prompt OK");
+    }
+
+    #[test]
+    fn test_profile_hints_no_vacios() {
+        for p in &["gaming", "streaming", "dev", "server", "balanced", "desconocido"] {
+            let hint = profile_hint(p);
+            assert!(!hint.is_empty(), "profile_hint('{}') no puede estar vacío", p);
+        }
+        println!("✓ Todos los profile_hints tienen contenido");
+    }
+
+    // ── Tests de red (requieren conexión) ─────────────────────────────────────
+    // Ejecutar con: cargo test tests_win -- --nocapture --include-ignored
+
+    #[tokio::test]
+    #[ignore = "requiere conexión a internet"]
+    async fn test_proxy_responde_sin_timeout() {
+        use std::time::Duration;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(15))
+            .connect_timeout(Duration::from_secs(5))
+            .build().unwrap();
+
+        // POST sin body válido → proxy debe responder 400, NO timeout
+        let start = std::time::Instant::now();
+        let res = client
+            .post("https://dix-proxy.dixsystem.workers.dev/v1/messages")
+            .header("content-type", "application/json")
+            .body("{}")
+            .send()
+            .await;
+        let elapsed = start.elapsed();
+
+        match &res {
+            Ok(r)  => println!("✓ Proxy responde en {:.1}s — status HTTP {}", elapsed.as_secs_f32(), r.status()),
+            Err(e) if e.is_timeout()  => panic!("✗ TIMEOUT ({:.1}s) — Posible firewall bloqueando la salida", elapsed.as_secs_f32()),
+            Err(e) if e.is_connect()  => panic!("✗ ERROR CONEXIÓN — {}", e),
+            Err(e) => println!("⚠ Error no crítico en {:.1}s — {}", elapsed.as_secs_f32(), e),
+        }
+        assert!(res.is_ok(), "No se pudo contactar el proxy");
+        assert!(elapsed.as_secs() < 10, "Respuesta tardó {}s (esperado <10s)", elapsed.as_secs());
+    }
+
+    #[tokio::test]
+    #[ignore = "requiere conexión a internet + consume cuota demo"]
+    async fn test_analisis_windows_completo_simulado() {
+        let scan = mock_scan_gaming();
+        let system = format!(
+            "Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown.\n{}",
+            profile_hint("gaming")
+        );
+        let user = build_analysis_prompt_windows(&scan, "gaming");
+
+        println!("Enviando análisis simulado Windows al proxy...");
+        println!("System: {} chars | User: {} chars", system.len(), user.len());
+
+        let start = std::time::Instant::now();
+        let result = crate::claude_gateway::call(&system, &user, 4000).await;
+        let elapsed = start.elapsed();
+
+        match result {
+            Ok(json) => {
+                println!("✓ Respuesta en {:.1}s — {} chars", elapsed.as_secs_f32(), json.len());
+                let v: serde_json::Value = serde_json::from_str(&json)
+                    .expect("Claude devolvió JSON inválido");
+                assert!(v["score_actual"].is_number(),   "Falta score_actual");
+                assert!(v["score_optimizado"].is_number(),"Falta score_optimizado");
+                assert!(v["optimizaciones"].is_array(),   "Falta array optimizaciones");
+                let n_opts = v["optimizaciones"].as_array().unwrap().len();
+                assert!(n_opts >= 4, "Menos de 4 optimizaciones: {}", n_opts);
+                println!("✓ Score: {} → {} | {} optimizaciones",
+                    v["score_actual"], v["score_optimizado"], n_opts);
+            }
+            Err(e) => panic!("✗ Error en análisis Windows: {}", e),
+        }
+    }
 }
