@@ -26,6 +26,9 @@ dist-ssr
 # Rust / Tauri
 src-tauri/target/
 
+# Proxy — lógica de servidor privada, NUNCA publicar
+dix-proxy/
+
 # Variables de entorno y secretos — NUNCA subir al repositorio
 .env
 .env.*
