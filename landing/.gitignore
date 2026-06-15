@@ -1,0 +1,17 @@
+.dev.vars
+
+# Código propietario DIXSystem — NUNCA publicar
+dixbot_*.js
+dixbot_*.html
+dixbot_*.css
+DIXBOT_*.md
+CLAUDE_CODE_PROMPT.md
+assets/dixbot/
+assets/dix_avatar_chat.png
+assets/dix_sheet1.png
+assets/dix_sheet2.png
+assets/frames/
+assets/gifs/
+test_dix.html
+tools/
+.wrangler/

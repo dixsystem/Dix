@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DIX — The World's First AppIA</title>
 <meta name="description" content="DIX reads your Linux kernel, Claude AI analyzes it, and tunes your system in seconds. Score 0-100. Real results.">
+<meta name="google" content="notranslate">
 <meta property="og:title" content="DIX — The World's First AppIA">
 <meta property="og:description" content="Claude AI reads your Linux kernel and tunes it for your exact hardware. Score 0–100. €14.99 one-time.">
 <meta property="og:image" content="dix_hero_full.png">
@@ -280,6 +281,25 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 .footer-bottom a{color:var(--gray);margin-left:16px;font-size:12px;transition:color .15s}
 .footer-bottom a:hover{color:var(--orange)}
 
+/* ── BADGE GOLD (Odyssey) ── */
+.badge-gold{background:rgba(255,215,0,.15);color:var(--yellow);border:1px solid rgba(255,215,0,.4)}
+
+/* ── ODYSSEY CARD ── */
+.prod-card.odyssey{border-color:rgba(255,215,0,.25);background:linear-gradient(135deg,var(--card) 0%,#1a1500 100%)}
+.prod-card.odyssey:hover{border-color:var(--yellow);box-shadow:0 12px 48px rgba(255,215,0,.2);transform:translateY(-4px)}
+.prod-card.odyssey:hover::before{opacity:1}
+.prod-card.odyssey .card-title{color:var(--yellow)}
+.odyssey-full{grid-column:1/-1}
+.odyssey-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center}
+.odyssey-badge-label{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--yellow);margin-bottom:6px;text-transform:uppercase}
+.odyssey-price-note{font-size:12px;color:rgba(255,215,0,.5);font-family:'JetBrains Mono',monospace;margin-top:4px}
+
+/* ── ROADMAP ODYSSEY ── */
+.rm-item.odyssey-rm::before{background:var(--yellow);border-color:var(--yellow);box-shadow:0 0 12px rgba(255,215,0,.5);animation:pulseGold 2s ease infinite}
+@keyframes pulseGold{0%,100%{box-shadow:0 0 6px rgba(255,215,0,.3)}50%{box-shadow:0 0 20px rgba(255,215,0,.8)}}
+.rm-item.odyssey-rm .rm-title{color:var(--yellow)}
+.rm-tag-odyssey{background:rgba(255,215,0,.12);color:var(--yellow);border:1px solid rgba(255,215,0,.25)}
+
 /* ── RESPONSIVE ── */
 @media(max-width:900px){
   nav{padding:0 20px}
@@ -287,6 +307,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
   .hamburger{display:flex}
   .mobile-menu.open{display:block}
   .products-grid{grid-template-columns:1fr}
+  .odyssey-grid{grid-template-columns:1fr}
   .steps-timeline{grid-template-columns:1fr;gap:32px}
   .steps-timeline::before{display:none}
   .bench-grid{grid-template-columns:1fr 1fr}
@@ -337,6 +358,9 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         </a>
         <a class="dd-item" href="#products">
           DIX Stream <span class="badge badge-purple">v2</span>
+        </a>
+        <a class="dd-item" href="#products">
+          DIX Odyssey <span class="badge badge-gold">BETA</span>
         </a>
       </div>
     </div>
@@ -498,25 +522,31 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       </div>
 
       <!-- CARD 2: DIX Windows -->
-      <div class="prod-card unavailable reveal">
+      <div class="prod-card reveal">
         <div class="card-header">
           <div class="card-icon">
-            <svg viewBox="0 0 36 36" fill="none" stroke="#8b949e" stroke-width="1.5">
-              <rect x="5" y="5" width="11" height="11" rx="1"/>
-              <rect x="20" y="5" width="11" height="11" rx="1"/>
-              <rect x="5" y="20" width="11" height="11" rx="1"/>
-              <rect x="20" y="20" width="11" height="11" rx="1"/>
+            <svg viewBox="0 0 36 36" fill="none" stroke-width="1.5">
+              <rect x="5" y="5" width="11" height="11" rx="1" stroke="#ffffff"/>
+              <rect x="20" y="5" width="11" height="11" rx="1" stroke="var(--orange)"/>
+              <rect x="5" y="20" width="11" height="11" rx="1" stroke="var(--orange)"/>
+              <rect x="20" y="20" width="11" height="11" rx="1" stroke="#ffffff"/>
             </svg>
           </div>
-          <span class="badge badge-gray" data-i18n="badge_soon">COMING SOON</span>
+          <span class="badge badge-orange" data-i18n="badge_beta">BETA</span>
         </div>
-        <div class="card-title" style="color:var(--gray)">DIX Windows</div>
+        <div class="card-title" translate="no">DIX Windows</div>
         <div class="card-desc" data-i18n="p2_desc">The same kernel-level intelligence, adapted for Windows. Registry + service optimization powered by Claude AI.</div>
-        <div class="waitlist-input" style="margin-top:20px">
-          <input type="email" id="emailWindows" placeholder="your@email.com">
-          <button onclick="joinWaitlist('windows')" data-i18n="btn_waitlist">JOIN</button>
+        <ul class="card-features">
+          <li data-i18n="p2_f1">Registry + services optimization</li>
+          <li data-i18n="p2_f2">Windows 10 / 11 compatible</li>
+          <li data-i18n="p2_f3">Score 0–100 before and after</li>
+          <li data-i18n="p2_f4">One-click rollback</li>
+        </ul>
+        <div class="card-price">
+          <span class="price-old">€29.99</span>
+          <span class="price-new">€14.99</span>
         </div>
-        <div class="waitlist-count" data-i18n="p2_waiting">Join the waitlist</div>
+        <a href="https://github.com/dixsystem/Dix/releases" target="_blank" class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn">DOWNLOAD BETA</a>
       </div>
 
       <!-- CARD 3: DIX Kontrol -->
@@ -556,6 +586,48 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <div class="waitlist-input" style="margin-top:20px">
           <input type="email" id="emailStream" placeholder="your@email.com">
           <button onclick="joinWaitlist('stream')" data-i18n="btn_waitlist">JOIN</button>
+        </div>
+      </div>
+
+      <!-- CARD 5: DIX Odyssey (full width) -->
+      <div class="prod-card odyssey odyssey-full reveal">
+        <div class="odyssey-grid">
+          <div>
+            <div class="card-header" style="margin-bottom:20px">
+              <div class="card-icon">
+                <svg viewBox="0 0 36 36" fill="none" stroke="#FFD700" stroke-width="1.5">
+                  <polygon points="18,5 30,12 30,24 18,31 6,24 6,12"/>
+                  <path d="M21 14l-4 8h4l-4 9" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <span class="badge badge-gold" data-i18n="badge_odyssey">IN TESTING</span>
+            </div>
+            <div class="card-title">DIX ODYSSEY</div>
+            <div class="card-desc" data-i18n="p5_desc">The most powerful version of DIX. Claude Opus 4.8 — highest-tier AI. 12,000 tokens per analysis. 100 analyses/day. Deep hardware analysis and session degradation detection.</div>
+            <ul class="card-features">
+              <li data-i18n="p5_f1">Claude Opus 4.8 — highest tier AI</li>
+              <li data-i18n="p5_f2">12,000 tokens — full deep analysis</li>
+              <li data-i18n="p5_f3">100 analyses/day</li>
+              <li data-i18n="p5_f4">Session degradation detection</li>
+              <li data-i18n="p5_f5">Exportable TXT report</li>
+              <li data-i18n="p5_f6">Gold badge + priority support</li>
+            </ul>
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:center;gap:20px">
+            <div>
+              <div class="odyssey-badge-label" data-i18n="p5_label">MAXIMUM TIER</div>
+              <div class="card-price" style="margin-bottom:4px">
+                <span class="price-new" style="color:var(--yellow);font-size:28px">€4.99</span>
+                <span style="font-size:14px;color:var(--gray)" data-i18n="p5_per_month">/month</span>
+              </div>
+              <div class="odyssey-price-note" data-i18n="p5_sub_note">Beta — ODYSSEY-XXXXXX license key required</div>
+            </div>
+            <div class="waitlist-input">
+              <input type="email" id="emailOdyssey" placeholder="your@email.com">
+              <button onclick="joinWaitlist('odyssey')" style="white-space:nowrap;font-size:11px" data-i18n="p5_btn">GET EARLY ACCESS</button>
+            </div>
+            <div class="waitlist-count" style="color:rgba(255,215,0,.55)" data-i18n="p5_waiting">Join the Odyssey beta list</div>
+          </div>
         </div>
       </div>
 
@@ -697,6 +769,12 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <div class="rm-desc" data-i18n="rm2_desc">Adaptive background daemon. Detects active workload and adjusts parameters automatically. DIX Atlas full rollout. Windows beta.</div>
         <span class="rm-tag rm-tag-soon" data-i18n="tag_soon">IN PROGRESS</span>
       </div>
+      <div class="rm-item odyssey-rm reveal">
+        <div class="rm-version">ODYSSEY — 2026</div>
+        <div class="rm-title" data-i18n="rm5_title">DIX ODYSSEY</div>
+        <div class="rm-desc" data-i18n="rm5_desc">Advanced tier with Claude Opus 4.8. 12,000 tokens, 100 analyses/day. Gold badge. Subscription model. Currently in closed beta.</div>
+        <span class="rm-tag rm-tag-odyssey" data-i18n="tag_odyssey">IN TESTING</span>
+      </div>
       <div class="rm-item future reveal">
         <div class="rm-version">v3.0 — 2027</div>
         <div class="rm-title" data-i18n="rm3_title">MULTI-PLATFORM</div>
@@ -809,6 +887,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       <a href="#products" data-i18n="footer_windows">DIX Windows</a>
       <a href="#products" data-i18n="footer_kontrol">DIX Kontrol</a>
       <a href="#products" data-i18n="footer_stream">DIX Stream</a>
+      <a href="#products" data-i18n="footer_odyssey">DIX Odyssey</a>
     </div>
     <div class="footer-col">
       <h4 data-i18n="footer_company">Company</h4>
@@ -903,10 +982,23 @@ const t = {
     rule5_desc:'Generated script is written to a private 0700 directory, executed once, then immediately deleted. Not /tmp.',
     footer_tagline:'The World\'s First AppIA. Claude AI + Linux kernel. Real results.',
     footer_products:'Products', footer_linux:'DIX Linux', footer_windows:'DIX Windows',
-    footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream',
+    footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
     footer_company:'Company', footer_atlas:'Atlas', footer_roadmap:'Roadmap',
     footer_hood:'Under the Hood', footer_legal:'Legal', footer_rights:'All rights reserved.',
     foot_privacy:'Privacy', foot_terms:'Terms', foot_contact:'Contact',
+    badge_beta:'BETA', badge_odyssey:'IN TESTING',
+    p2_f1:'Registry + services optimization', p2_f2:'Windows 10 / 11 compatible',
+    p2_f3:'Score 0–100 before and after', p2_f4:'One-click rollback',
+    p2_btn:'DOWNLOAD BETA',
+    p5_label:'MAXIMUM TIER',
+    p5_desc:'The most powerful version of DIX. Claude Opus 4.8 — highest-tier AI. 12,000 tokens per analysis. 100 analyses/day. Session degradation detection.',
+    p5_f1:'Claude Opus 4.8 — highest tier AI', p5_f2:'12,000 tokens — full deep analysis',
+    p5_f3:'100 analyses/day', p5_f4:'Session degradation detection',
+    p5_f5:'Exportable TXT report', p5_f6:'Gold badge + priority support',
+    p5_btn:'GET EARLY ACCESS', p5_per_month:'/month', p5_sub_note:'Beta — ODYSSEY-XXXXXX license key required',
+    p5_waiting:'Join the Odyssey beta list',
+    rm5_title:'DIX ODYSSEY', rm5_desc:'Advanced tier with Claude Opus 4.8. 12,000 tokens, 100 analyses/day. Gold badge. Subscription model. Currently in closed beta.',
+    tag_odyssey:'IN TESTING',
   },
   es: {
     nav_products:'Productos', nav_atlas:'Atlas', nav_community:'Comunidad',
@@ -974,10 +1066,23 @@ const t = {
     rule5_desc:'El script generado se escribe en directorio privado 0700, se ejecuta una vez y se elimina. Nunca /tmp.',
     footer_tagline:'La primera AppIA del Mundo. Claude AI + kernel Linux. Resultados reales.',
     footer_products:'Productos', footer_linux:'DIX Linux', footer_windows:'DIX Windows',
-    footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream',
+    footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
     footer_company:'Empresa', footer_atlas:'Atlas', footer_roadmap:'Roadmap',
     footer_hood:'Bajo el Capó', footer_legal:'Legal', footer_rights:'Todos los derechos reservados.',
     foot_privacy:'Privacidad', foot_terms:'Términos', foot_contact:'Contacto',
+    badge_beta:'BETA', badge_odyssey:'EN PRUEBAS',
+    p2_f1:'Optimización de registro + servicios', p2_f2:'Compatible Windows 10 / 11',
+    p2_f3:'Score 0–100 antes y después', p2_f4:'Rollback con un click',
+    p2_btn:'DESCARGAR BETA',
+    p5_label:'NIVEL MÁXIMO',
+    p5_desc:'La versión más potente de DIX. Claude Opus 4.8 — IA de nivel máximo. 12.000 tokens por análisis. 100 análisis/día. Detección de degradación de sesión.',
+    p5_f1:'Claude Opus 4.8 — IA de nivel máximo', p5_f2:'12.000 tokens — análisis profundo completo',
+    p5_f3:'100 análisis/día', p5_f4:'Detección de degradación de sesión',
+    p5_f5:'Reporte TXT exportable', p5_f6:'Insignia dorada + soporte prioritario',
+    p5_btn:'ACCESO ANTICIPADO', p5_per_month:'/mes', p5_sub_note:'Beta — requiere clave ODYSSEY-XXXXXX',
+    p5_waiting:'Únete a la lista beta de Odyssey',
+    rm5_title:'DIX ODYSSEY', rm5_desc:'Nivel avanzado con Claude Opus 4.8. 12.000 tokens, 100 análisis/día. Insignia dorada. Modelo suscripción. Beta cerrada actualmente.',
+    tag_odyssey:'EN PRUEBAS',
   }
 };
 
