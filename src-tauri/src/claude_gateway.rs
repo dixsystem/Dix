@@ -87,10 +87,21 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
     };
 
     let status = response.status();
+    // Leer tier desde header antes de consumir el body
+    let tier_from_header = response
+        .headers()
+        .get("x-dix-tier")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
     let raw = response
         .text()
         .await
         .map_err(|e| format!("Error leyendo respuesta: {}", e))?;
+
+    // Persistir tier si el proxy lo indicó
+    if let Some(ref tier) = tier_from_header {
+        memory::save_tier(tier).ok();
+    }
 
     if !status.is_success() {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {

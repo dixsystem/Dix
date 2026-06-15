@@ -32,6 +32,8 @@ struct Store {
     license_hw_fingerprint: Option<String>,
     #[serde(default)]
     demo_analyses_used: u32,
+    #[serde(default)]
+    tier: Option<String>,
 }
 
 fn config_dir() -> PathBuf {
@@ -149,5 +151,19 @@ pub fn get_demo_count() -> u32 {
 pub fn increment_demo_count() -> Result<(), String> {
     let mut store = load();
     store.demo_analyses_used += 1;
+    save(&store)
+}
+
+pub fn get_tier() -> String {
+    // Si hay API key propia → acceso developer (equivalente a Odyssey)
+    if get_api_key().is_some() {
+        return "odyssey".to_string();
+    }
+    load().tier.unwrap_or_else(|| "pro".to_string())
+}
+
+pub fn save_tier(tier: &str) -> Result<(), String> {
+    let mut store = load();
+    store.tier = Some(tier.to_string());
     save(&store)
 }

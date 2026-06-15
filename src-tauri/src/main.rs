@@ -883,6 +883,21 @@ fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
     )
 }
 
+// ─── Comandos Odyssey ─────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn get_tier() -> String {
+    memory::get_tier()
+}
+
+#[tauri::command]
+fn export_report(content: String, filename: String) -> Result<String, String> {
+    let home = dirs::home_dir().ok_or("No se pudo determinar el directorio home")?;
+    let path = home.join(&filename);
+    std::fs::write(&path, content).map_err(|e| format!("Error guardando reporte: {}", e))?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
 fn main() {
@@ -920,6 +935,8 @@ fn main() {
             save_applied_state,
             check_post_reboot,
             reapply_lost_opts,
+            get_tier,
+            export_report,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");

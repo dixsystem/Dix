@@ -875,6 +875,8 @@ export default function App() {
   const [benchmarks, setBenchmarks] = useState<BenchmarkResult | null>(null);
   const [lostOpts, setLostOpts]     = useState<LostOpt[]>([]);
   const [reapplying, setReapplying] = useState(false);
+  const [tier, setTier]             = useState<string>("pro");
+  const isOdyssey = tier === "odyssey";
 
   // Mostrar todas las métricas inmediatamente cuando llegan
   useEffect(() => {
@@ -891,9 +893,11 @@ export default function App() {
     Promise.all([
       invoke<boolean>("get_license_status").catch(() => false),
       invoke<number>("get_demo_count").catch(() => 0),
-    ]).then(([licensed, demo]) => {
+      invoke<string>("get_tier").catch(() => "pro"),
+    ]).then(([licensed, demo, t]) => {
       setIsLicensed(licensed);
       setDemoCount(demo);
+      setTier(t);
       invoke<Session[]>("get_sessions").then(setSessions).catch(() => {});
       invoke<RollbackInfo[]>("list_rollbacks").then(setRollbacks).catch(() => {});
       setView("idle");
@@ -1167,9 +1171,15 @@ export default function App() {
               ↩ Rollbacks ({rollbacks.length})
             </button>
           )}
-          <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v1.0</span>
+          <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
           {isLicensed ? (
-            <span style={{ fontSize: 11, color: C.green, padding: "2px 8px", border: `1px solid ${C.green}55`, borderRadius: 4, fontWeight: 700, letterSpacing: "0.5px" }}>✓ PRO</span>
+            isOdyssey ? (
+              <span style={{ fontSize: 11, color: "#FFD700", padding: "2px 10px", border: "1px solid #FFD70066", borderRadius: 4, fontWeight: 800, letterSpacing: "1px", background: "#FFD70010" }}>
+                ✦ ODYSSEY
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: C.green, padding: "2px 8px", border: `1px solid ${C.green}55`, borderRadius: 4, fontWeight: 700, letterSpacing: "0.5px" }}>✓ PRO</span>
+            )
           ) : (
             <button className="btn-secondary" onClick={() => setView("activate")}
               style={{ fontSize: 11, color: C.orange, borderColor: `${C.orange}55`, fontWeight: 600 }}>
@@ -1806,7 +1816,48 @@ export default function App() {
                   <div style={{ background: "#1a1208", border: `1px solid ${C.yellow}33`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#fbbf24", marginBottom: 14 }}>
                     ⚠️ Se abrirá el diálogo de autenticación GNOME. El script requiere privilegios root. Se guardará un rollback automáticamente.
                   </div>
-                  <button className="btn-secondary" onClick={handleReset}>← Nuevo análisis</button>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn-secondary" onClick={handleReset}>← Nuevo análisis</button>
+                    {isOdyssey && analysis && (
+                      <button className="btn-secondary"
+                        style={{ color: "#FFD700", borderColor: "#FFD70055" }}
+                        onClick={async () => {
+                          const prof = PROFILES.find(p => p.id === profile);
+                          const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+                          const filename = `dix-odyssey-report-${ts}.txt`;
+                          const content = [
+                            "╔══════════════════════════════════════════════════════╗",
+                            "║          DIX ODYSSEY — INFORME DE ANÁLISIS           ║",
+                            "╚══════════════════════════════════════════════════════╝",
+                            `Fecha: ${new Date().toLocaleString("es-ES")}`,
+                            `Perfil: ${prof?.label ?? profile}  (${prof?.hint ?? ""})`,
+                            `Sistema: ${scan?.cpu_model ?? ""} · ${scan?.distro_id ?? ""} ${scan?.distro_version ?? ""}`,
+                            `RAM: ${Math.round(((scan?.mem_total_mb ?? 0) + 512) / 1024)} GB  ·  GPU: ${scan?.gpu_model ?? ""}`,
+                            "",
+                            "─── DIAGNÓSTICO ────────────────────────────────────────",
+                            analysis.analisis,
+                            "",
+                            `Score actual: ${analysis.score_actual}/100`,
+                            `Score optimizado: ${analysis.score_optimizado}/100`,
+                            `Mejora esperada: +${analysis.score_optimizado - analysis.score_actual} puntos`,
+                            "",
+                            "─── OPTIMIZACIONES ─────────────────────────────────────",
+                            ...analysis.optimizaciones.map((o, i) =>
+                              `${i + 1}. [${o.categoria}] ${o.titulo}\n   ${o.descripcion}\n   Mejora: ${o.mejora_estimada} · Riesgo: ${o.riesgo}\n   ${o.comando_preview ? `$ ${o.comando_preview}` : ""}`.trim()
+                            ),
+                            "",
+                            "─── SCRIPT GENERADO ────────────────────────────────────",
+                            script,
+                            "",
+                            "© 2026 DixSystem — dixsystem.com",
+                          ].join("\n");
+                          const path = await invoke<string>("export_report", { content, filename }).catch(e => String(e));
+                          alert(`✦ Reporte Odyssey guardado en:\n${path}`);
+                        }}>
+                        ✦ Exportar reporte
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
