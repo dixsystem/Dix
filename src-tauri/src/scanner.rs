@@ -365,33 +365,44 @@ fn scan_windows() -> Result<SystemScan, String> {
     let (mem_total_mb, mem_available_mb) = mem_native();
 
     // UNA SOLA llamada PowerShell en lugar de 16 separadas.
-    // Antes: ~16 procesos powershell.exe × 500-1000ms c/u = 8-16s (+ Get-StoragePool que tardaba 30-60s).
-    // Ahora: 1 proceso, tiempo total ~3-5s.
+    // Get-Disk eliminado (requiere módulo Storage, lento). Temperatura eliminada
+    // (MSAcpi_ThermalZoneTemperature cuelga 30-120s en hardware de consumo).
+    // Timeout de 10s para que nunca bloquee indefinidamente.
     let ps_script = "\
 $cpu  = Get-CimInstance Win32_Processor | Select-Object -First 1;\
 $os   = Get-CimInstance Win32_OperatingSystem;\
-$gpu  = Get-CimInstance Win32_VideoController | Where-Object {$_.PNPDeviceID -notlike 'ROOT*'} | Select-Object -First 1;\
+$gpu  = (Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Where-Object {$_.PNPDeviceID -notlike 'ROOT*'} | Select-Object -First 1);\
 $nagle = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters' \
     -Name TcpAckFrequency -ErrorAction SilentlyContinue).TcpAckFrequency;\
 $lp   = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management' \
     -Name LargePageMinimum -ErrorAction SilentlyContinue).LargePageMinimum;\
-$disk = (Get-Disk -ErrorAction SilentlyContinue | Select-Object -First 1).FriendlyName;\
+$disk = (Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | Select-Object -First 1).Model;\
 $audio = (Get-Service -Name AudioSrv -ErrorAction SilentlyContinue).Status;\
-$temp = (Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature \
-    -ErrorAction SilentlyContinue | Select-Object -First 1).CurrentTemperature;\
-\"$($cpu.Name)|$nagle|$disk|$audio|$lp|$($cpu.MaxClockSpeed)|$($cpu.CurrentClockSpeed)|$($cpu.LoadPercentage)|$($gpu.Name)|$($os.Caption)|$([System.Environment]::OSVersion.Version.ToString())|$temp\"";
+\"$($cpu.Name)|$nagle|$disk|$audio|$lp|$($cpu.MaxClockSpeed)|$($cpu.CurrentClockSpeed)|$($cpu.LoadPercentage)|$($gpu.Name)|$($os.Caption)|$([System.Environment]::OSVersion.Version.ToString())\"";
 
-    let output = Command::new("powershell")
+    use std::process::Stdio;
+    use std::time::Duration;
+
+    let child = Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", ps_script])
         .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .unwrap_or_else(|_| std::process::Output {
-            status: std::process::ExitStatus::default(),
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-        });
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn();
 
-    let line = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let raw_out = match child {
+        Err(_) => String::new(),
+        Ok(mut c) => {
+            let (tx, rx) = std::sync::mpsc::channel::<std::io::Result<std::process::Output>>();
+            std::thread::spawn(move || { let _ = tx.send(c.wait_with_output()); });
+            match rx.recv_timeout(Duration::from_secs(10)) {
+                Ok(Ok(out)) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
+                _ => String::new(),
+            }
+        }
+    };
+
+    let line = raw_out;
     // La salida puede tener múltiples líneas si PS imprime advertencias antes del resultado.
     // Tomamos la última línea no vacía que contenga '|'.
     let line = line.lines()
@@ -442,8 +453,7 @@ $temp = (Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemper
     let distro_version = get(9).to_string();
     let kernel_version = get(10).to_string();
 
-    let temp_raw = get(11);
-    let cpu_temp_celsius = temp_raw.parse::<f32>().map(|t| (t / 10.0) - 273.15).unwrap_or(0.0);
+    let cpu_temp_celsius = 0.0_f32; // temperatura no disponible (query WMI cuelga en hardware de consumo)
 
     Ok(SystemScan {
         cpu_governor, cpu_cores,
