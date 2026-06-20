@@ -6,6 +6,9 @@
 pub struct PolicyViolation {
     pub rule: &'static str,
     pub detail: String,
+    // Índice de línea (0-based) dentro del script, para poder descartar solo
+    // esa línea sin invalidar el resto del plan ya validado.
+    pub line: usize,
 }
 
 #[derive(Debug)]
@@ -32,6 +35,7 @@ pub fn validate_script_windows(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "DISK_FORMAT",
                 detail: format!("{}: formateo de disco está prohibido", loc),
+                line: i,
             });
         }
         if (lower.contains("remove-item") || lower.contains("del ") || lower.contains("rd /s") || lower.contains("rmdir /s"))
@@ -40,6 +44,7 @@ pub fn validate_script_windows(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "MASS_DELETE",
                 detail: format!("{}: borrado masivo de directorios de sistema/usuario está prohibido", loc),
+                line: i,
             });
         }
         if lower.contains("disable-netfirewallprofile") || lower.contains("netsh advfirewall set allprofiles state off")
@@ -48,6 +53,7 @@ pub fn validate_script_windows(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "FIREWALL_IMMUTABLE",
                 detail: format!("{}: desactivar el Firewall de Windows está prohibido", loc),
+                line: i,
             });
         }
         if lower.contains("disablerealtimemonitoring") || lower.contains("disable-windowsoptionalfeature") && lower.contains("defender")
@@ -56,18 +62,21 @@ pub fn validate_script_windows(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "DEFENDER_IMMUTABLE",
                 detail: format!("{}: desactivar Windows Defender por completo está prohibido", loc),
+                line: i,
             });
         }
         if lower.contains("vssadmin delete shadows") || lower.contains("wbadmin delete") {
             violations.push(PolicyViolation {
                 rule: "BACKUP_IMMUTABLE",
                 detail: format!("{}: borrar copias de seguridad/shadow copies está prohibido", loc),
+                line: i,
             });
         }
         if lower.contains("cipher /w") || lower.contains("sdelete") {
             violations.push(PolicyViolation {
                 rule: "SECURE_WIPE",
                 detail: format!("{}: borrado seguro irreversible está prohibido", loc),
+                line: i,
             });
         }
     }
@@ -86,6 +95,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "GPU_IMMUTABLE",
                 detail: format!("{}: modificación de GPU/nvidia/nouveau detectada", loc),
+                line: i,
             });
         }
 
@@ -93,6 +103,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "NUMA_BALANCING",
                 detail: format!("{}: kernel.numa_balancing=0 está prohibido", loc),
+                line: i,
             });
         }
 
@@ -100,6 +111,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "DIRTY_RATIO",
                 detail: format!("{}: vm.dirty_ratio > 15 está prohibido", loc),
+                line: i,
             });
         }
 
@@ -107,6 +119,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "HUGEPAGES_NEVER",
                 detail: format!("{}: transparent_hugepages=never está prohibido", loc),
+                line: i,
             });
         }
 
@@ -114,6 +127,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "SYSCTL_PATH",
                 detail: format!("{}: usar /sbin/sysctl con ruta absoluta", loc),
+                line: i,
             });
         }
 
@@ -121,6 +135,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "DESTRUCTIVE_CMD",
                 detail: format!("{}: comando destructivo o de borrado masivo detectado", loc),
+                line: i,
             });
         }
 
@@ -128,6 +143,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "NETWORK_TOOL",
                 detail: format!("{}: herramienta de red no permitida en scripts de optimización", loc),
+                line: i,
             });
         }
 
@@ -135,6 +151,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
             violations.push(PolicyViolation {
                 rule: "SUDO",
                 detail: format!("{}: usar /usr/bin/pkexec en lugar de sudo", loc),
+                line: i,
             });
         }
     }
@@ -143,6 +160,7 @@ pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
         violations.push(PolicyViolation {
             rule: "PKEXEC_PATH",
             detail: "pkexec debe usarse con ruta absoluta /usr/bin/pkexec".to_string(),
+            line: 0, // comprobación sobre el script completo, no sobre una línea concreta
         });
     }
 
