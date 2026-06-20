@@ -149,17 +149,13 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
 fn device_fingerprint() -> String {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let out = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command",
-                "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .ok();
-        if let Some(o) = out {
-            let guid = String::from_utf8_lossy(&o.stdout).trim().to_string();
+        // powershell.exe puede colgarse indefinidamente (AV escaneando, perfil lento, etc.).
+        // crate::winutil::run_powershell mata el proceso si no responde en el timeout.
+        let guid = crate::winutil::run_powershell(
+            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid",
+            Duration::from_secs(10),
+        );
+        if let Some(guid) = guid {
             if guid.len() >= 16 { return guid; }
         }
         return "unknown_win_machine".to_string();

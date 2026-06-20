@@ -15,6 +15,66 @@ pub struct AtlasViolation {
     pub detail: String,
 }
 
+// Validador para los scripts PowerShell generados por la IA en Windows.
+// Linux ya tiene validate_script(); Windows no tenía ninguno — cualquier cosa
+// que la IA escribiera se ejecutaba sin revisar. Bloquea formateo de discos,
+// borrado masivo, desactivar firewall/Defender por completo y manipular shadow
+// copies — el resto de comandos (registro, powercfg, servicios puntuales) pasan.
+pub fn validate_script_windows(script: &str) -> Vec<PolicyViolation> {
+    let mut violations = Vec::new();
+
+    for (i, line) in script.lines().enumerate() {
+        let ln = line.trim();
+        let lower = ln.to_lowercase();
+        let loc = format!("línea {}", i + 1);
+
+        if lower.starts_with("format ") || lower.contains("format-volume") {
+            violations.push(PolicyViolation {
+                rule: "DISK_FORMAT",
+                detail: format!("{}: formateo de disco está prohibido", loc),
+            });
+        }
+        if (lower.contains("remove-item") || lower.contains("del ") || lower.contains("rd /s") || lower.contains("rmdir /s"))
+            && (lower.contains("c:\\windows") || lower.contains("c:\\users") || lower.contains(" c:\\ ") || lower.ends_with("c:\\"))
+        {
+            violations.push(PolicyViolation {
+                rule: "MASS_DELETE",
+                detail: format!("{}: borrado masivo de directorios de sistema/usuario está prohibido", loc),
+            });
+        }
+        if lower.contains("disable-netfirewallprofile") || lower.contains("netsh advfirewall set allprofiles state off")
+            || lower.contains("set-netfirewallprofile") && lower.contains("disabled")
+        {
+            violations.push(PolicyViolation {
+                rule: "FIREWALL_IMMUTABLE",
+                detail: format!("{}: desactivar el Firewall de Windows está prohibido", loc),
+            });
+        }
+        if lower.contains("disablerealtimemonitoring") || lower.contains("disable-windowsoptionalfeature") && lower.contains("defender")
+            || lower.contains("uninstall-windowsfeature") && lower.contains("defender")
+        {
+            violations.push(PolicyViolation {
+                rule: "DEFENDER_IMMUTABLE",
+                detail: format!("{}: desactivar Windows Defender por completo está prohibido", loc),
+            });
+        }
+        if lower.contains("vssadmin delete shadows") || lower.contains("wbadmin delete") {
+            violations.push(PolicyViolation {
+                rule: "BACKUP_IMMUTABLE",
+                detail: format!("{}: borrar copias de seguridad/shadow copies está prohibido", loc),
+            });
+        }
+        if lower.contains("cipher /w") || lower.contains("sdelete") {
+            violations.push(PolicyViolation {
+                rule: "SECURE_WIPE",
+                detail: format!("{}: borrado seguro irreversible está prohibido", loc),
+            });
+        }
+    }
+
+    violations
+}
+
 pub fn validate_script(script: &str) -> Vec<PolicyViolation> {
     let mut violations = Vec::new();
 
@@ -94,12 +154,13 @@ fn contains_gpu_change(line: &str) -> bool {
         return false;
     }
     let forbidden = [
-        "nvidia-smi",
+        // "nvidia" a secas (no solo "modprobe nvidia"/"rmmod nvidia") para que
+        // cubra cualquier flag intermedio: "modprobe -r nvidia", "rmmod -f
+        // nvidia-drm", etc. Enumerar combinaciones de flags es una carrera
+        // perdida — más seguro prohibir la palabra completa.
+        "nvidia",
         "nouveau",
         "NVreg_",
-        "nvidia-settings",
-        "modprobe nvidia",
-        "rmmod nvidia",
         "gpu_power_mizer",
         "/sys/class/drm/card",
     ];
@@ -693,6 +754,11 @@ mod tests {
             "sudo insmod /tmp/rootkit.ko",
             "sudo rmmod iptable_filter",
             "sudo dmesg | sudo tee /tmp/kern.log",
+            "sudo reboot", "sudo poweroff", "sudo halt -p",
+            "sudo systemctl disable firewalld", "sudo setenforce 0",
+            "sudo chattr -i /etc/passwd", "sudo find / -perm -4000",
+            "sudo crontab -l", "sudo journalctl --vacuum-time=1s",
+            "sudo modprobe -r nvidia", "sudo swapoff -a",
         ] {
             cases.push((c.to_string(), "SUDO"));
         }
@@ -716,5 +782,86 @@ mod tests {
             "{} falsos negativos de {} casos:\n{}",
             failures.len(), total, failures.join("\n")
         );
+    }
+
+    // ── validate_script_windows ──────────────────────────────────────────
+    fn win_blocked(script: &str, rule: &str) {
+        let v = validate_script_windows(script);
+        assert!(
+            v.iter().any(|x| x.rule == rule),
+            "Regla '{}' debería dispararse pero no lo hizo.\nScript: {:?}\nViolaciones: {:?}",
+            rule, script, v.iter().map(|x| x.rule).collect::<Vec<_>>()
+        );
+    }
+
+    fn win_clean(script: &str) {
+        let v = validate_script_windows(script);
+        assert!(
+            v.is_empty(),
+            "Script debería pasar limpio pero fue bloqueado.\nScript: {:?}\nViolaciones: {:?}",
+            script, v.iter().map(|x| x.rule).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn win01_format_blocked() {
+        win_blocked("format C: /q", "DISK_FORMAT");
+    }
+
+    #[test]
+    fn win02_format_volume_blocked() {
+        win_blocked("Format-Volume -DriveLetter D", "DISK_FORMAT");
+    }
+
+    #[test]
+    fn win03_mass_delete_windows_blocked() {
+        win_blocked("Remove-Item -Path C:\\Windows -Recurse -Force", "MASS_DELETE");
+    }
+
+    #[test]
+    fn win04_mass_delete_users_blocked() {
+        win_blocked("Remove-Item -Path C:\\Users -Recurse -Force", "MASS_DELETE");
+    }
+
+    #[test]
+    fn win05_firewall_disable_blocked() {
+        win_blocked("Disable-NetFirewallProfile -Profile Domain,Public,Private", "FIREWALL_IMMUTABLE");
+    }
+
+    #[test]
+    fn win06_firewall_netsh_blocked() {
+        win_blocked("netsh advfirewall set allprofiles state off", "FIREWALL_IMMUTABLE");
+    }
+
+    #[test]
+    fn win07_defender_disable_blocked() {
+        win_blocked("Set-MpPreference -DisableRealtimeMonitoring $true", "DEFENDER_IMMUTABLE");
+    }
+
+    #[test]
+    fn win08_shadow_copies_blocked() {
+        win_blocked("vssadmin delete shadows /all /quiet", "BACKUP_IMMUTABLE");
+    }
+
+    #[test]
+    fn win09_sdelete_blocked() {
+        win_blocked("sdelete -p 3 C:\\temp\\file.txt", "SECURE_WIPE");
+    }
+
+    #[test]
+    fn win10_safe_registry_clean() {
+        win_clean(
+            "Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name MenuShowDelay -Value '0' -Type String -ErrorAction SilentlyContinue"
+        );
+    }
+
+    #[test]
+    fn win11_safe_powercfg_clean() {
+        win_clean("powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c");
+    }
+
+    #[test]
+    fn win12_safe_service_restart_clean() {
+        win_clean("Restart-Service -Name SysMain -ErrorAction SilentlyContinue");
     }
 }

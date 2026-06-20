@@ -36,18 +36,18 @@ struct Store {
     tier: Option<String>,
 }
 
-fn config_dir() -> PathBuf {
+/// Carpeta de configuración de Dix. Usa el crate `dirs` (resuelve la carpeta
+/// vía API del sistema — `SHGetKnownFolderPath` en Windows, `XDG_CONFIG_HOME`
+/// en Linux) en vez de leer `%APPDATA%`/`$HOME` a mano: si esas variables de
+/// entorno faltan (lanzado desde un Task Scheduler con entorno reducido, una
+/// sesión de servicio, etc.) la lectura manual caía a una ruta de sistema
+/// (`C:\Users\Default\...`) que un usuario normal no puede escribir.
+pub fn config_dir() -> PathBuf {
+    let base = dirs::config_dir().unwrap_or_else(|| std::env::temp_dir());
     #[cfg(target_os = "windows")]
-    {
-        let appdata = std::env::var("APPDATA")
-            .unwrap_or_else(|_| r"C:\Users\Default\AppData\Roaming".to_string());
-        return PathBuf::from(appdata).join("Dix");
-    }
+    return base.join("Dix");
     #[cfg(not(target_os = "windows"))]
-    {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-        PathBuf::from(home).join(".config").join("dix")
-    }
+    return base.join("dix");
 }
 
 fn store_path() -> PathBuf {

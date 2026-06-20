@@ -5,13 +5,55 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use crate::scanner::SystemScan;
 
-#[cfg(not(target_os = "windows"))]
 use crate::policy;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
+
+// Catálogo determinista de mejoras reales en Linux — espejo de
+// deterministic_tweaks_windows. No depende de lo que la IA improvise; cada
+// línea es un comando conocido, idempotente (no repite si ya está aplicado),
+// reversible y respeta las reglas inviolables de policy.rs (nunca toca GPU,
+// nunca dirty_ratio>15, nunca hugepages=never, nunca numa_balancing=0).
+#[cfg(not(target_os = "windows"))]
+pub fn deterministic_tweaks_linux(scan: &SystemScan) -> Vec<String> {
+    let mut lines = Vec::new();
+
+    if scan.cpu_governor != "performance" {
+        lines.push(
+            "for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; \
+             do echo performance > \"$cpu\" 2>/dev/null || true; done".to_string()
+        );
+    }
+    if scan.swappiness > 10 {
+        lines.push("/sbin/sysctl -w vm.swappiness=10 || true".to_string());
+    }
+    if scan.dirty_ratio > 15 {
+        // Regla inviolable: nunca por encima de 15
+        lines.push("/sbin/sysctl -w vm.dirty_ratio=10 || true".to_string());
+    }
+    if scan.dirty_background_ratio > 10 {
+        lines.push("/sbin/sysctl -w vm.dirty_background_ratio=5 || true".to_string());
+    }
+    if scan.hugepages == "never" {
+        // Regla inviolable: nunca dejarlo en "never"
+        lines.push("echo madvise > /sys/kernel/mm/transparent_hugepage/enabled || true".to_string());
+    }
+    if scan.numa_balancing == "0" {
+        // Regla inviolable: nunca establecer kernel.numa_balancing=0 — si ya está
+        // así (lo dejó otra herramienta, o el hardware viene así), lo corregimos.
+        lines.push("/sbin/sysctl -w kernel.numa_balancing=1 || true".to_string());
+    }
+    if !scan.irqbalance_active {
+        lines.push("systemctl enable --now irqbalance 2>/dev/null || true".to_string());
+    }
+
+    lines
+}
 
 // Construye un Command para pkexec inyectando las variables de entorno que el
 // agente GNOME/Polkit necesita para localizar el bus de sesión y la pantalla.
@@ -87,17 +129,7 @@ pub struct RollbackInfo {
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
 fn rollbacks_dir() -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        let appdata = std::env::var("APPDATA")
-            .unwrap_or_else(|_| r"C:\Users\Default\AppData\Roaming".to_string());
-        return PathBuf::from(appdata).join("Dix").join("rollbacks");
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-        PathBuf::from(home).join(".config").join("dix").join("rollbacks")
-    }
+    crate::memory::config_dir().join("rollbacks")
 }
 
 // Directorio privado para scripts de ejecución efímeros (0700)
@@ -114,6 +146,18 @@ pub fn run_script(content: &str, pre_scan: &SystemScan) -> Result<String, String
     return run_script_windows(content, pre_scan);
     #[cfg(not(target_os = "windows"))]
     return run_script_linux(content, pre_scan);
+}
+
+// Solo tiene sentido en Windows (Optimize-Volume sobre HDD); en Linux no hay
+// ninguna optimización de mantenimiento de disco lenta en el catálogo actual.
+pub fn run_disk_maintenance(content: &str) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    return run_disk_maintenance_windows(content);
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = content;
+        Ok(String::new())
+    }
 }
 
 // ─── Implementación Linux ─────────────────────────────────────────────────────
@@ -225,7 +269,7 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
 // Captura stdout+stderr en un archivo temporal porque el proceso elevado
 // no hereda los handles de I/O del padre cuando se lanza con RunAs.
 #[cfg(target_os = "windows")]
-fn elevate_and_run(script: &std::path::Path) -> Result<String, String> {
+fn elevate_and_run(script: &std::path::Path, timeout: Duration) -> Result<String, String> {
     let ts = epoch_secs();
     let temp_dir = std::env::temp_dir();
     let out_path  = temp_dir.join(format!("dix_{}_out.txt", ts));
@@ -251,14 +295,54 @@ fn elevate_and_run(script: &std::path::Path) -> Result<String, String> {
     );
 
     use std::os::windows::process::CommandExt;
+    use std::process::Stdio;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let output = Command::new("powershell.exe")
+
+    let child = Command::new("powershell.exe")
         .args(["-ExecutionPolicy", "Bypass", "-NonInteractive", "-Command", &ps_cmd])
         .creation_flags(CREATE_NO_WINDOW)
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null())
+        .spawn()
         .map_err(|e| format!("powershell.exe no disponible: {}", e))?;
 
+    let pid = child.id();
+    let (tx, rx) = std::sync::mpsc::channel::<std::io::Result<std::process::Output>>();
+    std::thread::spawn(move || {
+        let mut child = child;
+        let _ = tx.send(child.wait_with_output());
+    });
+
+    // Timeout parametrizable: da tiempo de sobra a que el usuario apruebe el
+    // UAC y el script corra, pero evita que la app se congele para siempre si
+    // el proceso elevado se cuelga (AV, política de grupo, etc.). El script
+    // principal usa un timeout corto (~5 min); el de mantenimiento de disco
+    // (Optimize-Volume en HDD) necesita uno mucho más largo porque su propia
+    // duración esperada ya supera esos 5 min en discos mecánicos viejos.
+    let wait_result = rx.recv_timeout(timeout);
+
     let _ = fs::remove_file(&wrap_path);
+
+    let output = match wait_result {
+        Ok(Ok(out)) => out,
+        Ok(Err(e)) => return Err(format!("Error esperando el proceso elevado: {}", e)),
+        Err(_) => {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/T", "/PID", &pid.to_string()])
+                .creation_flags(CREATE_NO_WINDOW)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            let _ = fs::remove_file(&out_path);
+            return Err(format!(
+                "El script de optimización tardó demasiado (más de {} min) y se ha cancelado. \
+                 Comprueba el Administrador de tareas por si quedó algún proceso de PowerShell \
+                 colgado, y vuelve a intentarlo.",
+                timeout.as_secs() / 60
+            ));
+        }
+    };
 
     let code = output.status.code().unwrap_or(-1);
     let captured = fs::read_to_string(&out_path).unwrap_or_default();
@@ -276,9 +360,93 @@ fn elevate_and_run(script: &std::path::Path) -> Result<String, String> {
     }
 }
 
+// Catálogo determinista de mejoras reales en Windows — NO depende de lo que la IA
+// improvise. Cada línea es un comando conocido, probado, idempotente y reversible
+// (el rollback ya guarda el scan previo en save_rollback). Solo emite la línea si
+// el valor medido en el scan real no está ya en su óptimo, así que aplicar dos
+// veces seguidas no hace nada en la segunda. Esto garantiza una mejora real y
+// medible en cada "Aplicar", al margen de lo que el LLM decida añadir encima.
+#[cfg(target_os = "windows")]
+pub fn deterministic_tweaks_windows(scan: &SystemScan) -> Vec<String> {
+    let mut lines = Vec::new();
+
+    if scan.cpu_governor != "high-performance" && scan.cpu_governor != "ultimate-performance" {
+        lines.push("powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c".to_string());
+    }
+    if scan.visual_effects != "performance" {
+        lines.push(
+            "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects' \
+             -Name VisualFXSetting -Value 2 -Type DWord -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+    if scan.network_throttling != "unlimited" {
+        lines.push(
+            "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile' \
+             -Name NetworkThrottlingIndex -Value 0xffffffff -Type DWord -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+    if scan.gpu_hw_scheduling != "on" {
+        lines.push(
+            "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers' \
+             -Name HwSchMode -Value 2 -Type DWord -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+    if scan.menu_show_delay != 0 {
+        lines.push(
+            "Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name MenuShowDelay -Value '0' \
+             -Type String -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+    if scan.dirty_ratio != 5 {
+        lines.push(
+            "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters' \
+             -Name TcpAckFrequency -Value 1 -Type DWord -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+    if !scan.hpet_disabled {
+        // No borra otras configuraciones de bcdedit, solo el override del reloj de plataforma
+        lines.push("bcdedit /deletevalue useplatformclock".to_string());
+    }
+    if scan.gamedvr_enabled {
+        lines.push(
+            "Set-ItemProperty -Path 'HKCU:\\System\\GameConfigStore' -Name GameDVR_Enabled \
+             -Value 0 -Type DWord -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+    if scan.sysmain_running && scan.nvme_queue_depth == "32" {
+        // SysMain (Superfetch) ayuda en HDD con poca RAM; en SSD/NVMe (detectado por
+        // nvme_queue_depth) solo añade I/O de fondo sin beneficio real. En HDD se deja
+        // activo a propósito — desactivarlo ahí sería una regresión real, no una mejora.
+        lines.push("Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue".to_string());
+        lines.push("Set-Service -Name SysMain -StartupType Disabled -ErrorAction SilentlyContinue".to_string());
+    }
+    if scan.telemetry_level != 1 {
+        lines.push(
+            "New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection' \
+             -Force -ErrorAction SilentlyContinue | Out-Null".to_string()
+        );
+        lines.push(
+            "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection' \
+             -Name AllowTelemetry -Value 1 -Type DWord -ErrorAction SilentlyContinue".to_string()
+        );
+    }
+
+    lines
+}
+
 #[cfg(target_os = "windows")]
 fn run_script_windows(content: &str, pre_scan: &SystemScan) -> Result<String, String> {
     let clean = strip_fences(content);
+
+    let violations = policy::validate_script_windows(&clean);
+    if !violations.is_empty() {
+        let msgs: Vec<String> = violations
+            .iter()
+            .map(|v| format!("[{}] {}", v.rule, v.detail))
+            .collect();
+        return Err(format!("Script bloqueado por política:\n{}", msgs.join("\n")));
+    }
+
     let ts = epoch_secs();
 
     save_rollback(pre_scan, ts)?;
@@ -288,7 +456,27 @@ fn run_script_windows(content: &str, pre_scan: &SystemScan) -> Result<String, St
     fs::write(&script_path, &clean)
         .map_err(|e| format!("No se pudo escribir el script PS1: {}", e))?;
 
-    let result = elevate_and_run(&script_path);
+    let result = elevate_and_run(&script_path, Duration::from_secs(300));
+    let _ = fs::remove_file(&script_path);
+    result
+}
+
+// Optimizaciones de disco lentas pero legítimas (p.ej. Optimize-Volume -Defrag
+// sobre un HDD mecánico) se ejecutan aparte del script principal, con su propio
+// timeout largo. Así un disco viejo que tarda 20-30 min no dispara el timeout
+// de 5 min pensado para el resto de tweaks (rápidos por naturaleza), y la app
+// no informa un "error" falso mientras el disco sigue trabajando de verdad.
+#[cfg(target_os = "windows")]
+pub fn run_disk_maintenance_windows(content: &str) -> Result<String, String> {
+    let clean = strip_fences(content);
+    let ts = epoch_secs();
+
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join(format!("dix_maint_{}.ps1", ts));
+    fs::write(&script_path, &clean)
+        .map_err(|e| format!("No se pudo escribir el script de mantenimiento: {}", e))?;
+
+    let result = elevate_and_run(&script_path, Duration::from_secs(2400));
     let _ = fs::remove_file(&script_path);
     result
 }
@@ -514,12 +702,21 @@ fn execute_rollback_windows(filename: &str) -> Result<String, String> {
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("No se pudo leer rollback: {}", e))?;
 
+    let violations = policy::validate_script_windows(&content);
+    if !violations.is_empty() {
+        let msgs: Vec<String> = violations
+            .iter()
+            .map(|v| format!("[{}] {}", v.rule, v.detail))
+            .collect();
+        return Err(format!("Rollback bloqueado por política:\n{}", msgs.join("\n")));
+    }
+
     let ts = epoch_secs();
     let tmp = std::env::temp_dir().join(format!("dix_rollback_{}.ps1", ts));
     fs::write(&tmp, &content)
         .map_err(|e| format!("No se pudo preparar rollback: {}", e))?;
 
-    let result = elevate_and_run(&tmp);
+    let result = elevate_and_run(&tmp, Duration::from_secs(300));
     let _ = fs::remove_file(&tmp);
     result
 }
@@ -629,4 +826,66 @@ fn strip_fences(content: &str) -> String {
         }
     }
     trimmed.to_string()
+}
+
+#[cfg(test)]
+mod determinism_tests {
+    use super::*;
+
+    fn base_scan() -> SystemScan {
+        SystemScan {
+            cpu_governor: "performance".to_string(), cpu_cores: 8,
+            swappiness: 10, dirty_ratio: 10, dirty_background_ratio: 5,
+            disk_scheduler: "none".to_string(), audio_server: "pipewire".to_string(),
+            hugepages: "madvise".to_string(), numa_balancing: "1".to_string(),
+            mem_total_mb: 16384, mem_available_mb: 8192,
+            load_avg: "1 1 1".to_string(), nvme_queue_depth: "32".to_string(),
+            irqbalance_active: true, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 4800,
+            cpu_model: "Test CPU".to_string(), gpu_model: "Test GPU".to_string(),
+            distro_id: "linux".to_string(), distro_version: "test".to_string(),
+            kernel_version: "6.0".to_string(), cpu_temp_celsius: 50.0,
+            visual_effects: "n/a".to_string(), network_throttling: "n/a".to_string(),
+            gpu_hw_scheduling: "n/a".to_string(), menu_show_delay: 0,
+            hpet_disabled: false, gamedvr_enabled: false, sysmain_running: false, telemetry_level: 0,
+            boot_time_seconds: 0.0, slowest_boot_service: "n/a".to_string(),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn linux_tweaks_idempotent_when_already_optimal() {
+        let lines = deterministic_tweaks_linux(&base_scan());
+        assert!(lines.is_empty(), "No debería sugerir nada sobre un sistema ya óptimo: {:?}", lines);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn linux_tweaks_fix_violations_of_inviolable_rules() {
+        let mut scan = base_scan();
+        scan.numa_balancing = "0".to_string(); // viola la regla inviolable
+        scan.hugepages = "never".to_string();  // viola la regla inviolable
+        scan.dirty_ratio = 30;                  // viola la regla inviolable (>15)
+        let lines = deterministic_tweaks_linux(&scan);
+        let joined = lines.join("\n");
+        assert!(joined.contains("numa_balancing=1"));
+        assert!(joined.contains("madvise"));
+        assert!(joined.contains("dirty_ratio=10"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn linux_tweaks_never_violate_policy() {
+        let mut scan = base_scan();
+        scan.cpu_governor = "powersave".to_string();
+        scan.swappiness = 60;
+        scan.dirty_ratio = 30;
+        scan.dirty_background_ratio = 20;
+        scan.hugepages = "never".to_string();
+        scan.numa_balancing = "0".to_string();
+        scan.irqbalance_active = false;
+        let lines = deterministic_tweaks_linux(&scan);
+        let script = lines.join("\n");
+        let violations = crate::policy::validate_script(&script);
+        assert!(violations.is_empty(), "El catálogo determinista no debería violar nunca la política: {:?}", violations);
+    }
 }

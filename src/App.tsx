@@ -35,6 +35,11 @@ interface Session {
   score_after: number; optimizations_applied: string[]; scan_summary: string;
 }
 interface RollbackInfo { filename: string; timestamp: number; date_human: string; }
+interface StartupItem {
+  id: string; name: string; command: string; location: string;
+  trust: "Orphan" | "Safe" | "Review" | "NeverTouch";
+  enabled: boolean; exists_on_disk: boolean;
+}
 
 type View = "init" | "idle" | "scanning" | "results" | "applying" | "done" | "activate";
 
@@ -379,6 +384,38 @@ function computeScore(scan: SystemScan): number {
   return Math.max(30, Math.min(ceiling, score));
 }
 
+// Parámetros kernel 25% del score — la semántica de los campos cambia según
+// el SO (en Windows, dirty_ratio/numa_balancing se reutilizan como proxies de
+// Nagle/estado AC, no son lo que dicen sus nombres). Extraído como función
+// propia para poder usarlo también al proyectar el "objetivo" antes de
+// aplicar — así la proyección sale del mismo margen real medible que luego
+// usa el "verificado", en vez de la promesa libre de la IA.
+const KERNEL_SCORE_MAX = 25;
+function kernelScoreFromScan(scan: SystemScan): number {
+  let kernelScore = 0;
+  const gov = scan.cpu_governor;
+  const isWinBench = scan.distro_id === "windows";
+  if (isWinBench) {
+    // numa_balancing e irqbalance_active están hardcodeados en el scanner de
+    // Windows (no reflejan nada real ahí) — solo se usan las señales que sí
+    // varían de verdad: plan de energía, Nagle (proxy en dirty_ratio) y
+    // Large Pages (proxy en hugepages).
+    if (gov === "high-performance" || gov === "ultimate-performance") kernelScore += 13;
+    else if (gov === "balanced") kernelScore += 5;
+    if (scan.dirty_ratio !== 20) kernelScore += 7; // Nagle desactivado
+    if (scan.hugepages === "always") kernelScore += 5; // Large Pages habilitadas
+  } else {
+    if (gov === "performance" || gov === "schedutil") kernelScore += 8;
+    else if (gov === "ondemand") kernelScore += 5;
+    if (scan.swappiness <= 20) kernelScore += 5;
+    else if (scan.swappiness <= 40) kernelScore += 3;
+    if (scan.hugepages !== "never") kernelScore += 5;
+    if (scan.numa_balancing !== "0") kernelScore += 3;
+    if (scan.dirty_ratio <= 15) kernelScore += 4;
+  }
+  return kernelScore;
+}
+
 // Score calculado desde benchmarks reales (componentes ponderados)
 function computeScoreFromBenchmarks(scan: SystemScan, bench: BenchmarkResult): number {
   if (!bench.measured || (bench.cpu_events_per_sec === 0 && bench.ram_mb_per_sec === 0 && bench.disk_iops === 0)) {
@@ -396,19 +433,24 @@ function computeScoreFromBenchmarks(scan: SystemScan, bench: BenchmarkResult): n
   // Disco 25% — NVMe Gen3 bueno ~280K IOPS
   const diskScore = Math.min(bench.disk_iops / 280000, 1.0) * 25;
 
-  // Parámetros kernel 25%
-  let kernelScore = 0;
-  const gov = scan.cpu_governor;
-  if (gov === "performance" || gov === "schedutil") kernelScore += 8;
-  else if (gov === "ondemand") kernelScore += 5;
-  if (scan.swappiness <= 20) kernelScore += 5;
-  else if (scan.swappiness <= 40) kernelScore += 3;
-  if (scan.hugepages !== "never") kernelScore += 5;
-  if (scan.numa_balancing !== "0") kernelScore += 3;
-  if (scan.dirty_ratio <= 15) kernelScore += 4;
+  const kernelScore = kernelScoreFromScan(scan);
 
   const total = cpuScore + ramScore + diskScore + kernelScore;
   return Math.max(30, Math.min(ceiling, Math.round(total)));
+}
+
+// run_benchmarks_partial solo re-mide las categorías afectadas; las demás
+// vuelven a 0 en la respuesta. Sin esto, fusionar el resultado a pelo
+// "borraría" los números reales de las categorías no tocadas.
+function mergeBenchmarks(old: BenchmarkResult | null, fresh: BenchmarkResult, affectedCats: string[]): BenchmarkResult {
+  const base: BenchmarkResult = old ?? { cpu_events_per_sec: 0, ram_mb_per_sec: 0, disk_iops: 0, measured: false, missing_tools: [] };
+  return {
+    cpu_events_per_sec: affectedCats.includes("CPU")     ? fresh.cpu_events_per_sec : base.cpu_events_per_sec,
+    ram_mb_per_sec:     affectedCats.includes("RAM")      ? fresh.ram_mb_per_sec     : base.ram_mb_per_sec,
+    disk_iops:          affectedCats.includes("Storage")  ? fresh.disk_iops          : base.disk_iops,
+    measured: fresh.measured || base.measured,
+    missing_tools: fresh.missing_tools.length > 0 ? fresh.missing_tools : base.missing_tools,
+  };
 }
 
 function fmtDate(iso: string) {
@@ -845,13 +887,26 @@ export default function App() {
   const [fromCache, setFromCache]       = useState(false);
   const [responseMs, setResponseMs]     = useState(0);
   const [script, setScript]             = useState("");
+  const [maintenanceScript, setMaintenanceScript] = useState<string | null>(null);
+  const [diskMaintenanceStatus, setDiskMaintenanceStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [scriptVisible, setScriptVisible] = useState(false);
   const [applyLog, setApplyLog]         = useState("");
   const [error, setError]               = useState<string | null>(null);
   const [sessions, setSessions]         = useState<Session[]>([]);
   const [showReboot, setShowReboot]     = useState(false);
+  const [rebootCountdown, setRebootCountdown] = useState<number | null>(null);
+  // Score real verificado tras aplicar (re-midiendo con benchmarks frescos), distinto
+  // de analysis.score_optimizado que es solo la proyección de la IA antes de aplicar.
+  const [verifiedScoreAfter, setVerifiedScoreAfter] = useState<number | null>(null);
+  const [verifyingScore, setVerifyingScore] = useState(false);
   const [rollbacks, setRollbacks]       = useState<RollbackInfo[]>([]);
   const [showRollbacks, setShowRollbacks] = useState(false);
+  const [showStartupPanel, setShowStartupPanel] = useState(false);
+  const [startupItems, setStartupItems] = useState<StartupItem[]>([]);
+  const [startupLoading, setStartupLoading] = useState(false);
+  const [startupToDisable, setStartupToDisable] = useState<Set<string>>(new Set());
+  const [startupApplying, setStartupApplying] = useState(false);
+  const [startupResult, setStartupResult] = useState<string | null>(null);
   const [rollingBack, setRollingBack]   = useState(false);
   const [scanStep, setScanStep]         = useState(0);
   const [revealedMetrics, setRevealedMetrics] = useState(0);
@@ -874,6 +929,11 @@ export default function App() {
   const [shareCardUrl, setShareCardUrl] = useState<string | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkResult | null>(null);
   const [lostOpts, setLostOpts]     = useState<LostOpt[]>([]);
+  // Confirmación tras un reinicio programado por Dix: "ok" = todo se aplicó y
+  // sigue activo, "lost" = se detectó alguna pérdida (ver lostOpts). null = no
+  // venimos de un reinicio pendiente, no hay nada que confirmar.
+  const [postRebootStatus, setPostRebootStatus] = useState<"ok" | "lost" | null>(null);
+  const [postRebootChecking, setPostRebootChecking] = useState(false);
   const [reapplying, setReapplying] = useState(false);
   const [tier, setTier]             = useState<string>("pro");
   const isOdyssey = tier === "odyssey";
@@ -885,10 +945,11 @@ export default function App() {
   }, [scan]);
 
   useEffect(() => {
-    // Restaurar estado de reinicio pendiente si la app se cerró antes de reiniciar
-    if (localStorage.getItem("dix_needs_reboot") === "1") {
-      setShowReboot(true);
-    }
+    // Si Dix programó un reinicio en la sesión anterior, esta es la relanzada
+    // automáticamente por el RunOnce que registra reboot_system — confirmar
+    // al usuario que las optimizaciones se aplicaron y siguen activas, en vez
+    // de dejarlo en una pantalla idle sin ninguna señal.
+    const wasPendingReboot = localStorage.getItem("dix_needs_reboot") === "1";
 
     Promise.all([
       invoke<boolean>("get_license_status").catch(() => false),
@@ -910,10 +971,35 @@ export default function App() {
           distro: s.distro_id ? `${s.distro_id} ${s.distro_version}`.trim() : "Sistema",
         });
         setIdleScan(s);
-        // Verificar optimizaciones perdidas tras reinicio
-        invoke<LostOpt[]>("check_post_reboot", { scanJson: JSON.stringify(s) })
-          .then((lost) => { if (lost.length > 0) setLostOpts(lost); })
-          .catch(() => {});
+
+        // Verificar optimizaciones perdidas tras reinicio. Justo después de un
+        // arranque en frío (relanzado por el RunOnce) el sistema todavía se
+        // está "asentando" — servicios como SysMain pueden seguir iniciando y
+        // las políticas de grupo pueden no haber terminado de aplicarse — así
+        // que un scan inmediato puede leer valores transitorios y disparar
+        // falsos positivos de "optimización perdida". Si venimos de un
+        // reinicio programado por Dix, se espera y se repite el scan antes de
+        // comparar; en una apertura normal no hay que esperar nada.
+        const runPostRebootCheck = (scanForCheck: SystemScan) =>
+          invoke<LostOpt[]>("check_post_reboot", { scanJson: JSON.stringify(scanForCheck) })
+            .then((lost) => {
+              if (lost.length > 0) setLostOpts(lost);
+              if (wasPendingReboot) {
+                localStorage.removeItem("dix_needs_reboot");
+                setPostRebootStatus(lost.length > 0 ? "lost" : "ok");
+                setPostRebootChecking(false);
+              }
+            })
+            .catch(() => setPostRebootChecking(false));
+
+        if (wasPendingReboot) {
+          setPostRebootChecking(true);
+          setTimeout(() => {
+            invoke<SystemScan>("scan_system").then(runPostRebootCheck).catch(() => setPostRebootChecking(false));
+          }, 12000);
+        } else {
+          runPostRebootCheck(s);
+        }
       }).catch(() => {});
     }).catch(() => { setView("idle"); });
 
@@ -942,7 +1028,7 @@ export default function App() {
     setError(null); setScanStep(0); setRevealedMetrics(0);
     setView("scanning");
     setScan(null); setAnalysis(null); setScript(""); setFromCache(false);
-    setBenchmarks(null);
+    setBenchmarks(null); setVerifiedScoreAfter(null);
     try {
       setScanStep(1);
       const scanResult = await invoke<SystemScan>("scan_system");
@@ -962,23 +1048,32 @@ export default function App() {
         profile,
       });
       const parsed = safeParseJSON<AnalysisResult>(resp.analysis_json);
-      // Score calculado desde benchmarks reales; delta de Claude preservado
+      // Score "antes" calculado desde benchmarks reales (no la cifra de Claude).
+      // El "objetivo" YA NO usa el delta libre que proponía la IA (prometía
+      // mejoras que sus propias sugerencias de categoría "Sistema"/"Red" no
+      // pueden mover, porque esos puntos no entran en la fórmula del score) —
+      // en su lugar se proyecta solo el margen real y garantizado: lo que le
+      // falta al apartado "parámetros del kernel" para llegar a su máximo,
+      // que es exactamente lo que el catálogo determinista va a dejar fijo al
+      // aplicar. Resultado: lo que se promete antes de aplicar es alcanzable
+      // de verdad, no una expectativa que el "verificado" luego desmiente.
       const ceiling = hardwareCeiling(scanResult);
-      const claudeDelta = Math.max(0, parsed.score_optimizado - parsed.score_actual);
       parsed.score_actual = computeScoreFromBenchmarks(scanResult, bench);
-      parsed.score_optimizado = Math.min(ceiling, parsed.score_actual + claudeDelta);
+      const guaranteedDelta = Math.max(0, KERNEL_SCORE_MAX - kernelScoreFromScan(scanResult));
+      parsed.score_optimizado = Math.min(ceiling, parsed.score_actual + guaranteedDelta);
       setAnalysis(parsed); setFromCache(resp.from_cache); setResponseMs(resp.response_time_ms);
 
       setScanStep(4);
       const selected = parsed.optimizaciones
         .filter((o) => o.aplicar)
         .map((o) => ({ titulo: o.titulo, descripcion: o.descripcion, comando_preview: o.comando_preview }));
-      const scriptText = await invoke<string>("generate_script", {
+      const generated = await invoke<{ script: string; maintenance_script: string | null }>("generate_script", {
         optimizationsJson: JSON.stringify(selected),
         scanJson: JSON.stringify(scanResult),
         profile,
       });
-      setScript(scriptText);
+      setScript(generated.script);
+      setMaintenanceScript(generated.maintenance_script);
       setScanStep(5);
       await new Promise(r => setTimeout(r, 450));
       setView("results");
@@ -1002,19 +1097,54 @@ export default function App() {
         scanJson: JSON.stringify(scanRef.current),
       });
       setApplyLog(output || "Script ejecutado correctamente.");
+
+      // Mantenimiento de disco lento (p.ej. Optimize-Volume en HDD): se lanza
+      // aparte, sin esperar a que termine, porque puede tardar hasta 30 min y
+      // no debe bloquear la pantalla "done". Su resultado solo actualiza un
+      // estado informativo no bloqueante.
+      if (maintenanceScript) {
+        setDiskMaintenanceStatus("running");
+        invoke<string>("execute_maintenance_script", { scriptContent: maintenanceScript })
+          .then(() => setDiskMaintenanceStatus("done"))
+          .catch(() => setDiskMaintenanceStatus("error"));
+      }
       if (analysis && scanRef.current) {
         const postScan = await invoke<SystemScan>("scan_system").catch(() => scanRef.current!);
 
         // Guardar estado aplicado para verificación post-reinicio
         invoke("save_applied_state", { scanJson: JSON.stringify(postScan) }).catch(() => {});
 
+        // Re-medir de verdad las categorías afectadas ANTES de calcular el score
+        // final — usar los benchmarks de ANTES de aplicar daría un número
+        // desactualizado, no el real. Esto es lo que distingue "estimado" de
+        // "verificado": el verificado siempre viene de una medición fresca.
+        const affectedCats = [...new Set(
+          analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.categoria)
+        )];
+        let finalBench = benchmarks;
+        if (affectedCats.length > 0) {
+          setVerifyingScore(true);
+          const fresh = await invoke<BenchmarkResult>("run_benchmarks_partial", {
+            scanJson: JSON.stringify(postScan),
+            categoriesJson: JSON.stringify(affectedCats),
+          }).catch(() => null);
+          if (fresh) {
+            finalBench = mergeBenchmarks(benchmarks, fresh, affectedCats);
+            setBenchmarks(finalBench);
+          }
+          setVerifyingScore(false);
+        }
+
+        const realScoreAfter = finalBench
+          ? computeScoreFromBenchmarks(postScan, finalBench)
+          : computeScore(postScan);
+        setVerifiedScoreAfter(realScoreAfter);
+
         const sess: Session = {
           id: Date.now().toString(),
           timestamp: new Date().toISOString(),
           score_before: analysis.score_actual,
-          score_after: benchmarks
-            ? computeScoreFromBenchmarks(postScan, benchmarks)
-            : computeScore(postScan),
+          score_after: realScoreAfter,
           optimizations_applied: analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.titulo),
           scan_summary: `gov:${postScan.cpu_governor} swap:${postScan.swappiness} dirty:${postScan.dirty_ratio}%`,
         };
@@ -1023,17 +1153,6 @@ export default function App() {
         setSessions(updated);
         const rb = await invoke<RollbackInfo[]>("list_rollbacks").catch(() => rollbacks);
         setRollbacks(rb);
-
-        // Re-ejecutar solo benchmarks de las categorías optimizadas
-        const affectedCats = [...new Set(
-          analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.categoria)
-        )];
-        if (affectedCats.length > 0) {
-          invoke<BenchmarkResult>("run_benchmarks_partial", {
-            scanJson: JSON.stringify(postScan),
-            categoriesJson: JSON.stringify(affectedCats),
-          }).then(setBenchmarks).catch(() => {});
-        }
       }
       setView("done"); setShowReboot(true);
       localStorage.setItem("dix_needs_reboot", "1");
@@ -1063,6 +1182,48 @@ export default function App() {
       alert("Rollback completado. El sistema ha vuelto al estado previo.");
     } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setRollingBack(false); }
+  };
+
+  const loadStartupItems = async () => {
+    setStartupLoading(true); setStartupResult(null);
+    try {
+      const items = await invoke<StartupItem[]>("list_startup_items");
+      setStartupItems(items);
+      // Preselecciona solo lo "Seguro" y las entradas huérfanas — nunca lo "Revisar"
+      const preselected = new Set(
+        items.filter((i) => i.trust === "Safe" || i.trust === "Orphan").map((i) => i.id)
+      );
+      setStartupToDisable(preselected);
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setStartupLoading(false); }
+  };
+
+  const toggleStartupSelection = (id: string) => {
+    setStartupToDisable((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleApplyStartupChanges = async () => {
+    setStartupApplying(true); setError(null);
+    try {
+      const ids = Array.from(startupToDisable);
+      for (const id of ids) {
+        await invoke("set_startup_item_enabled", { id, enabled: false });
+      }
+      setStartupResult(`${ids.length} programa${ids.length === 1 ? "" : "s"} de inicio desactivado${ids.length === 1 ? "" : "s"}. Se notará en el próximo arranque.`);
+      await loadStartupItems();
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { setStartupApplying(false); }
+  };
+
+  const handleUndoStartupItem = async (item: StartupItem) => {
+    try {
+      await invoke("set_startup_item_enabled", { id: item.id, enabled: true });
+      await loadStartupItems();
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
   const handleDownload = () => {
@@ -1115,10 +1276,31 @@ export default function App() {
     try {
       await invoke("reboot_system");
       setShowReboot(false);
-      localStorage.removeItem("dix_needs_reboot");
+      setRebootCountdown(60);
+      // "dix_needs_reboot" se deja puesto a propósito: el reinicio va a ocurrir
+      // de verdad ahora, y Dix se relanzará solo (RunOnce) para confirmar que
+      // las optimizaciones siguen activas. Se limpia tras esa verificación.
     }
     catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
   };
+
+  const handleCancelReboot = async () => {
+    try {
+      await invoke("cancel_reboot");
+      setRebootCountdown(null);
+    }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+
+  // Cuenta atrás visible tras pedir el reinicio — sin esto, el usuario no
+  // tiene ninguna señal de que Windows va a reiniciar y parece que DIX se
+  // quedó colgado durante el minuto de margen que da "shutdown /t 60".
+  useEffect(() => {
+    if (rebootCountdown === null) return;
+    if (rebootCountdown <= 0) return;
+    const id = setTimeout(() => setRebootCountdown((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(id);
+  }, [rebootCountdown]);
 
   const aplicadas = analysis?.optimizaciones.filter((o) => o.aplicar) ?? [];
   const saltadas  = analysis?.optimizaciones.filter((o) => !o.aplicar) ?? [];
@@ -1171,6 +1353,11 @@ export default function App() {
               ↩ Rollbacks ({rollbacks.length})
             </button>
           )}
+          {view === "idle" && (
+            <button className="btn-secondary" onClick={() => { setShowStartupPanel(!showStartupPanel); if (!showStartupPanel) loadStartupItems(); }} style={{ fontSize: 12 }}>
+              ⚡ Programas de inicio
+            </button>
+          )}
           <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
           {isLicensed ? (
             isOdyssey ? (
@@ -1188,6 +1375,27 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* ── Cuenta atrás de reinicio — visible en cualquier vista ── */}
+      {rebootCountdown !== null && (
+        <div style={{
+          position: "sticky", top: 0, zIndex: 200,
+          background: rebootCountdown > 0 ? "#3a1a0a" : "#1a2e10",
+          border: `1px solid ${rebootCountdown > 0 ? C.red : C.green}55`,
+          padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 16,
+        }}>
+          <span style={{ fontSize: 13, color: rebootCountdown > 0 ? "#fca5a5" : C.green, fontWeight: 600 }}>
+            {rebootCountdown > 0
+              ? `🔄 Windows se reiniciará en ${rebootCountdown}s para terminar de aplicar los cambios — guarda tu trabajo`
+              : "Reiniciando ahora..."}
+          </span>
+          {rebootCountdown > 0 && (
+            <button className="btn-secondary" onClick={handleCancelReboot} style={{ fontSize: 12 }}>
+              Cancelar reinicio
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Layout principal ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -1221,16 +1429,25 @@ export default function App() {
               {view === "done" && analysis && (
                 <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 14px" }}>
                   <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center" }}>
-                    <ScoreRing score={analysis.score_actual}     label="Antes" size={72} />
+                    <ScoreRing score={analysis.score_actual} label="Antes" size={72} />
                     <div style={{ fontSize: 22, color: C.muted }}>→</div>
-                    <ScoreRing score={analysis.score_optimizado} label="Ahora"  size={72} />
+                    <ScoreRing
+                      score={verifyingScore ? analysis.score_optimizado : (verifiedScoreAfter ?? analysis.score_optimizado)}
+                      label={verifyingScore ? "Midiendo…" : verifiedScoreAfter !== null ? "Verificado ✓" : "Estimado"}
+                      size={72}
+                    />
                   </div>
+                  <p style={{ textAlign: "center", fontSize: 10, color: C.muted, marginTop: 6 }}>
+                    {verifiedScoreAfter !== null
+                      ? "Medido con benchmarks reales tras aplicar — no es una estimación."
+                      : "Proyección de la IA antes de aplicar — se verificará al terminar."}
+                  </p>
                   {scan && (
                     <button
                       onClick={() => {
                         generateShareCard(
                           analysis.score_actual,
-                          analysis.score_optimizado,
+                          verifiedScoreAfter ?? analysis.score_optimizado,
                           scan.cpu_model,
                           scan.mem_total_mb,
                           scan.distro_id,
@@ -1280,6 +1497,25 @@ export default function App() {
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>OPTIMIZACIÓN COMPLETADA</div>
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Parámetros del kernel aplicados correctamente.</div>
+                  </div>
+                </div>
+              )}
+
+              {view === "done" && diskMaintenanceStatus !== "idle" && (
+                <div style={{
+                  padding: "10px 16px", borderRadius: 10, flexShrink: 0,
+                  background: diskMaintenanceStatus === "error" ? `${C.orange}12` : `${C.orange}0a`,
+                  border: `1px solid ${C.orange}44`,
+                  display: "flex", alignItems: "center", gap: 12,
+                }}>
+                  <span style={{ fontSize: 18 }}>
+                    {diskMaintenanceStatus === "running" ? "⏳" : diskMaintenanceStatus === "done" ? "✓" : "⚠"}
+                  </span>
+                  <div style={{ fontSize: 11, color: C.muted }}>
+                    {diskMaintenanceStatus === "running" &&
+                      "Optimizando el disco en segundo plano (puede tardar hasta 30 min en discos mecánicos) — puedes seguir usando Dix mientras tanto."}
+                    {diskMaintenanceStatus === "done" && "Mantenimiento de disco completado."}
+                    {diskMaintenanceStatus === "error" && "El mantenimiento de disco no se pudo completar — el resto de optimizaciones se aplicaron bien."}
                   </div>
                 </div>
               )}
@@ -1389,6 +1625,38 @@ export default function App() {
               {view === "idle" && (
                 <div className="fade-in">
 
+                  {/* Esperando a que el sistema se asiente tras un arranque en frío
+                      antes de comparar — evita falsos positivos de "se perdió" por
+                      servicios que todavía están iniciando. */}
+                  {postRebootChecking && (
+                    <div style={{
+                      marginBottom: 14, padding: "12px 16px", borderRadius: 10,
+                      background: "#0d1117", border: `1px solid ${C.border}`,
+                      display: "flex", alignItems: "center", gap: 12,
+                    }}>
+                      <span style={{ fontSize: 16 }}>⏳</span>
+                      <div style={{ fontSize: 12, color: C.muted }}>
+                        Comprobando que las optimizaciones siguen activas tras el reinicio…
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confirmación tras el reinicio que Dix programó */}
+                  {postRebootStatus === "ok" && (
+                    <div style={{
+                      marginBottom: 14, padding: "12px 16px", borderRadius: 10,
+                      background: `${C.green}12`, border: `1px solid ${C.green}55`,
+                      display: "flex", alignItems: "center", gap: 12,
+                    }}>
+                      <span style={{ fontSize: 18, color: C.green }}>✓</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>Optimizaciones activas tras el reinicio</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>Se comprobó el sistema real: todos los cambios aplicados se mantienen y Dix sigue trabajando con ellos.</div>
+                      </div>
+                      <button onClick={() => setPostRebootStatus(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 14 }}>✕</button>
+                    </div>
+                  )}
+
                   {/* Banner de reinicio pendiente */}
                   {showReboot && (
                     <div style={{
@@ -1473,6 +1741,70 @@ export default function App() {
                           </button>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Programas de inicio */}
+                  {showStartupPanel && (
+                    <div className="card" style={{ marginBottom: 16, overflow: "hidden" }}>
+                      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>⚡ Programas de inicio</span>
+                        <button className="btn-secondary" onClick={() => setShowStartupPanel(false)} style={{ fontSize: 11 }}>Cerrar</button>
+                      </div>
+
+                      {startupLoading && (
+                        <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>Analizando programas de inicio…</div>
+                      )}
+
+                      {!startupLoading && startupItems.length === 0 && (
+                        <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>No se detectaron programas de inicio gestionables.</div>
+                      )}
+
+                      {!startupLoading && startupItems.length > 0 && (
+                        <>
+                          <div style={{ padding: "10px 16px", fontSize: 11, color: C.muted, borderBottom: `1px solid ${C.border}` }}>
+                            🟢 Seguro (preseleccionado) · 🟡 Revisar (marca tú lo que quieras) · Nunca se muestran antivirus, drivers, nube o VPN.
+                          </div>
+                          {startupItems
+                            .filter((i) => i.trust !== "NeverTouch")
+                            .map((item) => (
+                              <div key={item.id} style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+                                {item.enabled ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={startupToDisable.has(item.id)}
+                                    onChange={() => toggleStartupSelection(item.id)}
+                                    style={{ flexShrink: 0 }}
+                                  />
+                                ) : <span style={{ width: 13, flexShrink: 0 }} />}
+                                <span style={{ fontSize: 14, flexShrink: 0 }}>
+                                  {item.trust === "Orphan" ? "🧹" : item.trust === "Safe" ? "🟢" : "🟡"}
+                                </span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</div>
+                                  <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {item.trust === "Orphan" ? "Entrada huérfana — el programa ya no existe en disco" : item.location}
+                                  </div>
+                                </div>
+                                {!item.enabled && (
+                                  <button className="btn-secondary" onClick={() => handleUndoStartupItem(item)} style={{ fontSize: 11, flexShrink: 0 }}>
+                                    Reactivar
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                            <span style={{ fontSize: 11, color: C.muted }}>
+                              {startupResult ?? `${startupToDisable.size} seleccionado${startupToDisable.size === 1 ? "" : "s"} para desactivar`}
+                            </span>
+                            <button className="btn-primary" onClick={handleApplyStartupChanges}
+                              disabled={startupApplying || startupToDisable.size === 0}
+                              style={{ padding: "7px 18px", fontSize: 13 }}>
+                              {startupApplying ? "Aplicando…" : "Desactivar seleccionados"}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -1692,6 +2024,20 @@ export default function App() {
                       <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65 }}>{analysis.analisis}</p>
                     </div>
                   </div>
+
+                  {mejora <= 3 && scan && hardwareCeiling(scan) < 85 && (
+                    <div style={{
+                      marginBottom: 16, padding: "10px 14px", borderRadius: 8,
+                      background: `${C.yellow}0d`, border: `1px solid ${C.yellow}33`,
+                      fontSize: 12, color: C.muted, lineHeight: 1.6,
+                    }}>
+                      ℹ️ Este hardware tiene un techo de rendimiento bajo y la mayoría de sus parámetros
+                      clave ya estaban en su valor óptimo — por eso el margen de mejora <strong style={{ color: C.text }}>medible</strong> es
+                      pequeño. Las optimizaciones que verás abajo (servicios, indexado, inicio…) siguen
+                      siendo reales y mejoran la fluidez del día a día, aunque el número del score apenas
+                      se mueva: este score mide solo velocidad bruta de CPU/RAM/disco, no fluidez percibida.
+                    </div>
+                  )}
 
                   {/* Panel de métricas benchmark medidas */}
                   {benchmarks && (
@@ -1973,7 +2319,7 @@ export default function App() {
 
             {/* Texto para copiar */}
             <div style={{ background: "#010409", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
-              My {scan?.distro_id === "windows" ? "Windows" : "Linux"} score went from {analysis.score_actual} to {analysis.score_optimizado}/100 with DIX 🚀{"\n"}
+              My {scan?.distro_id === "windows" ? "Windows" : "Linux"} score went from {analysis.score_actual} to {verifiedScoreAfter ?? analysis.score_optimizado}/100 with DIX 🚀{"\n"}
               Try it free → dixsystem.com #DIXScore #{scan?.distro_id === "windows" ? "Windows" : "Linux"}
             </div>
 
@@ -1994,7 +2340,7 @@ export default function App() {
               <button
                 onClick={() => {
                   const platform = scan?.distro_id === "windows" ? "Windows" : "Linux";
-                  const text = `My ${platform} score went from ${analysis.score_actual} to ${analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DIXScore #${platform}`;
+                  const text = `My ${platform} score went from ${analysis.score_actual} to ${verifiedScoreAfter ?? analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DIXScore #${platform}`;
                   navigator.clipboard.writeText(text).catch(() => {});
                 }}
                 style={{

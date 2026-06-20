@@ -13,6 +13,9 @@ mod cache;
 mod atlas;
 mod benchmark;
 mod state;
+mod startup;
+#[cfg(target_os = "windows")]
+mod winutil;
 
 use executor::RollbackInfo;
 use memory::Session;
@@ -33,8 +36,10 @@ struct AnalysisResponse {
 // ─── Comandos Tauri ───────────────────────────────────────────────────────────
 
 #[tauri::command]
-fn scan_system() -> Result<SystemScan, String> {
-    scanner::scan()
+async fn scan_system() -> Result<SystemScan, String> {
+    tokio::task::spawn_blocking(scanner::scan)
+        .await
+        .map_err(|e| format!("Error interno esperando el escaneo: {}", e))?
 }
 
 #[tauri::command]
@@ -124,8 +129,26 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>, profile: 
     })
 }
 
+/// Optimizaciones de disco conocidas por tardar mucho más que el resto del lote
+/// (p.ej. Optimize-Volume -Defrag en un HDD mecánico puede tardar 10-30 min).
+/// Se detectan por su comando y se sacan del prompt que recibe la IA, para que
+/// no terminen mezcladas en el script principal de 5 min de timeout.
+#[cfg(target_os = "windows")]
+fn is_slow_disk_optimization(comando_preview: &str) -> bool {
+    let lower = comando_preview.to_lowercase();
+    lower.contains("optimize-volume") || lower.contains("defrag.exe")
+}
+
+#[derive(Serialize)]
+struct GeneratedScript {
+    script: String,
+    /// Script de mantenimiento de disco lento, a ejecutar aparte con su propio
+    /// timeout largo (ver `execute_maintenance_script`). None si no aplica.
+    maintenance_script: Option<String>,
+}
+
 #[tauri::command]
-async fn generate_script(optimizations_json: String, scan_json: String, profile: Option<String>) -> Result<String, String> {
+async fn generate_script(optimizations_json: String, scan_json: String, profile: Option<String>) -> Result<GeneratedScript, String> {
     let scan: SystemScan = serde_json::from_str(&scan_json)
         .map_err(|e| format!("Scan JSON inválido: {}", e))?;
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -135,6 +158,42 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
     );
     let profile_str = profile.as_deref().unwrap_or("balanced");
 
+    // Sacar del lote las optimizaciones de disco lentas (Windows) antes de
+    // pedirle el script a la IA, para que no se mezclen con tweaks rápidos
+    // bajo el mismo timeout de 5 min.
+    #[cfg(target_os = "windows")]
+    let (optimizations_json, maintenance_script) = {
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(&optimizations_json)
+            .map_err(|e| format!("optimizations_json inválido: {}", e))?;
+        let (slow, fast): (Vec<_>, Vec<_>) = parsed.into_iter().partition(|o| {
+            o["comando_preview"].as_str().map(is_slow_disk_optimization).unwrap_or(false)
+        });
+
+        let maintenance = if slow.is_empty() {
+            None
+        } else {
+            let mut lines = vec![
+                "$ErrorActionPreference = 'Continue'".to_string(),
+                "Write-Host '[Dix] Mantenimiento de disco (puede tardar hasta 30 min en HDD)...'".to_string(),
+            ];
+            for opt in &slow {
+                if let Some(cmd) = opt["comando_preview"].as_str() {
+                    let titulo = opt["titulo"].as_str().unwrap_or("Optimización de disco");
+                    lines.push(format!("Write-Host '[Dix] {}'", titulo.replace('\'', "''")));
+                    lines.push(cmd.to_string());
+                }
+            }
+            lines.push("Write-Host '[Dix] Mantenimiento de disco completado.'".to_string());
+            Some(lines.join("\n"))
+        };
+
+        let fast_json = serde_json::to_string(&fast)
+            .map_err(|e| format!("Error serializando optimizaciones: {}", e))?;
+        (fast_json, maintenance)
+    };
+    #[cfg(not(target_os = "windows"))]
+    let maintenance_script: Option<String> = None;
+
     #[cfg(target_os = "windows")]
     let system = format!(
         "Experto en PowerShell/Windows. Genera script de optimizacion para: {}. \
@@ -142,7 +201,11 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
         3) Empieza con $ErrorActionPreference = 'Continue'. 4) Usa Write-Host para mensajes. \
         5) Usa -ErrorAction SilentlyContinue en comandos que pueden fallar. \
         6) Para persistencia: usa schtasks y registro de Windows. \
-        7) NUNCA formatear discos, eliminar archivos del sistema ni deshabilitar el Firewall de Windows.\n{}",
+        7) NUNCA formatear discos, eliminar archivos del sistema, deshabilitar el Firewall \
+        ni Windows Defender por completo, ni borrar shadow copies/backups. \
+        8) NUNCA usar 'bcdedit' ni tocar 'useplatformclock' (HPET) — ya lo gestiona el catálogo \
+        determinista de Dix; si sugieres algo de resolución de timer, hazlo solo a nivel de \
+        proceso/usuario, nunca a nivel de firmware/arranque.\n{}",
         hw_desc,
         profile_hint(profile_str)
     );
@@ -169,29 +232,87 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
         optimizations_json, scan_json
     );
 
-    let script = claude_gateway::call(&system, &user, 2000).await?;
+    let ai_script = claude_gateway::call(&system, &user, 2000).await?;
 
-    // Validación de seguridad (solo Linux — el validador bash no aplica a PS1)
+    // Defensa adicional además de la regla 8 del prompt: el catálogo
+    // determinista es la única fuente de verdad para HPET/useplatformclock.
+    // Si la IA desobedece la instrucción y mete una línea de bcdedit que lo
+    // toque, se descarta esa línea entera en vez de bloquear todo el script
+    // (ya vimos en producción que la IA puede revertir con esto la
+    // optimización de HPET en el mismo "Aplicar" en que el catálogo la fija).
+    #[cfg(target_os = "windows")]
+    let ai_script: String = ai_script
+        .lines()
+        .filter(|l| {
+            let lower = l.to_lowercase();
+            !(lower.contains("bcdedit") && lower.contains("useplatformclock"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // En Windows, antepone el catálogo determinista de mejoras reales (no
+    // depende de lo que la IA escriba ese día) y luego añade lo que sugiera
+    // la IA encima. Garantiza una mejora real y medible en cada "Aplicar".
+    #[cfg(target_os = "windows")]
+    let script = {
+        let mut lines = vec![
+            "$ErrorActionPreference = 'Continue'".to_string(),
+            "Write-Host '[Dix] Aplicando mejoras base verificadas...'".to_string(),
+        ];
+        lines.extend(executor::deterministic_tweaks_windows(&scan));
+        lines.push(ai_script);
+        lines.join("\n")
+    };
+    // En Linux, mismo principio que en Windows: antepone el catálogo
+    // determinista de mejoras reales y verificadas antes de lo que sugiera la IA.
     #[cfg(not(target_os = "windows"))]
-    {
-        let violations = policy::validate_script(&script);
-        if !violations.is_empty() {
-            let msgs: Vec<String> = violations
-                .iter()
-                .map(|v| format!("[{}] {}", v.rule, v.detail))
-                .collect();
-            return Err(format!("Script violó políticas de seguridad:\n{}", msgs.join("\n")));
-        }
+    let script = {
+        let mut lines = vec![
+            "#!/bin/bash".to_string(),
+            "echo '[Dix] Aplicando mejoras base verificadas...'".to_string(),
+        ];
+        lines.extend(executor::deterministic_tweaks_linux(&scan));
+        lines.push(ai_script);
+        lines.join("\n")
+    };
+
+    // Validación de seguridad: Linux ya la tenía, Windows no tenía ninguna
+    // (cualquier cosa que la IA escribiera se ejecutaba sin revisar).
+    #[cfg(not(target_os = "windows"))]
+    let violations = policy::validate_script(&script);
+    #[cfg(target_os = "windows")]
+    let violations = policy::validate_script_windows(&script);
+
+    if !violations.is_empty() {
+        let msgs: Vec<String> = violations
+            .iter()
+            .map(|v| format!("[{}] {}", v.rule, v.detail))
+            .collect();
+        return Err(format!("Script violó políticas de seguridad:\n{}", msgs.join("\n")));
     }
 
-    Ok(script)
+    Ok(GeneratedScript { script, maintenance_script })
 }
 
 #[tauri::command]
-fn execute_script(script_content: String, scan_json: String) -> Result<String, String> {
+async fn execute_maintenance_script(script_content: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || executor::run_disk_maintenance(&script_content))
+        .await
+        .map_err(|e| format!("Error interno esperando el mantenimiento de disco: {}", e))?
+}
+
+#[tauri::command]
+async fn execute_script(script_content: String, scan_json: String) -> Result<String, String> {
     let scan: SystemScan = serde_json::from_str(&scan_json)
         .map_err(|e| format!("Scan JSON inválido para rollback: {}", e))?;
-    let result = executor::run_script(&script_content, &scan)?;
+
+    // El script elevado puede tardar varios minutos (p.ej. Optimize-Volume).
+    // spawn_blocking lo mueve a un hilo dedicado para no congelar la ventana
+    // principal mientras se espera al proceso de PowerShell.
+    let content = script_content.clone();
+    let result = tokio::task::spawn_blocking(move || executor::run_script(&content, &scan))
+        .await
+        .map_err(|e| format!("Error interno esperando el script: {}", e))??;
 
     // Anclar los parámetros aplicados para que Claude no oscile entre sesiones
     let new_pins = cache::extract_pinnable_params(&script_content);
@@ -219,21 +340,94 @@ fn clear_sessions() -> Result<(), String> {
     memory::clear_sessions()
 }
 
+// Registra (o borra) una entrada RunOnce para que Windows relance Dix
+// automáticamente justo después del próximo login — sin esto, tras el
+// reinicio el usuario se queda con el escritorio y tiene que abrir Dix a
+// mano sin ninguna señal de que las optimizaciones se aplicaron y siguen
+// vigentes. RunOnce se autoborra en cuanto Windows lo ejecuta una vez.
+#[cfg(target_os = "windows")]
+fn set_relaunch_after_reboot(enabled: bool) -> Result<(), String> {
+    let script = if enabled {
+        let exe = std::env::current_exe()
+            .map_err(|e| format!("No se pudo obtener la ruta de Dix: {}", e))?;
+        let exe_str = exe.display().to_string().replace('\'', "''");
+        format!(
+            "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce' \
+             -Name 'DixPostReboot' -Value '\"{}\"' -Type String -ErrorAction Stop",
+            exe_str
+        )
+    } else {
+        "Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce' \
+         -Name 'DixPostReboot' -ErrorAction SilentlyContinue".to_string()
+    };
+    crate::winutil::run_powershell(&script, std::time::Duration::from_secs(8));
+    Ok(())
+}
+
 #[tauri::command]
 fn reboot_system() -> Result<(), String> {
+    // .output() en vez de .spawn(): espera a que el comando termine y revisa
+    // su código de salida real. Con .spawn() un fallo (permisos, política de
+    // grupo, etc.) se perdía en silencio y el usuario se quedaba esperando un
+    // reinicio que nunca iba a llegar, sin ningún error visible.
     #[cfg(target_os = "windows")]
     {
-        Command::new("shutdown")
+        set_relaunch_after_reboot(true)?;
+        let output = Command::new("shutdown")
             .args(["/r", "/t", "60", "/c", "Dix: reiniciando para aplicar optimizaciones"])
-            .spawn()
+            .output()
             .map_err(|e| format!("No se pudo programar el reinicio: {}", e))?;
+        if !output.status.success() {
+            return Err(format!(
+                "No se pudo programar el reinicio: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
-        Command::new("/usr/bin/pkexec")
+        let output = Command::new("/usr/bin/pkexec")
             .args(["/sbin/shutdown", "-r", "+1", "Dix: reiniciando para aplicar optimizaciones"])
-            .spawn()
+            .output()
             .map_err(|e| format!("No se pudo programar el reinicio: {}", e))?;
+        if !output.status.success() {
+            return Err(format!(
+                "No se pudo programar el reinicio: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn cancel_reboot() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        set_relaunch_after_reboot(false)?;
+        let output = Command::new("shutdown")
+            .args(["/a"])
+            .output()
+            .map_err(|e| format!("No se pudo cancelar el reinicio: {}", e))?;
+        if !output.status.success() {
+            return Err(format!(
+                "No se pudo cancelar el reinicio: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let output = Command::new("/usr/bin/pkexec")
+            .args(["/sbin/shutdown", "-c"])
+            .output()
+            .map_err(|e| format!("No se pudo cancelar el reinicio: {}", e))?;
+        if !output.status.success() {
+            return Err(format!(
+                "No se pudo cancelar el reinicio: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
     }
     Ok(())
 }
@@ -244,8 +438,10 @@ fn list_rollbacks() -> Vec<RollbackInfo> {
 }
 
 #[tauri::command]
-fn execute_rollback(filename: String) -> Result<String, String> {
-    executor::execute_rollback(&filename)
+async fn execute_rollback(filename: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || executor::execute_rollback(&filename))
+        .await
+        .map_err(|e| format!("Error interno esperando el rollback: {}", e))?
 }
 
 #[tauri::command]
@@ -260,19 +456,11 @@ fn get_hw_fingerprint() -> String {
     #[cfg(target_os = "windows")]
     {
         // Windows: usa MachineGuid del registro — único por instalación del SO
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let output = Command::new("powershell")
-            .args([
-                "-NoProfile", "-NonInteractive",
-                "-Command",
-                "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid",
-            ])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .ok();
-        if let Some(o) = output {
-            let guid = String::from_utf8_lossy(&o.stdout).trim().to_string();
+        let guid = winutil::run_powershell(
+            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid",
+            std::time::Duration::from_secs(10),
+        );
+        if let Some(guid) = guid {
             if guid.len() >= 16 {
                 return guid;
             }
@@ -299,7 +487,7 @@ fn get_hw_fingerprint() -> String {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 struct LiveMetrics {
     governor:         String,
     swappiness:       u32,
@@ -328,13 +516,25 @@ fn get_live_metrics() -> LiveMetrics {
 
 #[cfg(target_os = "windows")]
 fn get_live_metrics_windows() -> LiveMetrics {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    // Consulta PowerShell única para minimizar latencia
-    let ps_out = Command::new("powershell")
-        .args([
-            "-NoProfile", "-NonInteractive", "-Command",
-            "$p = (Get-CimInstance Win32_Processor | Select-Object -First 1);\
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+
+    // El frontend hace polling cada 400ms (LiveOptimizingPanel). Lanzar un
+    // powershell.exe nuevo en cada tick es caro y, si alguna vez se cuelga,
+    // los procesos se amontonan. Cacheamos 2s — sigue sintiéndose "en vivo"
+    // pero evita la mayoría de los spawns.
+    static CACHE: OnceLock<Mutex<Option<(Instant, LiveMetrics)>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(None));
+
+    if let Ok(guard) = cache.lock() {
+        if let Some((ts, cached)) = guard.as_ref() {
+            if ts.elapsed() < Duration::from_secs(2) {
+                return cached.clone();
+            }
+        }
+    }
+
+    let script = "$p = (Get-CimInstance Win32_Processor | Select-Object -First 1);\
              $m = Get-CimInstance Win32_OperatingSystem;\
              $plan = (powercfg /getactivescheme) -replace '.*GUID: ([0-9a-f-]+).*','$1';\
              $gov = switch -Wildcard ($plan) {\
@@ -349,21 +549,16 @@ fn get_live_metrics_windows() -> LiveMetrics {
              $free = [int]($m.FreePhysicalMemory / 1024);\
              $total = [int]($m.TotalVisibleMemorySize / 1024);\
              $load = [math]::Round((Get-CimInstance Win32_PerfFormattedData_PerfOS_System).ProcessorQueueLength, 2);\
-             \"$gov|$freq|$maxf|$cores|$free|$total|$load\"",
-        ])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .ok();
+             \"$gov|$freq|$maxf|$cores|$free|$total|$load\"";
 
-    let line = ps_out
-        .as_ref()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default();
+    // Timeout corto: esto es telemetría no crítica que se repite — si falla,
+    // mejor devolver ceros que arriesgar bloquear el hilo de comandos de Tauri.
+    let line = winutil::run_powershell(script, Duration::from_secs(3)).unwrap_or_default();
 
     let parts: Vec<&str> = line.split('|').collect();
     let get = |i: usize| parts.get(i).unwrap_or(&"0");
 
-    LiveMetrics {
+    let metrics = LiveMetrics {
         governor:         get(0).to_string().replace("0", "balanced"),
         swappiness:       0,
         dirty_ratio:      0,
@@ -379,7 +574,12 @@ fn get_live_metrics_windows() -> LiveMetrics {
         cpu_temp_celsius: 0.0,
         cpu_avg_freq_mhz: get(1).parse().unwrap_or(0),
         cpu_cores:        get(3).parse().unwrap_or(1),
+    };
+
+    if let Ok(mut guard) = cache.lock() {
+        *guard = Some((Instant::now(), metrics.clone()));
     }
+    metrics
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -535,21 +735,22 @@ async fn activate_license(key: String) -> Result<bool, String> {
     }
 
     // Nombre de instancia: CPU model (anónimo, sin hostname)
+    // PowerShell es síncrono y puede colgarse (AV, perfil lento) — se ejecuta
+    // en spawn_blocking con timeout para no bloquear el runtime de Tokio.
+    #[cfg(target_os = "windows")]
+    let instance_name = tokio::task::spawn_blocking(|| {
+        let cpu = winutil::run_powershell(
+            "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name",
+            std::time::Duration::from_secs(10),
+        )
+        .unwrap_or_else(|| "unknown-cpu".to_string());
+        format!("dix-{}", &cpu[..cpu.len().min(40)])
+    })
+    .await
+    .unwrap_or_else(|_| "dix-unknown-cpu".to_string());
+
+    #[cfg(not(target_os = "windows"))]
     let instance_name = {
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            let cpu = Command::new("powershell")
-                .args(["-NoProfile", "-NonInteractive", "-Command",
-                    "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"])
-                .creation_flags(CREATE_NO_WINDOW)
-                .output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .unwrap_or_else(|_| "unknown-cpu".to_string());
-            format!("dix-{}", &cpu[..cpu.len().min(40)])
-        }
-        #[cfg(not(target_os = "windows"))]
         {
             use std::fs;
             let cpu = fs::read_to_string("/proc/cpuinfo")
@@ -613,15 +814,9 @@ async fn activate_license(key: String) -> Result<bool, String> {
 
 #[tauri::command]
 async fn run_benchmarks(scan_json: String) -> Result<benchmark::BenchmarkResult, String> {
-    #[cfg(target_os = "windows")]
-    return Ok(benchmark::BenchmarkResult::default());
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let scan: SystemScan = serde_json::from_str(&scan_json)
-            .map_err(|e| format!("Scan JSON inválido: {}", e))?;
-        Ok(benchmark::run_all(scan.cpu_cores).await)
-    }
+    let scan: SystemScan = serde_json::from_str(&scan_json)
+        .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+    Ok(benchmark::run_all(scan.cpu_cores).await)
 }
 
 #[tauri::command]
@@ -629,67 +824,71 @@ async fn run_benchmarks_partial(
     scan_json: String,
     categories_json: String,
 ) -> Result<benchmark::BenchmarkResult, String> {
-    #[cfg(target_os = "windows")]
-    return Ok(benchmark::BenchmarkResult::default());
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let scan: SystemScan = serde_json::from_str(&scan_json)
-            .map_err(|e| format!("Scan JSON inválido: {}", e))?;
-        let cats: Vec<String> = serde_json::from_str(&categories_json)
-            .map_err(|e| format!("Categories JSON inválido: {}", e))?;
-        Ok(benchmark::run_for_categories(scan.cpu_cores, &cats).await)
-    }
+    let scan: SystemScan = serde_json::from_str(&scan_json)
+        .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+    let cats: Vec<String> = serde_json::from_str(&categories_json)
+        .map_err(|e| format!("Categories JSON inválido: {}", e))?;
+    Ok(benchmark::run_for_categories(scan.cpu_cores, &cats).await)
 }
 
 // ─── Comandos de estado post-reinicio ─────────────────────────────────────────
 
 #[tauri::command]
 fn save_applied_state(scan_json: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    return Ok(());
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let scan: SystemScan = serde_json::from_str(&scan_json)
-            .map_err(|e| format!("Scan JSON inválido: {}", e))?;
-        state::save_from_scan(&scan)
-    }
+    let scan: SystemScan = serde_json::from_str(&scan_json)
+        .map_err(|e| format!("Scan JSON inválido: {}", e))?;
+    state::save_from_scan(&scan)
 }
 
 #[tauri::command]
 fn check_post_reboot(scan_json: String) -> Vec<state::LostOpt> {
-    #[cfg(target_os = "windows")]
-    return vec![];
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let scan: SystemScan = match serde_json::from_str(&scan_json) {
-            Ok(s) => s,
-            Err(_) => return vec![],
-        };
-        match state::load() {
-            Some(applied) => state::compare(&scan, &applied),
-            None => vec![],
-        }
+    let scan: SystemScan = match serde_json::from_str(&scan_json) {
+        Ok(s) => s,
+        Err(_) => return vec![],
+    };
+    match state::load() {
+        Some(applied) => state::compare(&scan, &applied),
+        None => vec![],
     }
 }
 
 #[tauri::command]
 fn reapply_lost_opts(lost_json: String) -> Result<String, String> {
+    let lost: Vec<state::LostOpt> = serde_json::from_str(&lost_json)
+        .map_err(|e| format!("LostOpt JSON inválido: {}", e))?;
+    if lost.is_empty() {
+        return Ok("No hay optimizaciones que reaplicar.".to_string());
+    }
+
     #[cfg(target_os = "windows")]
-    return Ok("No aplicable en Windows.".to_string());
+    {
+        // Re-escanear para guardar un rollback real (no un valor por defecto vacío)
+        let current_scan = scanner::scan()?;
+        let script = state::generate_reapply_script_windows(&lost);
+        executor::run_script(&script, &current_scan)
+    }
 
     #[cfg(not(target_os = "windows"))]
     {
-        let lost: Vec<state::LostOpt> = serde_json::from_str(&lost_json)
-            .map_err(|e| format!("LostOpt JSON inválido: {}", e))?;
-        if lost.is_empty() {
-            return Ok("No hay optimizaciones que reaplicar.".to_string());
-        }
         let script = state::generate_reapply_script(&lost);
         executor::run_privileged_script(&script)
     }
+}
+
+// ─── Comandos de programas de inicio ──────────────────────────────────────────
+
+#[tauri::command]
+async fn list_startup_items() -> Result<Vec<startup::StartupItem>, String> {
+    tokio::task::spawn_blocking(startup::scan_startup_items)
+        .await
+        .map_err(|e| format!("Error interno escaneando programas de inicio: {}", e))
+}
+
+#[tauri::command]
+async fn set_startup_item_enabled(id: String, enabled: bool) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || startup::set_enabled(&id, enabled))
+        .await
+        .map_err(|e| format!("Error interno: {}", e))?
 }
 
 // ─── Builder de prompt ────────────────────────────────────────────────────────
@@ -706,7 +905,7 @@ fn profile_hint(profile: &str) -> &'static str {
 
 fn build_analysis_prompt(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>, profile: &str) -> String {
     #[cfg(target_os = "windows")]
-    return build_analysis_prompt_windows(scan, profile);
+    return build_analysis_prompt_windows(scan, bench, profile);
     #[cfg(not(target_os = "windows"))]
     return build_analysis_prompt_linux(scan, bench, profile);
 }
@@ -782,7 +981,11 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
         {hardware_line}\n\n\
         {pinned}\
         {rules}\
-        Incluye 8-12 optimizaciones reales basadas en los datos actuales. \
+        YA SE APLICAN SIEMPRE DE FORMA GARANTIZADA (no los repitas en tu plan, \
+        céntrate en optimizaciones DISTINTAS a estas): CPU governor performance, \
+        vm.swappiness<=10, vm.dirty_ratio<=15, vm.dirty_background_ratio<=10, \
+        transparent hugepages != never, kernel.numa_balancing=1, irqbalance activo.\n\n\
+        Incluye 8-12 optimizaciones reales basadas en los datos actuales, distintas a las garantizadas. \
         No sugieras cambios que ya estén en su valor óptimo.\n\n\
         Responde ÚNICAMENTE con JSON válido sin texto extra ni backticks:\n{}",
         scan.cpu_governor, scan.cpu_cores,
@@ -812,7 +1015,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
 }
 
 // Sin cfg-gate para poder testear en Linux la lógica del prompt Windows.
-fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
+fn build_analysis_prompt_windows(scan: &SystemScan, bench: Option<&benchmark::BenchmarkResult>, profile: &str) -> String {
     let opt_cache = cache::load_cache();
     let pinned_hint = cache::format_pinned_hint(&opt_cache.pinned_params);
     let ram_gb = (scan.mem_total_mb + 512) / 1024;
@@ -820,6 +1023,19 @@ fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
         "HARDWARE: {} {}, {}, GPU: {}, {}GB RAM.",
         scan.distro_id, scan.distro_version, scan.cpu_model, scan.gpu_model, ram_gb
     );
+    let bench_section = match bench {
+        Some(b) if b.measured => format!(
+            "BENCHMARKS REALES MEDIDOS (micro-benchmarks nativos Dix):\n\
+            - CPU: {:.0} primos/s ({} hilos, 5 segundos)\n\
+            - RAM: {:.0} MB/s (copia secuencial, 3 segundos)\n\
+            - Disco: {:.0} IOPS (4K random read, 5 segundos)\n\
+            Usa estos numeros reales en el campo 'analisis' y en mejora_estimada.\n\n",
+            b.cpu_events_per_sec, scan.cpu_cores,
+            b.ram_mb_per_sec,
+            b.disk_iops,
+        ),
+        _ => String::new(),
+    };
 
     let schema = r#"{
   "analisis": "2-3 frases del estado actual",
@@ -844,6 +1060,7 @@ fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
     format!(
         "Eres un experto en optimizacion de Windows. Analiza estos datos y genera un plan.\n\
         {profile_line}\
+        {bench}\
         SISTEMA OPERATIVO: Windows\n\
         DATOS REALES:\n\
         - Plan de energia activo: {}\n\
@@ -851,29 +1068,44 @@ fn build_analysis_prompt_windows(scan: &SystemScan, profile: &str) -> String {
         - Nagle TCP (TcpAckFrequency): {}\n\
         - Scheduler disco: {}\n\
         - Large Pages: {}\n\
+        - Efectos visuales: {}\n\
+        - Network Throttling Index: {}\n\
+        - GPU Hardware Scheduling: {}\n\
+        - Retardo de menus (ms): {}\n\
         - RAM: {} MB total, {} MB disponible\n\
         - CPU freq: {}-{} MHz\n\
         - CPU temperatura: {:.1}C\n\n\
         {hardware_line}\n\n\
         {pinned}\
+        YA SE APLICAN SIEMPRE DE FORMA GARANTIZADA (no los repitas en tu plan, \
+        céntrate en optimizaciones DISTINTAS a estas): plan de energia alto rendimiento, \
+        efectos visuales en rendimiento, Network Throttling Index sin limite, \
+        GPU Hardware Scheduling activado, retardo de menus a 0, Nagle desactivado, \
+        HPET desactivado, Game DVR desactivado, SysMain desactivado en SSD/NVMe, \
+        telemetria en nivel Basico.\n\n\
         REGLAS ABSOLUTAS (Windows):\n\
         - NUNCA deshabilitar Windows Defender ni el Firewall\n\
         - NUNCA formatear discos ni eliminar archivos del sistema\n\
         - NUNCA deshabilitar el servicio de actualizaciones si el riesgo es alto\n\
         - SIEMPRE usar PowerShell con -ErrorAction SilentlyContinue\n\n\
-        Genera 8-12 optimizaciones reales: plan de energia, Nagle, SysMain, \
-        prefetch, visual effects, HPET, timer resolution, registro TCP.\n\
-        No sugieras cambios que ya esten en su valor optimo.\n\n\
+        Genera 8-12 optimizaciones reales adicionales a las garantizadas: prefetch, \
+        timer resolution, programas de inicio, servicios en segundo plano, indexado de busqueda.\n\
+        No sugieras cambios que ya esten en su valor optimo ni los ya garantizados arriba.\n\n\
         Responde UNICAMENTE con JSON valido sin texto extra ni backticks:\n{}",
         scan.cpu_governor, scan.cpu_cores,
         scan.dirty_ratio,
         scan.disk_scheduler,
         scan.hugepages,
+        scan.visual_effects,
+        scan.network_throttling,
+        scan.gpu_hw_scheduling,
+        scan.menu_show_delay,
         scan.mem_total_mb, scan.mem_available_mb,
         scan.cpu_min_freq_mhz, scan.cpu_max_freq_mhz,
         scan.cpu_temp_celsius,
         schema,
         hardware_line = hardware_line,
+        bench = bench_section,
         profile_line = format!("{}\n\n", profile_hint(profile)),
         pinned = if pinned_hint.is_empty() {
             String::new()
@@ -900,7 +1132,36 @@ fn export_report(content: String, filename: String) -> Result<String, String> {
 
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
+/// Comprueba si el WebView2 Runtime está presente; si no, busca el instalador
+/// standalone junto al ejecutable y lo lanza (el propio instalador pide elevación
+/// UAC si hace falta). Permite que dix.exe funcione en cualquier Windows sin pasos
+/// manuales previos.
+#[cfg(target_os = "windows")]
+fn ensure_webview2_installed() {
+    let installed = std::path::Path::new(r"C:\Program Files (x86)\Microsoft\EdgeWebView\Application").exists()
+        || std::path::Path::new(r"C:\Program Files\Microsoft\EdgeWebView\Application").exists();
+    if installed {
+        return;
+    }
+
+    let exe_dir = match std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf())) {
+        Some(dir) => dir,
+        None => return,
+    };
+
+    for candidate in ["WebView2_Standalone.exe", "MicrosoftEdgeWebview2Setup.exe"] {
+        let installer = exe_dir.join(candidate);
+        if installer.exists() {
+            let _ = Command::new(installer).args(["/silent", "/install"]).status();
+            break;
+        }
+    }
+}
+
 fn main() {
+    #[cfg(target_os = "windows")]
+    ensure_webview2_installed();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -918,10 +1179,12 @@ fn main() {
             analyze_system,
             generate_script,
             execute_script,
+            execute_maintenance_script,
             get_sessions,
             save_session,
             clear_sessions,
             reboot_system,
+            cancel_reboot,
             list_rollbacks,
             execute_rollback,
             get_cache_stats,
@@ -935,6 +1198,8 @@ fn main() {
             save_applied_state,
             check_post_reboot,
             reapply_lost_opts,
+            list_startup_items,
+            set_startup_item_enabled,
             get_tier,
             export_report,
         ])
@@ -968,6 +1233,10 @@ mod tests_win {
             distro_id: "windows".to_string(),
             distro_version: "Microsoft Windows 11 Home".to_string(),
             kernel_version: "10.0.22631.0".to_string(), cpu_temp_celsius: 72.0,
+            visual_effects: "appearance".to_string(), network_throttling: "default".to_string(),
+            gpu_hw_scheduling: "off".to_string(), menu_show_delay: 400,
+            hpet_disabled: false, gamedvr_enabled: true, sysmain_running: true, telemetry_level: 255,
+            boot_time_seconds: 0.0, slowest_boot_service: "n/a".to_string(),
         }
     }
 
@@ -986,6 +1255,10 @@ mod tests_win {
             distro_id: "windows".to_string(),
             distro_version: "Microsoft Windows 10 Home".to_string(),
             kernel_version: "10.0.19045.0".to_string(), cpu_temp_celsius: 88.0,
+            visual_effects: "appearance".to_string(), network_throttling: "default".to_string(),
+            gpu_hw_scheduling: "off".to_string(), menu_show_delay: 400,
+            hpet_disabled: false, gamedvr_enabled: true, sysmain_running: true, telemetry_level: 255,
+            boot_time_seconds: 0.0, slowest_boot_service: "n/a".to_string(),
         }
     }
 
@@ -1004,6 +1277,10 @@ mod tests_win {
             distro_id: "windows".to_string(),
             distro_version: "Microsoft Windows 11 Pro".to_string(),
             kernel_version: "10.0.22631.0".to_string(), cpu_temp_celsius: 55.0,
+            visual_effects: "performance".to_string(), network_throttling: "unlimited".to_string(),
+            gpu_hw_scheduling: "on".to_string(), menu_show_delay: 0,
+            hpet_disabled: true, gamedvr_enabled: false, sysmain_running: false, telemetry_level: 1,
+            boot_time_seconds: 0.0, slowest_boot_service: "n/a".to_string(),
         }
     }
 
@@ -1025,7 +1302,7 @@ mod tests_win {
     #[test]
     fn test_prompt_contiene_campos_criticos() {
         let scan = mock_scan_gaming();
-        let prompt = build_analysis_prompt_windows(&scan, "gaming");
+        let prompt = build_analysis_prompt_windows(&scan, None, "gaming");
         assert!(!prompt.is_empty(), "Prompt no puede estar vacío");
         assert!(prompt.contains("Windows"), "Debe mencionar Windows");
         assert!(prompt.contains("Gaming"), "Debe incluir el perfil");
@@ -1041,7 +1318,7 @@ mod tests_win {
         let perfiles = ["gaming", "streaming", "dev", "server", "balanced"];
         for perfil in &perfiles {
             let scan = mock_scan_gaming();
-            let prompt = build_analysis_prompt_windows(&scan, perfil);
+            let prompt = build_analysis_prompt_windows(&scan, None, perfil);
             assert!(!prompt.is_empty(), "Perfil '{}' generó prompt vacío", perfil);
             assert!(prompt.contains("score_actual"), "Perfil '{}' sin schema", perfil);
             println!("✓ Perfil '{}' → {} chars", perfil, prompt.len());
@@ -1051,7 +1328,7 @@ mod tests_win {
     #[test]
     fn test_escenario_low_end_windows10() {
         let scan = mock_scan_low_end();
-        let prompt = build_analysis_prompt_windows(&scan, "balanced");
+        let prompt = build_analysis_prompt_windows(&scan, None, "balanced");
         assert!(prompt.contains("8192"), "Debe incluir la RAM (8GB)");
         assert!(prompt.contains("i5-8250U"), "Debe incluir el CPU");
         assert!(prompt.contains("Windows 10"), "Debe indicar Windows 10");
@@ -1062,7 +1339,7 @@ mod tests_win {
     #[test]
     fn test_escenario_workstation_windows11() {
         let scan = mock_scan_workstation();
-        let prompt = build_analysis_prompt_windows(&scan, "dev");
+        let prompt = build_analysis_prompt_windows(&scan, None, "dev");
         assert!(prompt.contains("65536"), "Debe incluir 64GB RAM");
         assert!(prompt.contains("Ryzen 9"), "Debe incluir el CPU");
         assert!(prompt.contains("Desarrollo"), "Debe incluir perfil dev en español");
@@ -1072,7 +1349,7 @@ mod tests_win {
     #[test]
     fn test_schema_json_en_prompt() {
         let scan = mock_scan_gaming();
-        let prompt = build_analysis_prompt_windows(&scan, "balanced");
+        let prompt = build_analysis_prompt_windows(&scan, None, "balanced");
         // El schema JSON debe aparecer completo en el prompt
         assert!(prompt.contains("\"id\""), "Falta campo id en schema");
         assert!(prompt.contains("\"categoria\""), "Falta campo categoria en schema");
@@ -1131,7 +1408,7 @@ mod tests_win {
             "Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown.\n{}",
             profile_hint("gaming")
         );
-        let user = build_analysis_prompt_windows(&scan, "gaming");
+        let user = build_analysis_prompt_windows(&scan, None, "gaming");
 
         println!("Enviando análisis simulado Windows al proxy...");
         println!("System: {} chars | User: {} chars", system.len(), user.len());

@@ -36,6 +36,29 @@ pub struct SystemScan {
     pub kernel_version: String,
     #[serde(default)]
     pub cpu_temp_celsius: f32,
+    // ── Windows: parámetros reales adicionales con impacto sensible ──────────
+    // "n/a" en Linux (no aplica). Ver scan_windows() para el detalle de cada uno.
+    #[serde(default)]
+    pub visual_effects: String,
+    #[serde(default)]
+    pub network_throttling: String,
+    #[serde(default)]
+    pub gpu_hw_scheduling: String,
+    #[serde(default)]
+    pub menu_show_delay: u32,
+    #[serde(default)]
+    pub hpet_disabled: bool,
+    #[serde(default)]
+    pub gamedvr_enabled: bool,
+    #[serde(default)]
+    pub sysmain_running: bool,
+    #[serde(default)]
+    pub telemetry_level: u32,
+    // ── Linux: Boot Score real (systemd-analyze, dato exacto, no estimado) ───
+    #[serde(default)]
+    pub boot_time_seconds: f32,
+    #[serde(default)]
+    pub slowest_boot_service: String,
 }
 
 // ─── Entry point (platform dispatch) ─────────────────────────────────────────
@@ -86,6 +109,7 @@ fn scan_linux() -> Result<SystemScan, String> {
     let (distro_id, distro_version) = detect_distro();
     let kernel_version = detect_kernel();
     let cpu_temp_celsius = read_cpu_temp();
+    let (boot_time_seconds, slowest_boot_service) = read_boot_stats();
 
     Ok(SystemScan {
         cpu_governor, cpu_cores, swappiness, dirty_ratio, dirty_background_ratio,
@@ -93,6 +117,10 @@ fn scan_linux() -> Result<SystemScan, String> {
         mem_available_mb, load_avg, nvme_queue_depth, irqbalance_active,
         cpu_min_freq_mhz, cpu_max_freq_mhz, cpu_model, gpu_model, distro_id,
         distro_version, kernel_version, cpu_temp_celsius,
+        visual_effects: "n/a".to_string(), network_throttling: "n/a".to_string(),
+        gpu_hw_scheduling: "n/a".to_string(), menu_show_delay: 0,
+        hpet_disabled: false, gamedvr_enabled: false, sysmain_running: false, telemetry_level: 0,
+        boot_time_seconds, slowest_boot_service,
     })
 }
 
@@ -284,21 +312,37 @@ fn read_cpu_temp() -> f32 {
     if pkg_temp > 0.0 { pkg_temp } else { max_temp }
 }
 
+// Boot Score real — `systemd-analyze` da el tiempo de arranque exacto medido
+// por el propio sistema (no una estimación de Dix), y `systemd-analyze blame`
+// el servicio que más tarda. A diferencia de Windows (donde el "impacto" de
+// arranque es una aproximación por categoría), en Linux esto es un dato 100%
+// real desde el primer día.
+#[cfg(not(target_os = "windows"))]
+fn read_boot_stats() -> (f32, String) {
+    let time_out = Command::new("systemd-analyze").output();
+    let boot_time = time_out.ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).to_string();
+            // "...= 18.301s reached target ..." — tomamos el número justo antes de "s reached"
+            s.split('=').nth(1)
+                .and_then(|tail| tail.trim().split('s').next())
+                .and_then(|n| n.trim().parse::<f32>().ok())
+        })
+        .unwrap_or(0.0);
+
+    let blame_out = Command::new("systemd-analyze").arg("blame").output();
+    let slowest = blame_out.ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8_lossy(&o.stdout).lines().next().map(|l| l.trim().to_string()))
+        .unwrap_or_default();
+
+    (boot_time, slowest)
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // WINDOWS IMPLEMENTATION
 // ═════════════════════════════════════════════════════════════════════════════
-
-#[cfg(target_os = "windows")]
-fn ps(cmd: &str) -> String {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", cmd])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default()
-}
 
 // ── Métricas nativas Win32 ────────────────────────────────────────────────────
 
@@ -320,6 +364,24 @@ fn cpu_count_native() -> usize {
     let mut si: SYSTEM_INFO = unsafe { std::mem::zeroed() };
     unsafe { GetSystemInfo(&mut si) };
     si.dwNumberOfProcessors as usize
+}
+
+// Detecta si el equipo está conectado a corriente (vs en batería) via
+// GetSystemPowerStatus — instantáneo, sin PowerShell. ACLineStatus: 0 =
+// batería, 1 = conectado, 255 = desconocido (sobre todo en sobremesas sin
+// batería: ahí se trata como "conectado" para no penalizar un equipo que
+// nunca tuvo este problema). Antes este campo estaba hardcodeado a `false`
+// (siempre "en batería"), así que el score en Windows restaba 5 puntos
+// permanentemente sin que reflejara nada real.
+#[cfg(target_os = "windows")]
+fn ac_power_connected_native() -> bool {
+    use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+    let mut status: SYSTEM_POWER_STATUS = unsafe { std::mem::zeroed() };
+    if unsafe { GetSystemPowerStatus(&mut status) }.is_ok() {
+        status.ACLineStatus != 0
+    } else {
+        true
+    }
 }
 
 // Detecta el plan de energía activo leyendo el GUID via PowerGetActiveScheme.
@@ -354,11 +416,25 @@ fn power_plan_native() -> String {
     "balanced".to_string()
 }
 
+// MSAcpi_ThermalZoneTemperature puede colgarse 30-120s en hardware de consumo
+// sin sensor ACPI estándar — por eso antes se deshabilitaba directamente. Con
+// un timeout corto (3s) y kill explícito si no responde (winutil::run_powershell
+// ya lo hace), se puede intentar de forma segura: si responde rápido, dato
+// real; si no, 0.0 — que el frontend ya interpreta como "sin sensor detectado"
+// en vez de fingir una lectura inventada.
+#[cfg(target_os = "windows")]
+fn read_cpu_temp_windows() -> f32 {
+    let script = "$t = (Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature \
+        -ErrorAction SilentlyContinue | Select-Object -First 1).CurrentTemperature; \
+        if ($t) { [math]::Round(($t / 10) - 273.15, 1) }";
+    crate::winutil::run_powershell(script, std::time::Duration::from_secs(3))
+        .and_then(|s| s.trim().parse::<f32>().ok())
+        .filter(|t| *t > -50.0 && *t < 150.0) // descarta lecturas absurdas de sensores defectuosos
+        .unwrap_or(0.0)
+}
+
 #[cfg(target_os = "windows")]
 fn scan_windows() -> Result<SystemScan, String> {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
     // Valores nativos — sin PowerShell, instantáneos
     let cpu_cores  = cpu_count_native();
     let cpu_governor = power_plan_native();
@@ -378,31 +454,22 @@ $lp   = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Ma
     -Name LargePageMinimum -ErrorAction SilentlyContinue).LargePageMinimum;\
 $disk = (Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | Select-Object -First 1).Model;\
 $audio = (Get-Service -Name AudioSrv -ErrorAction SilentlyContinue).Status;\
-\"$($cpu.Name)|$nagle|$disk|$audio|$lp|$($cpu.MaxClockSpeed)|$($cpu.CurrentClockSpeed)|$($cpu.LoadPercentage)|$($gpu.Name)|$($os.Caption)|$([System.Environment]::OSVersion.Version.ToString())\"";
+$vfx  = (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects' \
+    -Name VisualFXSetting -ErrorAction SilentlyContinue).VisualFXSetting;\
+$nti  = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile' \
+    -Name NetworkThrottlingIndex -ErrorAction SilentlyContinue).NetworkThrottlingIndex;\
+$hws  = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers' \
+    -Name HwSchMode -ErrorAction SilentlyContinue).HwSchMode;\
+$msd  = (Get-ItemProperty 'HKCU:\\Control Panel\\Desktop' -Name MenuShowDelay -ErrorAction SilentlyContinue).MenuShowDelay;\
+$hpet = ((bcdedit /enum) -join ' ') -match 'useplatformclock\\s+Yes';\
+$dvr  = (Get-ItemProperty 'HKCU:\\System\\GameConfigStore' -Name GameDVR_Enabled -ErrorAction SilentlyContinue).GameDVR_Enabled;\
+$sysm = (Get-Service -Name SysMain -ErrorAction SilentlyContinue).Status;\
+$telm = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection' \
+    -Name AllowTelemetry -ErrorAction SilentlyContinue).AllowTelemetry;\
+\"$($cpu.Name)|$nagle|$disk|$audio|$lp|$($cpu.MaxClockSpeed)|$($cpu.CurrentClockSpeed)|$($cpu.LoadPercentage)|$($gpu.Name)|$($os.Caption)|$([System.Environment]::OSVersion.Version.ToString())|$vfx|$nti|$hws|$msd|$hpet|$dvr|$sysm|$telm\"";
 
-    use std::process::Stdio;
-    use std::time::Duration;
-
-    let child = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", ps_script])
-        .creation_flags(CREATE_NO_WINDOW)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn();
-
-    let raw_out = match child {
-        Err(_) => String::new(),
-        Ok(mut c) => {
-            let (tx, rx) = std::sync::mpsc::channel::<std::io::Result<std::process::Output>>();
-            std::thread::spawn(move || { let _ = tx.send(c.wait_with_output()); });
-            match rx.recv_timeout(Duration::from_secs(10)) {
-                Ok(Ok(out)) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
-                _ => String::new(),
-            }
-        }
-    };
-
-    let line = raw_out;
+    let line = crate::winutil::run_powershell(ps_script, std::time::Duration::from_secs(10))
+        .unwrap_or_default();
     // La salida puede tener múltiples líneas si PS imprime advertencias antes del resultado.
     // Tomamos la última línea no vacía que contenga '|'.
     let line = line.lines()
@@ -453,7 +520,31 @@ $audio = (Get-Service -Name AudioSrv -ErrorAction SilentlyContinue).Status;\
     let distro_version = get(9).to_string();
     let kernel_version = get(10).to_string();
 
-    let cpu_temp_celsius = 0.0_f32; // temperatura no disponible (query WMI cuelga en hardware de consumo)
+    let cpu_temp_celsius = read_cpu_temp_windows();
+
+    // VisualFXSetting: 2 = mejor rendimiento, 1 = mejor apariencia, 0 = dejar que Windows decida, ausente = sin tocar (custom)
+    let visual_effects = match get(11) {
+        "2" => "performance".to_string(),
+        ""  => "default".to_string(),
+        _   => "appearance".to_string(),
+    };
+    // NetworkThrottlingIndex: 0xffffffff (4294967295) = sin límite, 10 (0xa) = valor por defecto de Windows
+    let nti_raw = get(12);
+    let network_throttling = if nti_raw == "4294967295" || nti_raw.to_lowercase() == "0xffffffff" {
+        "unlimited".to_string()
+    } else {
+        "default".to_string()
+    };
+    // HwSchMode: 2 = GPU scheduling acelerado por hardware activado, 1/ausente = desactivado
+    let gpu_hw_scheduling = if get(13) == "2" { "on".to_string() } else { "off".to_string() };
+    let menu_show_delay = get(14).parse::<u32>().unwrap_or(400);
+    // bcdedit devuelve "True"/"False" en texto cuando se usa -match en PowerShell
+    let hpet_disabled = get(15).eq_ignore_ascii_case("false") || get(15).is_empty();
+    let gamedvr_enabled = get(16) != "0"; // ausente o 1 = activado (valor por defecto de Windows)
+    let sysmain_running = get(17).contains("Running");
+    // AllowTelemetry ausente (sin política configurada) = 255 (centinela "sin gestionar",
+    // no inventamos qué valor por defecto usaría esa instalación de Windows en concreto)
+    let telemetry_level = get(18).parse::<u32>().unwrap_or(255);
 
     Ok(SystemScan {
         cpu_governor, cpu_cores,
@@ -461,9 +552,12 @@ $audio = (Get-Service -Name AudioSrv -ErrorAction SilentlyContinue).Status;\
         disk_scheduler, audio_server, hugepages,
         numa_balancing: "0".to_string(),
         mem_total_mb, mem_available_mb, load_avg, nvme_queue_depth,
-        irqbalance_active: false,
+        irqbalance_active: ac_power_connected_native(),
         cpu_min_freq_mhz: current_mhz, cpu_max_freq_mhz: max_mhz,
         cpu_model, gpu_model,
         distro_id: "windows".to_string(), distro_version, kernel_version, cpu_temp_celsius,
+        visual_effects, network_throttling, gpu_hw_scheduling, menu_show_delay,
+        hpet_disabled, gamedvr_enabled, sysmain_running, telemetry_level,
+        boot_time_seconds: 0.0, slowest_boot_service: "n/a".to_string(),
     })
 }
