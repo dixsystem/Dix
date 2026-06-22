@@ -122,13 +122,21 @@ activo" cuando:
       decisión escrita — ver sección arriba (2026-06-22).
 - [x] Tarea #19 (privacidad de telemetría de apps en uso) tiene una decisión
       escrita — ver sección arriba (2026-06-22).
-- [ ] El esqueleto de solo lectura (ver `dixkontrol.rs`) lleva al menos una
-      sesión de prueba real sin incidentes. `read_foreground_context` ya
-      tiene implementación real para X11 (vía `xprop`, sin escritura) desde
-      2026-06-22; sigue pendiente una sesión de prueba real del usuario.
+- [x] El esqueleto de solo lectura lleva una prueba real sin incidentes —
+      `read_foreground_context` (X11 vía `xprop`) y el nivel **Moderado**
+      completo (sesión `pkexec` persistente, aplicar `vm.swappiness`,
+      verificar, revertir) se ejecutaron contra el sistema real de Alonso
+      el 2026-06-22: 1→10→1, journal y rollback reales, sin incidentes. Ver
+      `dixkontrol.rs::tests::moderate_real_roundtrip_swappiness`.
 
-El nivel **Moderado** y **Avanzado** descritos arriba siguen sin
-implementar: este documento solo desbloquea EMPEZAR a programarlos, no los
-da por terminados. Hasta que el último punto del checklist se marque,
-cualquier código de DixKontrol debe limitarse a observar, nunca a modificar
-el sistema.
+**Nivel Moderado: implementado y probado en backend** (sesión pkexec
+persistente + catálogo limitado a operaciones reversibles + rollback
+automático — ver `dixkontrol.rs`). Falta todavía: UI de frontend para
+activar/aplicar/desactivar Moderado (no existe, solo hay comandos Tauri sin
+interfaz), y uso sostenido en una sesión real de uso diario (la prueba hecha
+es un roundtrip puntual, no horas de daemon corriendo con cambios de
+contexto reales).
+
+El nivel **Avanzado** (confirmación por cambio concreto dentro de la UI)
+sigue sin implementar — sigue bloqueado hasta que el Moderado tenga uso real
+sostenido y, si aplica, ajustes derivados de ese uso.
