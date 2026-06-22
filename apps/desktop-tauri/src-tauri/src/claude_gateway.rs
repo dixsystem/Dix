@@ -44,6 +44,10 @@ struct Msg {
 }
 
 pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, String> {
+    // Circuit breaker: si un bug de estado en el frontend entra en bucle,
+    // esto corta la llamada de red antes de gastar ni un token de la API.
+    crate::ai_budget::check_and_increment()?;
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(120))         // proxy hace hasta 3 reintentos × ~30s
         .connect_timeout(Duration::from_secs(15))  // fallo rápido si no hay red

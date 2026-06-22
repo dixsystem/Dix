@@ -3,6 +3,8 @@
 
 use serde::Serialize;
 use crate::scanner::SystemScan;
+use crate::policy;
+use std::collections::HashMap;
 
 const ATLAS_URL: &str = "https://dix-proxy.dixsystem.workers.dev/atlas";
 const DIX_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -56,6 +58,17 @@ pub fn report(
         optimizaciones,
     };
 
+    // Validación de privacidad ANTES de cualquier llamada de red.
+    // Si el payload no cumple la whitelist de policy.rs, se aborta el envío.
+    let field_map: HashMap<String, String> = serde_json::to_value(&payload)
+        .ok()
+        .and_then(|v| v.as_object().cloned())
+        .map(|obj| obj.into_iter().map(|(k, v)| (k, v.to_string())).collect())
+        .unwrap_or_default();
+    if !policy::atlas_payload_is_safe(&field_map) {
+        return;
+    }
+
     // Spawn en un thread separado — nunca bloquea el hilo principal de Tauri
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -80,7 +93,7 @@ pub fn report(
     });
 }
 
-fn current_date() -> String {
+pub fn current_date() -> String {
     // Fecha actual en formato ISO sin depender de chrono
     // Usamos /proc/driver/rtc o simplemente SystemTime
     use std::time::{SystemTime, UNIX_EPOCH};

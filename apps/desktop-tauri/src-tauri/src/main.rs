@@ -14,6 +14,11 @@ mod atlas;
 mod benchmark;
 mod state;
 mod startup;
+mod command_engine;
+mod journal;
+mod safe_mode;
+mod ai_budget;
+mod dixkontrol;
 #[cfg(target_os = "windows")]
 mod winutil;
 
@@ -221,17 +226,16 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
         profile_hint(profile_str)
     );
 
+    // En Windows seguimos pidiendo el script a la IA (riesgo ya cubierto por
+    // validate_script_windows + tarea TOCTOU dedicada). En Linux, a partir de
+    // aquí la IA YA NO escribe bash: solo eligió operaciones de un catálogo
+    // cerrado en `optimizations_json.operacion`, y Rust las valida y renderiza.
     #[cfg(target_os = "windows")]
     let user = format!(
         "Genera el script PowerShell para estas optimizaciones:\n{}\nResumen del sistema:\n{}",
         optimizations_json, scan_json
     );
-    #[cfg(not(target_os = "windows"))]
-    let user = format!(
-        "Genera el script bash para estas optimizaciones:\n{}\nResumen del sistema:\n{}",
-        optimizations_json, scan_json
-    );
-
+    #[cfg(target_os = "windows")]
     let ai_script = claude_gateway::call(&system, &user, 2000).await?;
 
     // Defensa adicional además de la regla 8 del prompt: el catálogo
@@ -250,6 +254,23 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
         .collect::<Vec<_>>()
         .join("\n");
 
+    // En Linux: extraer el campo "operacion" de cada optimización marcada
+    // "aplicar": true, deserializarlo a DixOperation y validar contra el
+    // catálogo cerrado. Las operaciones inválidas o desconocidas se
+    // descartan — nunca se ejecuta texto libre escrito por la IA.
+    #[cfg(not(target_os = "windows"))]
+    let (ai_script, op_warnings): (String, Vec<String>) = {
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(&optimizations_json)
+            .map_err(|e| format!("optimizations_json inválido: {}", e))?;
+        let ops: Vec<command_engine::DixOperation> = parsed
+            .iter()
+            .filter(|o| o["aplicar"].as_bool().unwrap_or(false))
+            .filter_map(|o| o.get("operacion"))
+            .filter_map(|op_val| serde_json::from_value(op_val.clone()).ok())
+            .collect();
+        command_engine::render_all(&ops)
+    };
+
     // En Windows, antepone el catálogo determinista de mejoras reales (no
     // depende de lo que la IA escriba ese día) y luego añade lo que sugiera
     // la IA encima. Garantiza una mejora real y medible en cada "Aplicar".
@@ -263,8 +284,9 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
         lines.push(ai_script);
         lines.join("\n")
     };
-    // En Linux, mismo principio que en Windows: antepone el catálogo
-    // determinista de mejoras reales y verificadas antes de lo que sugiera la IA.
+    // En Linux, mismo principio: catálogo determinista primero, y luego solo
+    // las operaciones de IA que pasaron la validación del motor de comandos
+    // estructurados (command_engine), nunca bash libre.
     #[cfg(not(target_os = "windows"))]
     let script = {
         let mut lines = vec![
@@ -272,12 +294,21 @@ async fn generate_script(optimizations_json: String, scan_json: String, profile:
             "echo '[Dix] Aplicando mejoras base verificadas...'".to_string(),
         ];
         lines.extend(executor::deterministic_tweaks_linux(&scan));
+        if !op_warnings.is_empty() {
+            lines.push(format!(
+                "echo '[Dix] {} operación(es) descartadas por política: {}'",
+                op_warnings.len(),
+                op_warnings.join("; ").replace('\'', "'\\''")
+            ));
+        }
         lines.push(ai_script);
         lines.join("\n")
     };
 
-    // Validación de seguridad: Linux ya la tenía, Windows no tenía ninguna
-    // (cualquier cosa que la IA escribiera se ejecutaba sin revisar).
+    // Validación de seguridad: capa adicional de defensa en profundidad.
+    // En Linux el script ya solo contiene líneas renderizadas por
+    // command_engine (nunca texto libre de la IA), pero esta segunda
+    // comprobación se mantiene por si el catálogo determinista cambiara.
     #[cfg(not(target_os = "windows"))]
     let violations = policy::validate_script(&script);
     #[cfg(target_os = "windows")]
@@ -449,6 +480,11 @@ fn get_cache_stats() -> cache::CacheStats {
     cache::get_stats(&cache::load_cache())
 }
 
+#[tauri::command]
+fn run_doctor() -> journal::DoctorReport {
+    journal::run_doctor()
+}
+
 // ─── Hardware Fingerprint + Sistema de licencias (Semana 1) ──────────────────
 
 #[tauri::command]
@@ -559,7 +595,7 @@ fn get_live_metrics_windows() -> LiveMetrics {
     let get = |i: usize| parts.get(i).unwrap_or(&"0");
 
     let metrics = LiveMetrics {
-        governor:         get(0).to_string().replace("0", "balanced"),
+        governor:         if *get(0) == "0" { "balanced".to_string() } else { get(0).to_string() },
         swappiness:       0,
         dirty_ratio:      0,
         dirty_bg:         0,
@@ -954,7 +990,16 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
       "riesgo": "bajo|medio|alto",
       "mejora_estimada": "string",
       "aplicar": true,
-      "comando_preview": "string con /sbin/sysctl si aplica",
+      "comando_preview": "string con /sbin/sysctl si aplica (solo texto informativo para el usuario)",
+      "operacion": {
+        "tipo": "set_sysctl|set_disk_scheduler|set_hugepages|set_numa_balancing|set_nr_requests|enable_service|disable_service",
+        "clave": "ej. vm.swappiness (solo para set_sysctl)",
+        "valor": "ej. 10 (solo para set_sysctl/set_nr_requests)",
+        "scheduler": "mq-deadline|kyber|bfq|none (solo para set_disk_scheduler)",
+        "modo": "always|madvise (solo para set_hugepages, nunca never)",
+        "activo": true,
+        "nombre": "irqbalance|fstrim.timer (solo para enable_service/disable_service)"
+      },
       "tiempo_estimado": "string"
     }
   ]
@@ -976,6 +1021,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
         - Load avg (1/5/15min): {}\n\
         - NVMe nr_requests: {}\n\
         - IRQbalance activo: {}\n\
+        - En batería (no conectado a AC): {}\n\
         - CPU freq: {}-{} MHz\n\
         - CPU temperatura: {:.1}°C\n\n\
         {hardware_line}\n\n\
@@ -999,6 +1045,7 @@ fn build_analysis_prompt_linux(scan: &SystemScan, bench: Option<&benchmark::Benc
         scan.load_avg,
         scan.nvme_queue_depth,
         scan.irqbalance_active,
+        scan.on_battery,
         scan.cpu_min_freq_mhz, scan.cpu_max_freq_mhz,
         scan.cpu_temp_celsius,
         schema,
@@ -1188,6 +1235,7 @@ fn main() {
             list_rollbacks,
             execute_rollback,
             get_cache_stats,
+            run_doctor,
             get_hw_fingerprint,
             get_license_status,
             get_demo_count,
@@ -1227,7 +1275,7 @@ mod tests_win {
             numa_balancing: "0".to_string(),
             mem_total_mb: 16384, mem_available_mb: 6144,
             load_avg: "45 45 45".to_string(), nvme_queue_depth: "32".to_string(),
-            irqbalance_active: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 4800,
+            irqbalance_active: false, on_battery: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 4800,
             cpu_model: "Intel(R) Core(TM) i7-12700H @ 2.30GHz".to_string(),
             gpu_model: "NVIDIA GeForce RTX 3060 Laptop GPU".to_string(),
             distro_id: "windows".to_string(),
@@ -1249,7 +1297,7 @@ mod tests_win {
             numa_balancing: "0".to_string(),
             mem_total_mb: 8192, mem_available_mb: 2048,
             load_avg: "80 80 80".to_string(), nvme_queue_depth: "64".to_string(),
-            irqbalance_active: false, cpu_min_freq_mhz: 400, cpu_max_freq_mhz: 2400,
+            irqbalance_active: false, on_battery: false, cpu_min_freq_mhz: 400, cpu_max_freq_mhz: 2400,
             cpu_model: "Intel(R) Core(TM) i5-8250U @ 1.60GHz".to_string(),
             gpu_model: "Intel(R) UHD Graphics 620".to_string(),
             distro_id: "windows".to_string(),
@@ -1271,7 +1319,7 @@ mod tests_win {
             numa_balancing: "0".to_string(),
             mem_total_mb: 65536, mem_available_mb: 40960,
             load_avg: "20 20 20".to_string(), nvme_queue_depth: "32".to_string(),
-            irqbalance_active: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 5600,
+            irqbalance_active: false, on_battery: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 5600,
             cpu_model: "AMD Ryzen 9 7950X 16-Core Processor".to_string(),
             gpu_model: "NVIDIA GeForce RTX 4090".to_string(),
             distro_id: "windows".to_string(),

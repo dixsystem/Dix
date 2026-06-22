@@ -5,878 +5,22 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import dixIdle from "./assets/dix-idle.png";
 import logoDs  from "./assets/logo-dixsystem.png";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
-interface SystemScan {
-  cpu_governor: string; cpu_cores: number; swappiness: number;
-  dirty_ratio: number; dirty_background_ratio: number; disk_scheduler: string;
-  audio_server: string; hugepages: string; numa_balancing: string;
-  mem_total_mb: number; mem_available_mb: number; load_avg: string;
-  nvme_queue_depth: string; irqbalance_active: boolean;
-  cpu_min_freq_mhz: number; cpu_max_freq_mhz: number;
-  cpu_model: string; gpu_model: string; distro_id: string;
-  distro_version: string; kernel_version: string;
-  cpu_temp_celsius: number;
-}
-interface Optimization {
-  id: string; categoria: string; titulo: string; descripcion: string;
-  impacto: number; riesgo: string; mejora_estimada: string;
-  aplicar: boolean; comando_preview: string; tiempo_estimado: string;
-}
-interface AnalysisResult {
-  analisis: string; score_actual: number; score_optimizado: number;
-  optimizaciones: Optimization[];
-}
-interface AnalysisResponse {
-  analysis_json: string; from_cache: boolean; response_time_ms: number;
-}
-interface Session {
-  id: string; timestamp: string; score_before: number;
-  score_after: number; optimizations_applied: string[]; scan_summary: string;
-}
-interface RollbackInfo { filename: string; timestamp: number; date_human: string; }
-interface StartupItem {
-  id: string; name: string; command: string; location: string;
-  trust: "Orphan" | "Safe" | "Review" | "NeverTouch";
-  enabled: boolean; exists_on_disk: boolean;
-}
-
-type View = "init" | "idle" | "scanning" | "results" | "applying" | "done" | "activate";
-
-interface LiveMetrics {
-  governor: string; swappiness: number; dirty_ratio: number; dirty_bg: number;
-  hugepages: string; mem_free_mb: number; mem_total_mb: number;
-  load_1: number; load_5: number; nr_requests: number;
-  cpu_freq_mhz: number; cpu_max_mhz: number;
-  cpu_temp_celsius: number; cpu_avg_freq_mhz: number; cpu_cores: number;
-}
-
-interface BenchmarkResult {
-  cpu_events_per_sec: number;
-  ram_mb_per_sec: number;
-  disk_iops: number;
-  measured: boolean;
-  missing_tools: string[];
-}
-
-interface LostOpt {
-  key: string;
-  label: string;
-  expected: string;
-  current: string;
-}
-
-type Profile = "gaming" | "streaming" | "dev" | "server" | "balanced";
-const PROFILES: { id: Profile; icon: string; label: string; hint: string }[] = [
-  { id: "gaming",    icon: "🎮", label: "Gaming",     hint: "FPS máximos, latencia mínima" },
-  { id: "streaming", icon: "📡", label: "Streaming",  hint: "Red estable, encoding sin drops" },
-  { id: "dev",       icon: "💻", label: "Desarrollo", hint: "Compilación rápida, I/O rápido" },
-  { id: "server",    icon: "🖥️", label: "Servidor",   hint: "Throughput máximo, uptime" },
-  { id: "balanced",  icon: "⚖️", label: "Equilibrado","hint": "Balance general" },
-];
-
-// ─── Constantes de color ──────────────────────────────────────────────────────
-
-const C = {
-  bg:       "#0d1117",
-  card:     "#161b22",
-  border:   "#21262d",
-  text:     "#e6edf3",
-  muted:    "#8b949e",
-  orange:   "#FF6B00",
-  orangeD:  "#cc5500",
-  green:    "#00FF88",
-  red:      "#f85149",
-  yellow:   "#FFD700",
-};
-
-const CAT: Record<string, { bg: string; color: string }> = {
-  CPU:     { bg: "#1a1040", color: "#a78bfa" },
-  RAM:     { bg: "#0d1f3c", color: "#60a5fa" },
-  Storage: { bg: "#1f1208", color: "#fb923c" },
-  Red:     { bg: "#1f0e1a", color: "#f472b6" },
-  Sistema: { bg: "#111827", color: "#94a3b8" },
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function safeParseJSON<T>(text: string): T {
-  try { return JSON.parse(text) as T; } catch { /**/ }
-  const m = text.match(/\{[\s\S]*\}/);
-  if (m) { try { return JSON.parse(m[0]) as T; } catch { /**/ } }
-  throw new Error(`No se pudo parsear: ${text.slice(0, 200)}`);
-}
-
-function scoreColor(s: number) {
-  return s >= 80 ? C.green : s >= 55 ? C.yellow : C.red;
-}
-
-// ─── Generador de imagen para compartir ──────────────────────────────────────
-
-async function generateShareCard(
-  scoreBefore: number,
-  scoreAfter: number,
-  cpuModel: string,
-  memTotalMb: number,
-  distro: string,
-  distroVersion: string,
-  dixImgSrc: string,
-): Promise<string> {
-  const isWin = distro === "windows";
-  const W = 1200, H = 630;
-  const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-
-  // Cargar imagen de DIX en paralelo con el dibujado
-  const dixImg = await new Promise<HTMLImageElement | null>((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = dixImgSrc;
-  });
-
-  // Fondo
-  ctx.fillStyle = "#0d1117";
-  ctx.fillRect(0, 0, W, H);
-
-  // Borde exterior naranja
-  ctx.strokeStyle = "#FF6B00";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(2, 2, W - 4, H - 4);
-
-  // Línea decorativa superior
-  const grad = ctx.createLinearGradient(0, 0, W, 0);
-  grad.addColorStop(0, "transparent");
-  grad.addColorStop(0.3, "#FF6B00");
-  grad.addColorStop(0.7, "#FF6B00");
-  grad.addColorStop(1, "transparent");
-  ctx.strokeStyle = grad;
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(W, 5); ctx.stroke();
-
-  // Logo DIX — texto
-  ctx.fillStyle = "#FF6B00";
-  ctx.font = "bold 52px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText("DIX", 60, 80);
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "18px 'Inter', system-ui, sans-serif";
-  ctx.fillText(isWin ? "Windows AI Optimizer" : "Linux Kernel Optimizer", 148, 73);
-
-  // URL derecha
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "16px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "right";
-  ctx.fillText("dixsystem.com", W - 60, 73);
-
-  // Separador horizontal
-  ctx.strokeStyle = "#21262d";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(60, 100); ctx.lineTo(W - 60, 100); ctx.stroke();
-
-  // Título central
-  ctx.fillStyle = "#e6edf3";
-  ctx.font = "bold 34px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(isWin ? "My Windows performance score" : "My Linux performance score", W / 2, 158);
-
-  // ── Score ANTES ────────────────────────────────────────────────────────────
-  const cx1 = 260, cy = 355, radius = 115, strokeW = 17;
-  const colorBefore = scoreColor(scoreBefore);
-  const colorAfter  = scoreColor(scoreAfter);
-
-  ctx.strokeStyle = "#21262d";
-  ctx.lineWidth = strokeW;
-  ctx.beginPath();
-  ctx.arc(cx1, cy, radius, -Math.PI / 2, Math.PI * 1.5);
-  ctx.stroke();
-  ctx.strokeStyle = colorBefore;
-  ctx.lineWidth = strokeW;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(cx1, cy, radius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * scoreBefore) / 100);
-  ctx.stroke();
-  ctx.fillStyle = colorBefore;
-  ctx.font = "bold 70px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(String(scoreBefore), cx1, cy + 22);
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "20px 'Inter', system-ui, sans-serif";
-  ctx.fillText("/100", cx1, cy + 50);
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
-  ctx.fillText("BEFORE", cx1, cy + radius + 32);
-
-  // ── Imagen DIX en el centro ────────────────────────────────────────────────
-  if (dixImg) {
-    const imgSize = 170;
-    const imgX = W / 2 - imgSize / 2;
-    const imgY = cy - imgSize / 2 - 10;
-    // Halo naranja suave detrás de DIX
-    const halo = ctx.createRadialGradient(W / 2, cy, 0, W / 2, cy, imgSize * 0.7);
-    halo.addColorStop(0, "rgba(255,107,0,0.18)");
-    halo.addColorStop(1, "transparent");
-    ctx.fillStyle = halo;
-    ctx.fillRect(imgX - 20, imgY - 20, imgSize + 40, imgSize + 40);
-    ctx.drawImage(dixImg, imgX, imgY, imgSize, imgSize);
-  }
-
-  // Delta encima de DIX
-  const delta = scoreAfter - scoreBefore;
-  if (delta > 0) {
-    ctx.fillStyle = "#00FF88";
-    ctx.font = "bold 28px 'Inter', system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(`+${delta} pts`, W / 2, cy + radius + 32);
-  }
-
-  // Flechas a cada lado de DIX
-  const arrowY = cy;
-  // Flecha izquierda (desde ring antes hasta DIX)
-  ctx.strokeStyle = "#FF6B00";
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-  ctx.beginPath(); ctx.moveTo(cx1 + radius + 10, arrowY); ctx.lineTo(W / 2 - 95, arrowY); ctx.stroke();
-  // Flecha derecha (desde DIX hasta ring después)
-  const cx2 = W - 260;
-  ctx.beginPath(); ctx.moveTo(W / 2 + 95, arrowY); ctx.lineTo(cx2 - radius - 10, arrowY); ctx.stroke();
-  // Punta de flecha derecha
-  ctx.fillStyle = "#FF6B00";
-  ctx.beginPath();
-  ctx.moveTo(cx2 - radius - 10, arrowY);
-  ctx.lineTo(cx2 - radius - 28, arrowY - 11);
-  ctx.lineTo(cx2 - radius - 28, arrowY + 11);
-  ctx.closePath(); ctx.fill();
-
-  // ── Score DESPUÉS ──────────────────────────────────────────────────────────
-  ctx.strokeStyle = "#21262d";
-  ctx.lineWidth = strokeW;
-  ctx.beginPath();
-  ctx.arc(cx2, cy, radius, -Math.PI / 2, Math.PI * 1.5);
-  ctx.stroke();
-  ctx.strokeStyle = colorAfter;
-  ctx.lineWidth = strokeW;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(cx2, cy, radius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * scoreAfter) / 100);
-  ctx.stroke();
-  ctx.fillStyle = colorAfter;
-  ctx.font = "bold 70px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(String(scoreAfter), cx2, cy + 22);
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "20px 'Inter', system-ui, sans-serif";
-  ctx.fillText("/100", cx2, cy + 50);
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
-  ctx.fillText("AFTER", cx2, cy + radius + 32);
-
-  // Separador inferior
-  ctx.strokeStyle = "#21262d";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(60, H - 105); ctx.lineTo(W - 60, H - 105); ctx.stroke();
-
-  // Hardware info
-  const ramGb = Math.round((memTotalMb + 512) / 1024);
-  const cpuShort = cpuModel.replace(/\(R\)|\(TM\)|CPU\s+@.*/gi, "").trim().slice(0, 42);
-  const hwLine = `${cpuShort}  ·  ${ramGb} GB RAM  ·  ${distro} ${distroVersion}`.trim();
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "16px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(hwLine, W / 2, H - 72);
-
-  // Hashtags
-  ctx.fillStyle = "#FF6B00";
-  ctx.font = "bold 19px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(isWin ? "#DIXScore  ·  #Windows  ·  dixsystem.com" : "#DIXScore  ·  #Linux  ·  dixsystem.com", W / 2, H - 38);
-
-  return canvas.toDataURL("image/png");
-}
-
-// Descarga una data URL como archivo en Tauri (blob URL evita que el WebView la intercepte)
-function downloadDataUrl(dataUrl: string, filename: string) {
-  fetch(dataUrl)
-    .then((r) => r.blob())
-    .then((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-    });
-}
-
-// Techo físico de hardware — incluso con ajustes perfectos no se puede superar
-function hardwareCeiling(scan: SystemScan): number {
-  const model = (scan.cpu_model ?? "").toLowerCase();
-  const freq   = scan.cpu_max_freq_mhz  ?? 0;
-  const ram    = scan.mem_total_mb      ?? 0;
-  const cores  = scan.cpu_cores         ?? 1;
-
-  let ceiling = 95;
-
-  // Clase de CPU (línea de producto)
-  if (model.includes("celeron") || model.includes("pentium") || model.includes("atom"))
-    ceiling -= 12;
-  else if (model.includes("i3") || model.includes("ryzen 3") || /\ba[46]-/.test(model))
-    ceiling -= 8;
-  else if (model.includes("i5") || model.includes("ryzen 5"))
-    ceiling -= 3;
-  // i7/i9/Ryzen 7/9/Xeon/EPYC → sin penalización de clase
-
-  // Frecuencia boost máxima
-  if      (freq < 2500) ceiling -= 7;
-  else if (freq < 3200) ceiling -= 4;
-  else if (freq < 3800) ceiling -= 2;
-
-  // RAM instalada
-  if      (ram < 4096)  ceiling -= 8;
-  else if (ram < 8192)  ceiling -= 5;
-  else if (ram < 16384) ceiling -= 2;
-
-  // Hilos lógicos disponibles
-  if      (cores < 4) ceiling -= 5;
-  else if (cores < 8) ceiling -= 2;
-
-  return Math.max(70, Math.min(95, ceiling));
-}
-
-// Score determinista basado en métricas reales — evita inconsistencias entre sesiones
-function computeScore(scan: SystemScan): number {
-  const ceiling = hardwareCeiling(scan);
-  let score = ceiling;
-  const isWin = scan.distro_id === "windows";
-
-  if (isWin) {
-    // Plan de energía (cpu_governor en Windows)
-    if (scan.cpu_governor === "balanced") score -= 8;
-    else if (scan.cpu_governor === "powersave") score -= 15;
-    // irqbalance_active en Windows = estado AC (false = batería)
-    if (!scan.irqbalance_active) score -= 5;
-    // TCP Nagle: dirty_ratio==20 → Nagle activo (peor latencia gaming/streaming)
-    if (scan.dirty_ratio === 20) score -= 5;
-    // Large Pages no habilitadas
-    if (scan.hugepages !== "always") score -= 5;
-  } else {
-    if (scan.cpu_governor !== "performance" && scan.cpu_governor !== "schedutil")
-      score -= scan.cpu_governor === "ondemand" ? 8 : 15;
-    if (scan.swappiness > 60)        score -= 12;
-    else if (scan.swappiness > 40)   score -= 8;
-    else if (scan.swappiness > 20)   score -= 4;
-    if (scan.dirty_ratio > 30)       score -= 10;
-    else if (scan.dirty_ratio > 20)  score -= 6;
-    else if (scan.dirty_ratio > 15)  score -= 3;
-    if (scan.hugepages === "always") score -= 10;
-    else if (scan.hugepages === "never") score -= 3;
-    if (!scan.irqbalance_active)     score -= 5;
-    if (scan.numa_balancing === "1") score -= 3;
-    const sched = scan.disk_scheduler;
-    if (sched && sched !== "none" && sched !== "kyber" && sched !== "mq-deadline" && sched !== "bfq") score -= 5;
-  }
-
-  if (scan.cpu_temp_celsius > 85)      score -= 10;
-  else if (scan.cpu_temp_celsius > 75) score -= 5;
-  return Math.max(30, Math.min(ceiling, score));
-}
-
-// Parámetros kernel 25% del score — la semántica de los campos cambia según
-// el SO (en Windows, dirty_ratio/numa_balancing se reutilizan como proxies de
-// Nagle/estado AC, no son lo que dicen sus nombres). Extraído como función
-// propia para poder usarlo también al proyectar el "objetivo" antes de
-// aplicar — así la proyección sale del mismo margen real medible que luego
-// usa el "verificado", en vez de la promesa libre de la IA.
-const KERNEL_SCORE_MAX = 25;
-function kernelScoreFromScan(scan: SystemScan): number {
-  let kernelScore = 0;
-  const gov = scan.cpu_governor;
-  const isWinBench = scan.distro_id === "windows";
-  if (isWinBench) {
-    // numa_balancing e irqbalance_active están hardcodeados en el scanner de
-    // Windows (no reflejan nada real ahí) — solo se usan las señales que sí
-    // varían de verdad: plan de energía, Nagle (proxy en dirty_ratio) y
-    // Large Pages (proxy en hugepages).
-    if (gov === "high-performance" || gov === "ultimate-performance") kernelScore += 13;
-    else if (gov === "balanced") kernelScore += 5;
-    if (scan.dirty_ratio !== 20) kernelScore += 7; // Nagle desactivado
-    if (scan.hugepages === "always") kernelScore += 5; // Large Pages habilitadas
-  } else {
-    if (gov === "performance" || gov === "schedutil") kernelScore += 8;
-    else if (gov === "ondemand") kernelScore += 5;
-    if (scan.swappiness <= 20) kernelScore += 5;
-    else if (scan.swappiness <= 40) kernelScore += 3;
-    if (scan.hugepages !== "never") kernelScore += 5;
-    if (scan.numa_balancing !== "0") kernelScore += 3;
-    if (scan.dirty_ratio <= 15) kernelScore += 4;
-  }
-  return kernelScore;
-}
-
-// Score calculado desde benchmarks reales (componentes ponderados)
-function computeScoreFromBenchmarks(scan: SystemScan, bench: BenchmarkResult): number {
-  if (!bench.measured || (bench.cpu_events_per_sec === 0 && bench.ram_mb_per_sec === 0 && bench.disk_iops === 0)) {
-    return computeScore(scan);
-  }
-  const ceiling = hardwareCeiling(scan);
-
-  // CPU 30% — baseline ~750 eventos/s por core a rendimiento normal
-  const cpuMax = scan.cpu_cores * 750;
-  const cpuScore = Math.min(bench.cpu_events_per_sec / cpuMax, 1.0) * 30;
-
-  // RAM 20% — DDR4-3200 práctico ~22 GB/s
-  const ramScore = Math.min(bench.ram_mb_per_sec / 22000, 1.0) * 20;
-
-  // Disco 25% — NVMe Gen3 bueno ~280K IOPS
-  const diskScore = Math.min(bench.disk_iops / 280000, 1.0) * 25;
-
-  const kernelScore = kernelScoreFromScan(scan);
-
-  const total = cpuScore + ramScore + diskScore + kernelScore;
-  return Math.max(30, Math.min(ceiling, Math.round(total)));
-}
-
-// run_benchmarks_partial solo re-mide las categorías afectadas; las demás
-// vuelven a 0 en la respuesta. Sin esto, fusionar el resultado a pelo
-// "borraría" los números reales de las categorías no tocadas.
-function mergeBenchmarks(old: BenchmarkResult | null, fresh: BenchmarkResult, affectedCats: string[]): BenchmarkResult {
-  const base: BenchmarkResult = old ?? { cpu_events_per_sec: 0, ram_mb_per_sec: 0, disk_iops: 0, measured: false, missing_tools: [] };
-  return {
-    cpu_events_per_sec: affectedCats.includes("CPU")     ? fresh.cpu_events_per_sec : base.cpu_events_per_sec,
-    ram_mb_per_sec:     affectedCats.includes("RAM")      ? fresh.ram_mb_per_sec     : base.ram_mb_per_sec,
-    disk_iops:          affectedCats.includes("Storage")  ? fresh.disk_iops          : base.disk_iops,
-    measured: fresh.measured || base.measured,
-    missing_tools: fresh.missing_tools.length > 0 ? fresh.missing_tools : base.missing_tools,
-  };
-}
-
-function fmtDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleString("es", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-    });
-  } catch { return iso; }
-}
-
-// ─── Score Ring SVG ───────────────────────────────────────────────────────────
-
-function ScoreRing({ score, label, size = 110 }: { score: number; label: string; size?: number }) {
-  const strokeW = size * 0.06;
-  const r = (size - strokeW) / 2 - 2;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.min(Math.max(score, 0), 100) / 100;
-  const color = scoreColor(score);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <div style={{ position: "relative", width: size, height: size }}>
-        <svg width={size} height={size} style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.border} strokeWidth={strokeW} />
-          <circle
-            cx={size/2} cy={size/2} r={r} fill="none"
-            stroke={color} strokeWidth={strokeW}
-            strokeDasharray={`${circ * pct} ${circ * (1 - pct)}`}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          gap: 1,
-        }}>
-          <span style={{ fontSize: size * 0.26, fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
-          <span style={{ fontSize: size * 0.11, color: C.muted, lineHeight: 1 }}>/100</span>
-        </div>
-      </div>
-      <div style={{ fontSize: 11, color: C.muted, letterSpacing: "0.3px" }}>{label}</div>
-    </div>
-  );
-}
-
-// ─── Contador estático (sin animación) ───────────────────────────────────────
-
-function AnimatedCounter({ target }: { target: number }) {
-  return <>{target}</>;
-}
-
-// ─── Terminal de métricas en tiempo real ──────────────────────────────────────
-
-function LiveTerminal({
-  scan,
-  revealedCount,
-  analysisText,
-}: {
-  scan: Record<string, unknown> | null;
-  revealedCount: number;
-  analysisText?: string;
-}) {
-  const termRef = useRef<HTMLDivElement>(null);
-  const entries = scan ? Object.entries(scan) : [];
-  const visible = entries.slice(0, revealedCount);
-
-  useEffect(() => {
-    if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
-  }, [revealedCount, analysisText]);
-
-  return (
-    <div
-      ref={termRef}
-      style={{
-        flex: 1,
-        background: "#010409",
-        border: `1px solid ${C.border}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-        fontSize: 11,
-        lineHeight: 1.85,
-        overflowY: "auto",
-        minHeight: 200,
-      }}
-    >
-      <div style={{ color: C.muted, marginBottom: 6, fontSize: 10, letterSpacing: "0.5px" }}>
-        ● DIX — ANÁLISIS EN VIVO
-      </div>
-      {visible.map(([k, v]) => (
-        <div key={k} style={{ display: "flex", gap: 6 }}>
-          <span style={{ color: C.orange, minWidth: 130 }}>{k}</span>
-          <span style={{ color: C.green }}>{String(v)}</span>
-        </div>
-      ))}
-      {scan && revealedCount < entries.length && (
-        <div style={{ color: C.muted }}>▋</div>
-      )}
-      {analysisText && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}33` }}>
-          <div style={{ color: C.yellow, fontSize: 10, marginBottom: 4 }}>─ CLAUDE AI ──────────────────</div>
-          <div style={{ color: "#94a3b8", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{analysisText}</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Panel de pasos del proceso ───────────────────────────────────────────────
-
-function StepsPanel({ scanStep }: { scanStep: number }) {
-  const steps = [
-    { step: 1, label: "Leyendo métricas del kernel",       sublabel: "/proc · /sys · pactl" },
-    { step: 2, label: "Midiendo rendimiento del hardware",  sublabel: "sysbench cpu · memory · fio 4K" },
-    { step: 3, label: "Consultando Claude AI",              sublabel: "claude-sonnet-4-6" },
-    { step: 4, label: "Generando script bash",              sublabel: "optimizaciones personalizadas" },
-  ];
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {steps.map(({ step, label, sublabel }) => {
-        const done    = scanStep > step;
-        const active  = scanStep === step;
-        const pending = scanStep < step;
-        return (
-          <div
-            key={step}
-            style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "9px 12px", borderRadius: 8,
-              background: done ? `${C.green}0d` : active ? `${C.orange}12` : `${C.card}`,
-              border: `1px solid ${done ? C.green + "33" : active ? C.orange + "44" : C.border}`,
-              opacity: pending ? 0.45 : 1,
-            }}
-          >
-            <div style={{
-              width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-              background: done ? C.green : active ? C.orange : C.border,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 10, fontWeight: 800, color: done ? "#000" : "#fff",
-            }}>
-              {done ? "✓" : step}
-            </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: done ? C.green : active ? C.text : C.muted }}>{label}</div>
-              <div style={{ fontSize: 10, color: C.muted }}>{sublabel}</div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Panel de progreso del análisis ──────────────────────────────────────────
-
-function AnalysisProgress({
-  scanStep, elapsed, fromCache, responseMs, profile,
-}: {
-  scanStep: number; elapsed: number; fromCache: boolean; responseMs: number; profile: Profile;
-}) {
-  const prof = PROFILES.find(p => p.id === profile)!;
-  const steps = [
-    { step: 1, label: "Leyendo métricas del kernel",       detail: "/proc · /sys · pactl" },
-    { step: 2, label: "Midiendo rendimiento del hardware",  detail: "sysbench cpu · memory · fio 4K (~8s)" },
-    { step: 3, label: "Consultando Claude AI",              detail: "POST api.anthropic.com · claude-sonnet-4-6" },
-    { step: 4, label: "Generando script bash",              detail: "optimizaciones personalizadas" },
-  ];
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "16px 14px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <div style={{ fontSize: 10, color: C.muted, letterSpacing: "1px" }}>● DIX — PROGRESO DEL ANÁLISIS</div>
-        <div style={{ fontSize: 10, background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: 4, padding: "2px 7px", color: C.orange, fontWeight: 700 }}>
-          {prof.icon} {prof.label}
-        </div>
-      </div>
-      {steps.map(({ step, label, detail }) => {
-        const done   = scanStep > step;
-        const active = scanStep === step;
-        // step 2 = benchmarks (~8-10s), step 3 = Claude (~4-8s), resto rápido
-        const pct    = done ? 100
-          : active && step === 2 ? Math.min(90, elapsed * 10)
-          : active && step === 3 ? Math.min(92, elapsed * 3)
-          : active ? Math.min(88, elapsed * 12) : 0;
-        return (
-          <div key={step} style={{
-            padding: "10px 12px", borderRadius: 8,
-            background: done ? `${C.green}0d` : active ? `${C.orange}10` : C.card,
-            border: `1px solid ${done ? C.green + "44" : active ? C.orange + "55" : C.border}`,
-            opacity: scanStep < step ? 0.4 : 1,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                background: done ? C.green : active ? C.orange : C.border,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 10, fontWeight: 800, color: done ? "#000" : "#fff",
-              }}>
-                {done ? "✓" : step}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: done ? C.green : active ? C.text : C.muted }}>
-                  {label}
-                </div>
-                <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace", marginTop: 1 }}>{detail}</div>
-              </div>
-              {(done || active) && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: done ? C.green : C.orange, minWidth: 38, textAlign: "right" }}>
-                  {pct}%
-                </span>
-              )}
-            </div>
-            {(done || active) && (
-              <div style={{ marginTop: 8, height: 3, background: C.border, borderRadius: 2 }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: done ? C.green : C.orange, borderRadius: 2 }} />
-              </div>
-            )}
-          </div>
-        );
-      })}
-      <div style={{ display: "flex", gap: 16, marginTop: 4, fontSize: 11, color: C.muted, fontFamily: "monospace" }}>
-        {elapsed > 0 && <span>⏱ {elapsed}s</span>}
-        {fromCache && <span style={{ color: C.yellow }}>⚡ desde caché</span>}
-        {!fromCache && scanStep >= 2 && <span style={{ color: C.orange }}>📡 api.anthropic.com</span>}
-        {responseMs > 0 && !fromCache && <span>IA: {(responseMs / 1000).toFixed(1)}s</span>}
-      </div>
-    </div>
-  );
-}
-
-// ─── Panel de optimización en vivo — semáforo rojo→amarillo→verde ────────────
-
-interface MetricDef {
-  id: string;
-  label: string;
-  sublabel: string;
-  value: (m: LiveMetrics) => string;
-  pct: (m: LiveMetrics) => number;
-  status: (m: LiveMetrics) => "red" | "yellow" | "green";
-}
-
-const METRIC_DEFS: MetricDef[] = [
-  {
-    id: "governor",
-    label: "Velocidad CPU",
-    sublabel: "governor / plan de energía",
-    value: (m) => {
-      const g = m.governor;
-      if (g === "performance" || g === "high-performance" || g === "ultimate-performance") return "Máximo rendimiento";
-      if (g === "schedutil") return "Adaptativo (bueno)";
-      if (g === "balanced") return "Balanceado";
-      if (g === "powersave") return "Ahorro energético";
-      if (g === "ondemand") return "Bajo demanda";
-      return g;
-    },
-    pct: (m) => {
-      const g = m.governor;
-      if (g === "performance" || g === "high-performance" || g === "ultimate-performance") return 100;
-      if (g === "schedutil" || g === "balanced") return 80;
-      if (g === "ondemand") return 50;
-      return 20;
-    },
-    status: (m) => {
-      const g = m.governor;
-      if (g === "performance" || g === "high-performance" || g === "ultimate-performance" || g === "schedutil") return "green";
-      if (g === "ondemand" || g === "balanced") return "yellow";
-      return "red";
-    },
-  },
-  {
-    id: "freq",
-    label: "Frecuencia del procesador",
-    sublabel: "media de todos los cores en tiempo real",
-    value: (m) => {
-      const isOptimal = m.governor === "performance" || m.governor === "schedutil" || m.governor === "high-performance" || m.governor === "ultimate-performance";
-      const avg = m.cpu_avg_freq_mhz || m.cpu_freq_mhz;
-      if (isOptimal && m.cpu_max_mhz > 0 && avg < m.cpu_max_mhz * 0.35) {
-        return `${avg.toLocaleString()} MHz — reposo, escalará automáticamente`;
-      }
-      return m.cpu_max_mhz > 0
-        ? `${avg.toLocaleString()} MHz de ${m.cpu_max_mhz.toLocaleString()} MHz máx`
-        : `${avg} MHz`;
-    },
-    pct: (m) => {
-      const avg = m.cpu_avg_freq_mhz || m.cpu_freq_mhz;
-      return m.cpu_max_mhz > 0 ? Math.round((avg / m.cpu_max_mhz) * 100) : 50;
-    },
-    status: (m) => {
-      if (m.governor === "performance" || m.governor === "schedutil" || m.governor === "high-performance" || m.governor === "ultimate-performance") return "green";
-      const avg = m.cpu_avg_freq_mhz || m.cpu_freq_mhz;
-      const p = m.cpu_max_mhz > 0 ? avg / m.cpu_max_mhz : 0.5;
-      return p > 0.6 ? "green" : p > 0.3 ? "yellow" : "red";
-    },
-  },
-  {
-    id: "temp",
-    label: "Temperatura CPU",
-    sublabel: "temperatura del paquete del procesador",
-    value: (m) => {
-      if (!m.cpu_temp_celsius || m.cpu_temp_celsius <= 0) return "Sin sensor detectado";
-      const t = m.cpu_temp_celsius;
-      const estado = t < 60 ? "fría" : t < 70 ? "normal" : t < 80 ? "cálida" : t < 90 ? "caliente" : "crítica";
-      return `${t.toFixed(1)}°C — ${estado}`;
-    },
-    pct: (m) => {
-      if (!m.cpu_temp_celsius || m.cpu_temp_celsius <= 0) return 75;
-      return Math.max(0, Math.min(100, Math.round(((100 - m.cpu_temp_celsius) / 70) * 100)));
-    },
-    status: (m) => {
-      if (!m.cpu_temp_celsius || m.cpu_temp_celsius <= 0) return "green";
-      return m.cpu_temp_celsius < 70 ? "green" : m.cpu_temp_celsius < 85 ? "yellow" : "red";
-    },
-  },
-  {
-    id: "swap",
-    label: "Prioridad de la RAM",
-    sublabel: "qué tanto usa el disco como memoria",
-    value: (m) => m.swappiness <= 20 ? `Alta — swap ${m.swappiness}` : m.swappiness <= 40 ? `Media — swap ${m.swappiness}` : `Baja — swap ${m.swappiness}`,
-    pct: (m) => Math.round(100 - m.swappiness),
-    status: (m) => m.swappiness <= 20 ? "green" : m.swappiness <= 40 ? "yellow" : "red",
-  },
-  {
-    id: "dirty",
-    label: "Buffer de escritura en disco",
-    sublabel: "datos pendientes de escribir en disco",
-    value: (m) => m.dirty_ratio <= 15 ? `Óptimo — ${m.dirty_ratio}%` : m.dirty_ratio <= 20 ? `Aceptable — ${m.dirty_ratio}%` : `Alto — ${m.dirty_ratio}%`,
-    pct: (m) => Math.round(Math.max(0, 100 - ((m.dirty_ratio / 30) * 100))),
-    status: (m) => m.dirty_ratio <= 15 ? "green" : m.dirty_ratio <= 20 ? "yellow" : "red",
-  },
-  {
-    id: "nvme",
-    label: "Cola de peticiones del disco",
-    sublabel: "capacidad de respuesta del almacenamiento",
-    value: (m) => m.nr_requests >= 256 ? `Alta — ${m.nr_requests} peticiones` : m.nr_requests >= 64 ? `Media — ${m.nr_requests} peticiones` : `Baja — ${m.nr_requests} peticiones`,
-    pct: (m) => Math.min(100, Math.round((m.nr_requests / 512) * 100)),
-    status: (m) => m.nr_requests >= 256 ? "green" : m.nr_requests >= 64 ? "yellow" : "red",
-  },
-  {
-    id: "hugepages",
-    label: "Gestión de memoria avanzada",
-    sublabel: "páginas de memoria grandes del kernel",
-    value: (m) => m.hugepages === "madvise" ? "Inteligente (madvise)" : m.hugepages === "never" ? "Desactivado (never)" : "Siempre activo — ineficiente",
-    pct: (_m) => _m.hugepages === "madvise" ? 100 : _m.hugepages === "never" ? 60 : 15,
-    status: (m) => m.hugepages === "madvise" ? "green" : m.hugepages === "never" ? "yellow" : "red",
-  },
-];
-
-const STATUS_COLOR = { red: C.red, yellow: C.yellow, green: C.green };
-const STATUS_LABEL = { red: "SIN OPTIMIZAR", yellow: "MEJORANDO", green: "ÓPTIMO" };
-
-function LiveOptimizingPanel({ active }: { active: boolean }) {
-  const [m, setM] = useState<LiveMetrics | null>(null);
-
-  useEffect(() => {
-    if (!active) return;
-    const poll = async () => {
-      try { setM(await invoke<LiveMetrics>("get_live_metrics")); }
-      catch { /* silencioso */ }
-    };
-    poll();
-    const id = setInterval(poll, 400);
-    return () => clearInterval(id);
-  }, [active]);
-
-  if (!m) return (
-    <div style={{ flex: 1, borderTop: `1px solid ${C.border}`, padding: "14px", display: "flex", alignItems: "center", gap: 8 }}>
-      <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.orange, animation: "pulse 1s infinite" }} />
-      <div style={{ fontSize: 11, color: C.muted }}>Iniciando monitor…</div>
-    </div>
-  );
-
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderTop: `1px solid ${C.border}` }}>
-      <div style={{ padding: "8px 14px 6px", fontSize: 10, color: C.muted, letterSpacing: "1px", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
-        <span>● ESTADO DEL SISTEMA EN TIEMPO REAL</span>
-        <span style={{ color: C.green, fontSize: 9 }}>⬤ LIVE 400ms</span>
-      </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 0 10px" }}>
-        {METRIC_DEFS.map((def) => {
-          const status = def.status(m);
-          const color  = STATUS_COLOR[status];
-          const pct    = def.pct(m);
-          return (
-            <div key={def.id} style={{
-              padding: "9px 14px",
-              borderBottom: `1px solid ${C.border}`,
-              transition: "background 0.5s ease",
-              background: status === "green" ? `${C.green}06` : status === "yellow" ? `${C.yellow}06` : `${C.red}06`,
-            }}>
-              {/* Cabecera de la métrica */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{def.label}</div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>{def.sublabel}</div>
-                </div>
-                <div style={{
-                  fontSize: 9, fontWeight: 800, letterSpacing: "0.5px",
-                  color: color, background: `${color}18`,
-                  border: `1px solid ${color}44`,
-                  borderRadius: 4, padding: "2px 7px",
-                  flexShrink: 0,
-                }}>
-                  {STATUS_LABEL[status]}
-                </div>
-              </div>
-              {/* Valor actual */}
-              <div style={{ fontSize: 11, color: color, fontWeight: 700, marginBottom: 6, fontFamily: "monospace" }}>
-                {def.value(m)}
-              </div>
-              {/* Barra de progreso */}
-              <div style={{ height: 5, background: "#1a1f2e", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  width: `${pct}%`,
-                  background: color,
-                  borderRadius: 3,
-                  transition: "width 0.6s ease, background 0.6s ease",
-                  boxShadow: `0 0 6px ${color}66`,
-                }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+import type {
+  SystemScan, AnalysisResult, AnalysisResponse, Session,
+  RollbackInfo, StartupItem, View, BenchmarkResult, LostOpt, Profile, CacheStats,
+} from "./types/dix";
+import { C, CAT, PROFILES } from "./constants";
+import {
+  safeParseJSON, scoreColor, hardwareCeiling, computeScore, defaultSelected,
+  kernelScoreFromScan, KERNEL_SCORE_MAX, computeScoreFromBenchmarks,
+  mergeBenchmarks, fmtDate,
+} from "./utils/score";
+import { generateShareCard, downloadDataUrl } from "./utils/shareCard";
+import { ScoreRing, AnimatedCounter } from "./components/ScoreRing";
+import { LiveTerminal } from "./components/LiveTerminal";
+import { StepsPanel } from "./components/StepsPanel";
+import { AnalysisProgress } from "./components/AnalysisProgress";
+import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -888,6 +32,10 @@ export default function App() {
   const [responseMs, setResponseMs]     = useState(0);
   const [script, setScript]             = useState("");
   const [maintenanceScript, setMaintenanceScript] = useState<string | null>(null);
+  // IDs de optimizaciones que de verdad se van a aplicar — la IA solo
+  // propone, el usuario confirma (riesgo medio/alto empieza desmarcado).
+  const [selectedOpts, setSelectedOpts] = useState<Set<string>>(new Set());
+  const [regeneratingScript, setRegeneratingScript] = useState(false);
   const [diskMaintenanceStatus, setDiskMaintenanceStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [scriptVisible, setScriptVisible] = useState(false);
   const [applyLog, setApplyLog]         = useState("");
@@ -928,6 +76,13 @@ export default function App() {
   const [idleScan, setIdleScan]   = useState<SystemScan | null>(null);
   const [shareCardUrl, setShareCardUrl] = useState<string | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkResult | null>(null);
+  // Score calculado en local (determinista, sin red) en cuanto terminan los
+  // benchmarks — se muestra al instante, sin esperar la respuesta de Claude.
+  // Claude solo aporta la lista de sugerencias y la explicación en texto.
+  const [instantScore, setInstantScore] = useState<number | null>(null);
+  // Capacidades que el backend ya calculaba pero nunca se mostraban:
+  // ajustes "recordados" para este PC y nivel de confianza por caché.
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
   const [lostOpts, setLostOpts]     = useState<LostOpt[]>([]);
   // Confirmación tras un reinicio programado por Dix: "ok" = todo se aplicó y
   // sigue activo, "lost" = se detectó alguna pérdida (ver lostOpts). null = no
@@ -1028,7 +183,7 @@ export default function App() {
     setError(null); setScanStep(0); setRevealedMetrics(0);
     setView("scanning");
     setScan(null); setAnalysis(null); setScript(""); setFromCache(false);
-    setBenchmarks(null); setVerifiedScoreAfter(null);
+    setBenchmarks(null); setVerifiedScoreAfter(null); setInstantScore(null);
     try {
       setScanStep(1);
       const scanResult = await invoke<SystemScan>("scan_system");
@@ -1040,6 +195,9 @@ export default function App() {
         scanJson: JSON.stringify(scanResult),
       });
       setBenchmarks(bench);
+      // Score visible al instante: cálculo local determinista, sin esperar
+      // a Claude. La IA solo aporta después la lista de sugerencias.
+      setInstantScore(computeScoreFromBenchmarks(scanResult, bench));
 
       setScanStep(3);
       const resp = await invoke<AnalysisResponse>("analyze_system", {
@@ -1062,10 +220,13 @@ export default function App() {
       const guaranteedDelta = Math.max(0, KERNEL_SCORE_MAX - kernelScoreFromScan(scanResult));
       parsed.score_optimizado = Math.min(ceiling, parsed.score_actual + guaranteedDelta);
       setAnalysis(parsed); setFromCache(resp.from_cache); setResponseMs(resp.response_time_ms);
+      invoke<CacheStats>("get_cache_stats").then(setCacheStats).catch(() => {});
 
       setScanStep(4);
+      const initialIds = new Set(parsed.optimizaciones.filter(defaultSelected).map((o) => o.id));
+      setSelectedOpts(initialIds);
       const selected = parsed.optimizaciones
-        .filter((o) => o.aplicar)
+        .filter((o) => initialIds.has(o.id))
         .map((o) => ({ titulo: o.titulo, descripcion: o.descripcion, comando_preview: o.comando_preview }));
       const generated = await invoke<{ script: string; maintenance_script: string | null }>("generate_script", {
         optimizationsJson: JSON.stringify(selected),
@@ -1086,6 +247,30 @@ export default function App() {
     }
     invoke<number>("get_demo_count").then(setDemoCount).catch(() => {});
     invoke<boolean>("get_license_status").then(setIsLicensed).catch(() => {});
+  };
+
+  const toggleOptimization = async (id: string) => {
+    if (!analysis || !scanRef.current || regeneratingScript) return;
+    const next = new Set(selectedOpts);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedOpts(next);
+    setRegeneratingScript(true);
+    try {
+      const selected = analysis.optimizaciones
+        .filter((o) => next.has(o.id))
+        .map((o) => ({ titulo: o.titulo, descripcion: o.descripcion, comando_preview: o.comando_preview }));
+      const generated = await invoke<{ script: string; maintenance_script: string | null }>("generate_script", {
+        optimizationsJson: JSON.stringify(selected),
+        scanJson: JSON.stringify(scanRef.current),
+        profile,
+      });
+      setScript(generated.script);
+      setMaintenanceScript(generated.maintenance_script);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRegeneratingScript(false);
+    }
   };
 
   const handleApply = async () => {
@@ -1119,7 +304,7 @@ export default function App() {
         // desactualizado, no el real. Esto es lo que distingue "estimado" de
         // "verificado": el verificado siempre viene de una medición fresca.
         const affectedCats = [...new Set(
-          analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.categoria)
+          analysis.optimizaciones.filter((o) => selectedOpts.has(o.id)).map((o) => o.categoria)
         )];
         let finalBench = benchmarks;
         if (affectedCats.length > 0) {
@@ -1145,7 +330,7 @@ export default function App() {
           timestamp: new Date().toISOString(),
           score_before: analysis.score_actual,
           score_after: realScoreAfter,
-          optimizations_applied: analysis.optimizaciones.filter((o) => o.aplicar).map((o) => o.titulo),
+          optimizations_applied: analysis.optimizaciones.filter((o) => selectedOpts.has(o.id)).map((o) => o.titulo),
           scan_summary: `gov:${postScan.cpu_governor} swap:${postScan.swappiness} dirty:${postScan.dirty_ratio}%`,
         };
         await invoke("save_session", { session: sess }).catch(() => {});
@@ -1302,8 +487,8 @@ export default function App() {
     return () => clearTimeout(id);
   }, [rebootCountdown]);
 
-  const aplicadas = analysis?.optimizaciones.filter((o) => o.aplicar) ?? [];
-  const saltadas  = analysis?.optimizaciones.filter((o) => !o.aplicar) ?? [];
+  const aplicadas = analysis?.optimizaciones.filter((o) => selectedOpts.has(o.id)) ?? [];
+  const saltadas  = analysis?.optimizaciones.filter((o) => !selectedOpts.has(o.id)) ?? [];
   const mejora    = analysis ? analysis.score_optimizado - analysis.score_actual : 0;
 
   const isProcessView = view === "scanning" || view === "applying" || view === "done";
@@ -1424,6 +609,13 @@ export default function App() {
                   profile={profile}
                 />
               </div>
+
+              {/* Score instantáneo — calculado en local, no depende de Claude */}
+              {view === "scanning" && instantScore !== null && scanStep >= 2 && (
+                <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", justifyContent: "center" }}>
+                  <ScoreRing score={instantScore} label="Tu PC ahora · calculado en local" size={84} />
+                </div>
+              )}
 
               {/* Score antes/después + botón compartir cuando está en done */}
               {view === "done" && analysis && (
@@ -2021,9 +1213,31 @@ export default function App() {
                       {!fromCache && responseMs > 0 && (
                         <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>⏱ Análisis IA en {(responseMs / 1000).toFixed(1)}s</div>
                       )}
+                      {cacheStats && cacheStats.hit_count + cacheStats.miss_count > 1 && (
+                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>
+                          🔁 {Math.round(cacheStats.hit_rate * 100)}% de coincidencia histórica con análisis anteriores de este PC
+                        </div>
+                      )}
                       <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65 }}>{analysis.analisis}</p>
                     </div>
                   </div>
+
+                  {/* Ajustes que Dix "recuerda" de sesiones anteriores — antes invisibles */}
+                  {cacheStats && Object.keys(cacheStats.pinned_params).length > 0 && (
+                    <div style={{
+                      marginBottom: 16, padding: "10px 16px", borderRadius: 10,
+                      background: `${C.orange}08`, border: `1px solid ${C.orange}22`,
+                    }}>
+                      <div style={{ fontSize: 11, color: C.orange, fontWeight: 700, marginBottom: 6 }}>
+                        🧠 Dix recuerda para este PC
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
+                        {Object.entries(cacheStats.pinned_params).map(([k, v]) => (
+                          <span key={k}><strong style={{ color: C.text }}>{k}</strong> = {v}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {mejora <= 3 && scan && hardwareCeiling(scan) < 85 && (
                     <div style={{
@@ -2099,6 +1313,10 @@ export default function App() {
                       return (
                         <div key={o.id} className="card" style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", gap: 12 }}>
+                            <input type="checkbox" checked disabled={regeneratingScript}
+                              onChange={() => toggleOptimization(o.id)}
+                              style={{ marginTop: 3, flexShrink: 0, cursor: regeneratingScript ? "wait" : "pointer" }}
+                              title="Desmarcar para excluirla del script" />
                             <span style={{ background: cat.bg, color: cat.color, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, flexShrink: 0, height: "fit-content" }}>{o.categoria}</span>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{o.titulo}</div>
@@ -2129,10 +1347,16 @@ export default function App() {
                   {saltadas.length > 0 && (
                     <>
                       <h3 style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>⏭ Descartadas ({saltadas.length})</h3>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 20, opacity: 0.45 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 20 }}>
                         {saltadas.map((o) => (
-                          <div key={o.id} className="card" style={{ padding: "8px 14px", fontSize: 13, display: "flex", justifyContent: "space-between" }}>
-                            <span>{o.titulo}</span>
+                          <div key={o.id} className="card" style={{ padding: "8px 14px", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", opacity: 0.65, gap: 10 }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <input type="checkbox" checked={false} disabled={regeneratingScript}
+                                onChange={() => toggleOptimization(o.id)}
+                                style={{ cursor: regeneratingScript ? "wait" : "pointer" }}
+                                title="Marcar para incluirla en el script" />
+                              {o.titulo}
+                            </span>
                             <span style={{ color: C.muted, fontSize: 12 }}>{o.mejora_estimada} · riesgo {o.riesgo}</span>
                           </div>
                         ))}
@@ -2149,7 +1373,9 @@ export default function App() {
                       <div style={{ display: "flex", gap: 6 }}>
                         <button className="btn-secondary" onClick={() => setScriptVisible(!scriptVisible)} style={{ fontSize: 11 }}>{scriptVisible ? "Ocultar" : "Ver"}</button>
                         <button className="btn-secondary" onClick={handleDownload} style={{ fontSize: 11 }}>⬇ Descargar</button>
-                        <button className="btn-primary" onClick={handleApply} style={{ padding: "7px 20px", fontSize: 13,  }}>▶ Aplicar</button>
+                        <button className="btn-primary" onClick={handleApply} disabled={regeneratingScript} style={{ padding: "7px 20px", fontSize: 13, opacity: regeneratingScript ? 0.6 : 1, cursor: regeneratingScript ? "wait" : "pointer" }}>
+                          {regeneratingScript ? "Actualizando…" : "▶ Aplicar"}
+                        </button>
                       </div>
                     </div>
                     {scriptVisible && (

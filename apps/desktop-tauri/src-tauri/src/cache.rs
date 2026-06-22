@@ -88,6 +88,10 @@ pub struct CacheStats {
     pub last_analysis_timestamp: Option<u64>,
     pub hardware_id: String,
     pub last_acp: Option<String>,
+    /// Ajustes que Dix "recuerda" para este PC (decididos en sesiones
+    /// anteriores) — ya se usaban internamente para anclar el prompt de
+    /// Claude, pero nunca se mostraban al usuario.
+    pub pinned_params: HashMap<String, String>,
 }
 
 // ─── Decisión de caché ────────────────────────────────────────────────────────
@@ -276,5 +280,6 @@ pub fn get_stats(cache: &OptimizationCache) -> CacheStats {
         last_analysis_timestamp: cache.last_analysis.as_ref().map(|e| e.timestamp),
         hardware_id: cache.hardware_id.clone(),
         last_acp: cache.last_analysis.as_ref().map(|e| e.acp.clone()),
+        pinned_params: cache.pinned_params.clone(),
     }
 }

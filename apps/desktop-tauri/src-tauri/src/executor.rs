@@ -182,6 +182,11 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
     // Guardar rollback ANTES de ejecutar nada
     save_rollback(pre_scan, ts)?;
 
+    // Journal transaccional: queda registrado que esta transacción se
+    // planeó y tiene un rollback asociado, antes de tocar nada del sistema.
+    let rollback_filename = format!("rollback_{}.sh", ts);
+    crate::journal::record_planned(ts, &rollback_filename);
+
     let sysctl_conf = build_sysctl_conf(&clean);
     let boot_tweaks = build_boot_tweaks(&clean);
     let service_content =
@@ -205,6 +210,10 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
     let service_path  = dir.join(format!("dix_service_{}.service", ts));
     let sleep_path    = dir.join(format!("dix_sleep_{}.sh", ts));
     let combined_path = dir.join(format!("dix_{}.sh", ts));
+    let boot_check_path        = dir.join(format!("dix_boot_check_{}.sh", ts));
+    let boot_confirm_path      = dir.join(format!("dix_boot_confirm_{}.sh", ts));
+    let boot_check_svc_path    = dir.join(format!("dix_boot_check_{}.service", ts));
+    let boot_confirm_svc_path  = dir.join(format!("dix_boot_confirm_{}.service", ts));
 
     let write_secure = |path: &PathBuf, data: &str| -> Result<(), String> {
         fs::write(path, data).map_err(|e| format!("No se pudo escribir {}: {}", path.display(), e))?;
@@ -216,6 +225,22 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
     write_secure(&boot_path, &boot_tweaks)?;
     write_secure(&service_path, service_content)?;
     write_secure(&sleep_path, sleep_hook)?;
+    write_secure(&boot_check_path, crate::safe_mode::BOOT_CHECK_SCRIPT)?;
+    write_secure(&boot_confirm_path, crate::safe_mode::BOOT_CONFIRM_SCRIPT)?;
+    write_secure(&boot_check_svc_path, crate::safe_mode::BOOT_CHECK_SERVICE)?;
+    write_secure(&boot_confirm_svc_path, crate::safe_mode::BOOT_CONFIRM_SERVICE)?;
+
+    // Modo de rescate: instala la red de seguridad de arranque y deja
+    // anotado que el rollback de ESTA transacción es el que hay que
+    // restaurar si el sistema deja de arrancar bien tras este cambio.
+    let rollback_abs_path = rollbacks_dir().join(&rollback_filename);
+    let safe_mode_lines = crate::safe_mode::install_lines(
+        &boot_check_path.to_string_lossy(),
+        &boot_confirm_path.to_string_lossy(),
+        &boot_check_svc_path.to_string_lossy(),
+        &boot_confirm_svc_path.to_string_lossy(),
+        &rollback_abs_path.to_string_lossy(),
+    );
 
     // Script combinado — una sola autenticación para todo
     let combined = format!(
@@ -233,9 +258,12 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
          /sbin/sysctl -p /etc/sysctl.d/99-dix.conf 2>/dev/null || true\n\
          systemctl daemon-reload 2>/dev/null || true\n\
          systemctl enable --now dix-boot.service 2>/dev/null || true\n\
+         echo '[Dix] Instalando red de seguridad de arranque...'\n\
+         {safe_mode}\
          echo '[Dix] Listo.'\n",
         opt = opt_path.display(), s = sysctl_path.display(),
         b = boot_path.display(), sv = service_path.display(), sh = sleep_path.display(),
+        safe_mode = safe_mode_lines,
     );
 
     write_secure(&combined_path, &combined)?;
@@ -245,19 +273,57 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
         .output()
         .map_err(|e| format!("/usr/bin/pkexec no disponible: {}", e))?;
 
-    for p in &[&opt_path, &sysctl_path, &boot_path, &service_path, &sleep_path, &combined_path] {
+    for p in &[
+        &opt_path, &sysctl_path, &boot_path, &service_path, &sleep_path, &combined_path,
+        &boot_check_path, &boot_confirm_path, &boot_check_svc_path, &boot_confirm_svc_path,
+    ] {
         let _ = fs::remove_file(p);
     }
 
     if output.status.success() {
+        crate::journal::update_state(ts, crate::journal::TransactionState::Applied, None);
+        // Verificación ligera: si el sistema sigue respondiendo a un re-scan,
+        // la transacción se marca Verified. Si el re-scan falla, se deja en
+        // Applied — `dix doctor` lo reportará como posible estado a medias.
+        match crate::scanner::scan() {
+            Ok(_) => crate::journal::update_state(ts, crate::journal::TransactionState::Verified, None),
+            Err(e) => crate::journal::update_state(
+                ts,
+                crate::journal::TransactionState::Applied,
+                Some(format!("Verificación post-aplicar falló: {}", e)),
+            ),
+        }
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
         let code = output.status.code().unwrap_or(-1);
+
         if code == 126 || code == 127 {
+            // Autenticación cancelada antes de ejecutar nada: no hay nada que
+            // revertir. La transacción se queda en Planned (correcto: nunca
+            // llegó a aplicarse), no hace falta tocar pkexec otra vez.
             Err("Autenticación cancelada.".to_string())
         } else {
+            // El script falló a mitad de camino: intentar revertir
+            // automáticamente con el rollback ya guardado antes de tocar nada.
+            crate::journal::update_state(
+                ts,
+                crate::journal::TransactionState::Applied,
+                Some(format!("Falló con código {}, intentando rollback automático", code)),
+            );
+            match execute_rollback_linux(&rollback_filename) {
+                Ok(_) => crate::journal::update_state(
+                    ts,
+                    crate::journal::TransactionState::RolledBack,
+                    Some("Rollback automático tras fallo de aplicación".to_string()),
+                ),
+                Err(rollback_err) => crate::journal::update_state(
+                    ts,
+                    crate::journal::TransactionState::RollbackFailed,
+                    Some(format!("Rollback automático también falló: {}", rollback_err)),
+                ),
+            }
             Err(format!("Script falló (código {}):\n{}{}", code, stdout, stderr))
         }
     }
@@ -268,21 +334,34 @@ fn run_script_linux(content: &str, pre_scan: &SystemScan) -> Result<String, Stri
 // Ejecuta un .ps1 elevado vía Start-Process -Verb RunAs -Wait.
 // Captura stdout+stderr en un archivo temporal porque el proceso elevado
 // no hereda los handles de I/O del padre cuando se lanza con RunAs.
+//
+// `expected_sha256` es el hash calculado en Rust inmediatamente después de
+// escribir el script ya validado. El wrapper —que corre YA elevado, después
+// de que el usuario aprobó el diálogo de UAC— recalcula el hash del archivo
+// y lo compara antes de ejecutar una sola línea. Si no coincide, aborta sin
+// ejecutar nada: cierra la ventana de TOCTOU entre validar y ejecutar.
 #[cfg(target_os = "windows")]
-fn elevate_and_run(script: &std::path::Path, timeout: Duration) -> Result<String, String> {
+fn elevate_and_run_verified(script: &std::path::Path, timeout: Duration, expected_sha256: &str) -> Result<String, String> {
     let ts = epoch_secs();
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = run_dir_windows();
     let out_path  = temp_dir.join(format!("dix_{}_out.txt", ts));
     let wrap_path = temp_dir.join(format!("dix_{}_wrap.ps1", ts));
 
-    // Wrapper: ejecuta el script real y vuelca output al archivo temporal
+    // Wrapper: verifica integridad del script real ANTES de ejecutarlo (ya
+    // con privilegios de administrador), y solo entonces vuelca su output.
     let wrap_content = format!(
         "$ErrorActionPreference = 'Continue'\n\
+         $actualHash = (certutil -hashfile '{script}' SHA256 | Select-Object -Index 1).Trim().Replace(' ', '').ToLower()\n\
+         if ($actualHash -ne '{expected}') {{\n\
+         \t'[Dix] ABORTADO: el script fue modificado tras la validación (hash no coincide).' | Out-File -FilePath '{out}' -Encoding UTF8\n\
+         \texit 87\n\
+         }}\n\
          $out = & powershell.exe -ExecutionPolicy Bypass -NonInteractive \
-         -File '{}' 2>&1\n\
-         $out | Out-File -FilePath '{}' -Encoding UTF8\n",
-        script.display().to_string().replace('\'', "''"),
-        out_path.display().to_string().replace('\'', "''"),
+         -File '{script}' 2>&1\n\
+         $out | Out-File -FilePath '{out}' -Encoding UTF8\n",
+        script = script.display().to_string().replace('\'', "''"),
+        out = out_path.display().to_string().replace('\'', "''"),
+        expected = expected_sha256,
     );
     fs::write(&wrap_path, &wrap_content)
         .map_err(|e| format!("No se pudo escribir wrapper de elevación: {}", e))?;
@@ -347,6 +426,17 @@ fn elevate_and_run(script: &std::path::Path, timeout: Duration) -> Result<String
     let code = output.status.code().unwrap_or(-1);
     let captured = fs::read_to_string(&out_path).unwrap_or_default();
     let _ = fs::remove_file(&out_path);
+
+    // El wrapper escribe este mensaje y sale ANTES de ejecutar el script real
+    // si el hash de integridad no coincide — independientemente de cómo
+    // Start-Process propague el código de salida del proceso elevado.
+    if captured.starts_with("[Dix] ABORTADO") {
+        return Err(
+            "El script fue modificado después de validarse y antes de ejecutarse con \
+             privilegios de administrador. Por seguridad, Dix ha abortado sin aplicar \
+             ningún cambio. Vuelve a intentar la optimización.".to_string()
+        );
+    }
 
     match code {
         // 1223 = ERROR_CANCELLED (usuario rechazó UAC), 5 = ERROR_ACCESS_DENIED
@@ -434,6 +524,55 @@ pub fn deterministic_tweaks_windows(scan: &SystemScan) -> Vec<String> {
     lines
 }
 
+// Carpeta privada para scripts elevados en Windows — equivalente al 0700
+// de Linux. icacls quita la herencia y deja solo al usuario actual con
+// control total, para que otro proceso del mismo sistema (sin ser el mismo
+// usuario, o un proceso de baja integridad) no pueda escribir aquí mientras
+// el usuario está respondiendo al diálogo de UAC.
+#[cfg(target_os = "windows")]
+fn run_dir_windows() -> PathBuf {
+    let base = std::env::var("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir());
+    let dir = base.join("Dix").join("run");
+    let _ = fs::create_dir_all(&dir);
+    let _ = Command::new("icacls")
+        .args([
+            dir.to_string_lossy().as_ref(),
+            "/inheritance:r",
+            "/grant:r",
+            &format!("{}:(OI)(CI)F", whoami_windows()),
+        ])
+        .output();
+    dir
+}
+
+#[cfg(target_os = "windows")]
+fn whoami_windows() -> String {
+    std::env::var("USERNAME").unwrap_or_else(|_| "%USERNAME%".to_string())
+}
+
+// SHA256 vía certutil (incluido en Windows desde XP, sin añadir dependencias
+// de hashing a Cargo). Se calcula justo tras escribir el script ya validado,
+// y el propio wrapper elevado (ver elevate_and_run_verified) lo recalcula
+// justo antes de ejecutar el script real, ya dentro del proceso con permisos
+// de administrador — el punto más tardío posible antes de correr el código.
+// Si no coincide, algo modificó el archivo durante el diálogo de UAC y se
+// aborta sin ejecutar nada.
+#[cfg(target_os = "windows")]
+fn certutil_sha256(path: &std::path::Path) -> Result<String, String> {
+    let output = Command::new("certutil")
+        .args(["-hashfile", &path.to_string_lossy(), "SHA256"])
+        .output()
+        .map_err(|e| format!("certutil no disponible: {}", e))?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    text.lines()
+        .nth(1)
+        .map(|l| l.trim().replace(' ', "").to_lowercase())
+        .filter(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()))
+        .ok_or_else(|| "No se pudo calcular el hash de integridad del script".to_string())
+}
+
 #[cfg(target_os = "windows")]
 fn run_script_windows(content: &str, pre_scan: &SystemScan) -> Result<String, String> {
     let clean = strip_fences(content);
@@ -451,12 +590,16 @@ fn run_script_windows(content: &str, pre_scan: &SystemScan) -> Result<String, St
 
     save_rollback(pre_scan, ts)?;
 
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = run_dir_windows();
     let script_path = temp_dir.join(format!("dix_{}.ps1", ts));
     fs::write(&script_path, &clean)
         .map_err(|e| format!("No se pudo escribir el script PS1: {}", e))?;
 
-    let result = elevate_and_run(&script_path, Duration::from_secs(300));
+    // Hash tomado AHORA, justo tras escribir el contenido ya validado —
+    // la ventana entre este punto y la ejecución elevada queda protegida.
+    let expected_hash = certutil_sha256(&script_path)?;
+
+    let result = elevate_and_run_verified(&script_path, Duration::from_secs(300), &expected_hash);
     let _ = fs::remove_file(&script_path);
     result
 }
@@ -471,12 +614,13 @@ pub fn run_disk_maintenance_windows(content: &str) -> Result<String, String> {
     let clean = strip_fences(content);
     let ts = epoch_secs();
 
-    let temp_dir = std::env::temp_dir();
+    let temp_dir = run_dir_windows();
     let script_path = temp_dir.join(format!("dix_maint_{}.ps1", ts));
     fs::write(&script_path, &clean)
         .map_err(|e| format!("No se pudo escribir el script de mantenimiento: {}", e))?;
+    let expected_hash = certutil_sha256(&script_path)?;
 
-    let result = elevate_and_run(&script_path, Duration::from_secs(2400));
+    let result = elevate_and_run_verified(&script_path, Duration::from_secs(2400), &expected_hash);
     let _ = fs::remove_file(&script_path);
     result
 }
@@ -712,11 +856,12 @@ fn execute_rollback_windows(filename: &str) -> Result<String, String> {
     }
 
     let ts = epoch_secs();
-    let tmp = std::env::temp_dir().join(format!("dix_rollback_{}.ps1", ts));
+    let tmp = run_dir_windows().join(format!("dix_rollback_{}.ps1", ts));
     fs::write(&tmp, &content)
         .map_err(|e| format!("No se pudo preparar rollback: {}", e))?;
+    let expected_hash = certutil_sha256(&tmp)?;
 
-    let result = elevate_and_run(&tmp, Duration::from_secs(300));
+    let result = elevate_and_run_verified(&tmp, Duration::from_secs(300), &expected_hash);
     let _ = fs::remove_file(&tmp);
     result
 }
@@ -840,7 +985,7 @@ mod determinism_tests {
             hugepages: "madvise".to_string(), numa_balancing: "1".to_string(),
             mem_total_mb: 16384, mem_available_mb: 8192,
             load_avg: "1 1 1".to_string(), nvme_queue_depth: "32".to_string(),
-            irqbalance_active: true, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 4800,
+            irqbalance_active: true, on_battery: false, cpu_min_freq_mhz: 800, cpu_max_freq_mhz: 4800,
             cpu_model: "Test CPU".to_string(), gpu_model: "Test GPU".to_string(),
             distro_id: "linux".to_string(), distro_version: "test".to_string(),
             kernel_version: "6.0".to_string(), cpu_temp_celsius: 50.0,

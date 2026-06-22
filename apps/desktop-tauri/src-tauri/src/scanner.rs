@@ -22,6 +22,10 @@ pub struct SystemScan {
     pub load_avg: String,
     pub nvme_queue_depth: String,
     pub irqbalance_active: bool,
+    // Estado real de batería/AC — antes en Windows se reusaba (mal) el campo
+    // irqbalance_active para esto, un concepto que ni existe en Windows.
+    #[serde(default)]
+    pub on_battery: bool,
     pub cpu_min_freq_mhz: u32,
     pub cpu_max_freq_mhz: u32,
     #[serde(default)]
@@ -102,6 +106,7 @@ fn scan_linux() -> Result<SystemScan, String> {
         .split_whitespace().take(3).collect::<Vec<_>>().join(" ");
     let nvme_queue_depth = read_nvme_queue_depth();
     let irqbalance_active = check_service_active("irqbalance");
+    let on_battery = read_on_battery_linux();
     let cpu_min_freq_mhz = read_cpu_freq(&p("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq"));
     let cpu_max_freq_mhz = read_cpu_freq(&p("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq"));
     let cpu_model = detect_cpu_model();
@@ -114,7 +119,7 @@ fn scan_linux() -> Result<SystemScan, String> {
     Ok(SystemScan {
         cpu_governor, cpu_cores, swappiness, dirty_ratio, dirty_background_ratio,
         disk_scheduler, audio_server, hugepages, numa_balancing, mem_total_mb,
-        mem_available_mb, load_avg, nvme_queue_depth, irqbalance_active,
+        mem_available_mb, load_avg, nvme_queue_depth, irqbalance_active, on_battery,
         cpu_min_freq_mhz, cpu_max_freq_mhz, cpu_model, gpu_model, distro_id,
         distro_version, kernel_version, cpu_temp_celsius,
         visual_effects: "n/a".to_string(), network_throttling: "n/a".to_string(),
@@ -138,6 +143,26 @@ fn count_cpu_cores() -> usize {
                 s.starts_with("cpu") && s.len() > 3 && s[3..].chars().all(|c| c.is_ascii_digit()) })
             .count())
         .unwrap_or(1)
+}
+
+// true solo si hay una batería real presente y está descargando — un
+// sobremesa sin batería (la mayoría de /sys/class/power_supply/BAT* no
+// existen) nunca debe marcarse como "en batería".
+#[cfg(not(target_os = "windows"))]
+fn read_on_battery_linux() -> bool {
+    let base = format!("{}/sys/class/power_supply", sys_root());
+    let Ok(entries) = fs::read_dir(&base) else { return false; };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with("BAT") {
+            let status = fs::read_to_string(entry.path().join("status"))
+                .unwrap_or_default();
+            if status.trim().eq_ignore_ascii_case("discharging") {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -552,7 +577,8 @@ $telm = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCo
         disk_scheduler, audio_server, hugepages,
         numa_balancing: "0".to_string(),
         mem_total_mb, mem_available_mb, load_avg, nvme_queue_depth,
-        irqbalance_active: ac_power_connected_native(),
+        irqbalance_active: false, // no aplica en Windows, irqbalance es un daemon de Linux
+        on_battery: !ac_power_connected_native(),
         cpu_min_freq_mhz: current_mhz, cpu_max_freq_mhz: max_mhz,
         cpu_model, gpu_model,
         distro_id: "windows".to_string(), distro_version, kernel_version, cpu_temp_celsius,

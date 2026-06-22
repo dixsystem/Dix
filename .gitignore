@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 
 # Rust / Tauri
-src-tauri/target/
+apps/desktop-tauri/src-tauri/target/
 
 # Proxy — lógica de servidor privada, NUNCA publicar
 dix-proxy/
@@ -52,7 +52,7 @@ mock_profiles/
 sabios/
 
 # Archivos de desarrollo temporal
-src-tauri/src/main.rs.save
+apps/desktop-tauri/src-tauri/src/main.rs.save
 
 # Local Netlify folder
 .netlify

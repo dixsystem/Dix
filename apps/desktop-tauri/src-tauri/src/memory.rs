@@ -6,6 +6,25 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+const KEYRING_SERVICE: &str = "DixSystem";
+
+// Intenta usar el llavero del SO (Windows Credential Manager / Secret
+// Service en Linux). Si el backend no está disponible (p.ej. Linux headless
+// sin dbus/gnome-keyring), las funciones devuelven None/false y el caller cae
+// al store JSON de siempre — la app sigue funcionando en todas partes, solo
+// que cifrado en reposo donde el sistema operativo lo permite.
+fn keyring_set(account: &str, value: &str) -> bool {
+    keyring::Entry::new(KEYRING_SERVICE, account)
+        .and_then(|e| e.set_password(value))
+        .is_ok()
+}
+
+fn keyring_get(account: &str) -> Option<String> {
+    keyring::Entry::new(KEYRING_SERVICE, account)
+        .ok()
+        .and_then(|e| e.get_password().ok())
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Session {
     pub id: String,
@@ -83,12 +102,34 @@ pub fn get_api_key() -> Option<String> {
 }
 
 pub fn get_api_key_from_store() -> Option<String> {
-    load().api_key.filter(|k| !k.is_empty())
+    if let Some(k) = keyring_get("api_key") {
+        return Some(k);
+    }
+    // Migración desde instalaciones previas: si había una key en JSON plano,
+    // intentar moverla al llavero ahora y limpiar el texto plano.
+    let plain = load().api_key.filter(|k| !k.is_empty())?;
+    if keyring_set("api_key", &plain) {
+        let mut store = load();
+        store.api_key = None;
+        let _ = save(&store);
+    }
+    Some(plain)
 }
 
 pub fn save_api_key(key: &str) -> Result<(), String> {
+    let key = key.trim();
+    if keyring_set("api_key", key) {
+        // Asegurar que no queda una copia en texto plano de una key anterior.
+        let mut store = load();
+        if store.api_key.is_some() {
+            store.api_key = None;
+            save(&store)?;
+        }
+        return Ok(());
+    }
+    // Fallback: llavero no disponible en este sistema, comportamiento de siempre.
     let mut store = load();
-    store.api_key = Some(key.trim().to_string());
+    store.api_key = Some(key.to_string());
     save(&store)
 }
 
@@ -115,12 +156,30 @@ pub fn clear_sessions() -> Result<(), String> {
 }
 
 pub fn get_license_key() -> Option<String> {
-    load().license_key.filter(|k| !k.is_empty())
+    if let Some(k) = keyring_get("license_key") {
+        return Some(k);
+    }
+    let plain = load().license_key.filter(|k| !k.is_empty())?;
+    if keyring_set("license_key", &plain) {
+        let mut store = load();
+        store.license_key = None;
+        let _ = save(&store);
+    }
+    Some(plain)
 }
 
 pub fn save_license_key(key: &str) -> Result<(), String> {
+    let key = key.trim();
+    if keyring_set("license_key", key) {
+        let mut store = load();
+        if store.license_key.is_some() {
+            store.license_key = None;
+            save(&store)?;
+        }
+        return Ok(());
+    }
     let mut store = load();
-    store.license_key = Some(key.trim().to_string());
+    store.license_key = Some(key.to_string());
     save(&store)
 }
 
