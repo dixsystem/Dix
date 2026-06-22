@@ -58,7 +58,7 @@ pub fn deterministic_tweaks_linux(scan: &SystemScan) -> Vec<String> {
 // Construye un Command para pkexec inyectando las variables de entorno que el
 // agente GNOME/Polkit necesita para localizar el bus de sesión y la pantalla.
 #[cfg(not(target_os = "windows"))]
-fn pkexec_cmd() -> Command {
+pub(crate) fn pkexec_cmd() -> Command {
     let mut cmd = Command::new("/usr/bin/pkexec");
     for var in &[
         "DISPLAY",
@@ -128,7 +128,7 @@ pub struct RollbackInfo {
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
-fn rollbacks_dir() -> PathBuf {
+pub(crate) fn rollbacks_dir() -> PathBuf {
     crate::memory::config_dir().join("rollbacks")
 }
 
@@ -927,7 +927,7 @@ fn build_boot_tweaks(script: &str) -> String {
 
 // ─── Helpers comunes ──────────────────────────────────────────────────────────
 
-fn epoch_secs() -> u64 {
+pub(crate) fn epoch_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())

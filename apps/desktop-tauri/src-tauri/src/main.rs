@@ -1177,6 +1177,32 @@ fn export_report(content: String, filename: String) -> Result<String, String> {
     Ok(path.to_string_lossy().to_string())
 }
 
+// ─── Comandos DixKontrol ──────────────────────────────────────────────────────
+// Ver docs/threat-model/dixkontrol.md. El nivel Moderado solo arranca si el
+// usuario lo activa explícitamente (start) — nunca de forma automática.
+
+#[tauri::command]
+fn dixkontrol_foreground_context() -> dixkontrol::ForegroundContext {
+    dixkontrol::read_foreground_context()
+}
+
+#[tauri::command]
+fn dixkontrol_start_moderate() -> Result<String, String> {
+    dixkontrol::start_moderate_session()?;
+    Ok("Sesión Moderado iniciada.".to_string())
+}
+
+#[tauri::command]
+fn dixkontrol_apply_moderate(operacion: command_engine::DixOperation) -> Result<String, String> {
+    dixkontrol::apply_moderate(operacion)
+}
+
+#[tauri::command]
+fn dixkontrol_stop_moderate() -> String {
+    dixkontrol::stop_moderate_session();
+    "Sesión Moderado cerrada.".to_string()
+}
+
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
 /// Comprueba si el WebView2 Runtime está presente; si no, busca el instalador
@@ -1250,6 +1276,10 @@ fn main() {
             set_startup_item_enabled,
             get_tier,
             export_report,
+            dixkontrol_foreground_context,
+            dixkontrol_start_moderate,
+            dixkontrol_apply_moderate,
+            dixkontrol_stop_moderate,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
