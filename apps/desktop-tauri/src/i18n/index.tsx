@@ -10,7 +10,7 @@
 // components.ts) para que se puedan extender en paralelo sin pisarse en el
 // mismo archivo.
 
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { APP_STRINGS } from "./app";
 import { COMPONENT_STRINGS } from "./components";
 
@@ -51,4 +51,28 @@ export function useLang() {
   );
 
   return { lang, setLang, t };
+}
+
+type LangContextValue = ReturnType<typeof useLang>;
+
+const LangContext = createContext<LangContextValue | null>(null);
+
+/// Única instancia de useLang() para toda la app — App.tsx debe envolverse
+/// con esto (ver main.tsx) para que cambiar el idioma en el header se
+/// propague de verdad a todos los componentes hijos. Llamar a useLang()
+/// directamente en más de un sitio crearía estados independientes que no se
+/// sincronizan entre sí (cada uno con su propio useState).
+export function LangProvider({ children }: { children: ReactNode }) {
+  const value = useLang();
+  return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
+}
+
+/// Hook que deben usar App.tsx y los componentes en components/ — nunca
+/// useLang() directamente fuera de LangProvider.
+export function useT() {
+  const ctx = useContext(LangContext);
+  if (!ctx) {
+    throw new Error("useT() debe usarse dentro de <LangProvider> — ver main.tsx");
+  }
+  return ctx;
 }

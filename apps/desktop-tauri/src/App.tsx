@@ -23,12 +23,12 @@ import { AnalysisProgress } from "./components/AnalysisProgress";
 import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
 import { DixKontrolPanel } from "./components/DixKontrolPanel";
 import { AtlasConsentBanner } from "./components/AtlasConsentBanner";
-import { useLang } from "./i18n";
+import { useT } from "./i18n";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function App() {
-  const { lang, setLang, t } = useLang();
+  const { lang, setLang, t } = useT();
   const [view, setView]               = useState<View>("init");
   const [scan, setScan]                 = useState<SystemScan | null>(null);
   const [analysis, setAnalysis]         = useState<AnalysisResult | null>(null);
