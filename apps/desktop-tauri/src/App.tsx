@@ -23,10 +23,12 @@ import { AnalysisProgress } from "./components/AnalysisProgress";
 import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
 import { DixKontrolPanel } from "./components/DixKontrolPanel";
 import { AtlasConsentBanner } from "./components/AtlasConsentBanner";
+import { useLang } from "./i18n";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function App() {
+  const { lang, setLang, t } = useLang();
   const [view, setView]               = useState<View>("init");
   const [scan, setScan]                 = useState<SystemScan | null>(null);
   const [analysis, setAnalysis]         = useState<AnalysisResult | null>(null);
@@ -526,10 +528,22 @@ export default function App() {
           <img src={logoDs} alt="DixSystem" style={{ width: 28, height: 28, borderRadius: 4 }} />
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.3px" }}>Dix</div>
-            <div style={{ fontSize: 10, color: C.muted, letterSpacing: "0.5px", textTransform: "uppercase" }}>La primera AppIA del Mundo</div>
+            <div style={{ fontSize: 10, color: C.muted, letterSpacing: "0.5px", textTransform: "uppercase" }}>{t("header_tagline")}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
+            {(["es", "en"] as const).map((l) => (
+              <button key={l} onClick={() => setLang(l)}
+                style={{
+                  fontSize: 10, fontWeight: 700, padding: "3px 7px", border: "none", cursor: "pointer",
+                  background: lang === l ? C.orange : "transparent",
+                  color: lang === l ? "#fff" : C.muted,
+                }}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
           {pendingUpdate && (
             <button onClick={() => setShowUpdateModal(true)}
               style={{ background: `${C.green}18`, color: C.green, border: `1px solid ${C.green}55`, borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>
