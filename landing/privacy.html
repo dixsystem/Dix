@@ -103,7 +103,7 @@
     <li>Selected sysctl values (swappiness, dirty_ratio, hugepage mode, NUMA balancing state)</li>
     <li>GPU power state (discrete/integrated — model name only)</li>
   </ul>
-  <p>These parameters are technical, anonymous, and contain no personal data.</p>
+  <p>These parameters are technical and designed to avoid personal data. They are limited to the whitelist below.</p>
 
   <h2>3. What DIX does NOT collect</h2>
   <div class="highlight">
@@ -115,20 +115,20 @@
   <p>The kernel parameter snapshot is sent to the <strong>Anthropic Claude API</strong> solely to generate your optimization recommendations. Anthropic processes this data as a sub-processor under their API terms of service. No data is stored on DixSystem servers beyond what is strictly necessary to return the analysis result.</p>
   <p>Anthropic's privacy policy is available at <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">anthropic.com/privacy</a>.</p>
 
-  <h2>5. DIX Atlas (opt-in telemetry)</h2>
-  <p>DIX Atlas is an optional feature that, if you explicitly enable it, contributes anonymous hardware-performance pairs to a collective dataset used to improve future recommendations.</p>
+  <h2>5. DIX Atlas (roadmap / opt-in telemetry)</h2>
+  <p>DIX Atlas is a planned optional feature. When released, it will require explicit opt-in and is intended to contribute minimized hardware-performance pairs to a collective dataset used to improve future recommendations.</p>
   <ul>
-    <li><strong>Opt-in only.</strong> It is disabled by default. You must actively enable it.</li>
-    <li><strong>What is shared:</strong> a one-way hash of your hardware ID, the kernel profile applied, and the measured performance delta. Nothing identifiable.</li>
-    <li><strong>What is never shared:</strong> your license key, name, email, IP, or any system identifier in plain form.</li>
-    <li><strong>Withdrawal:</strong> you can disable Atlas at any time from the application settings. Disabling it stops all future submissions immediately.</li>
+    <li><strong>Opt-in only.</strong> It will be disabled by default. You must actively enable it.</li>
+    <li><strong>Planned shared fields:</strong> a salted one-way hardware hash, the kernel profile applied, and a performance delta where available. Re-identification risk will be reviewed before rollout.</li>
+    <li><strong>What is never shared intentionally:</strong> your license key, name, email, IP, or any system identifier in plain form.</li>
+    <li><strong>Withdrawal:</strong> once Atlas is available, you will be able to disable it from the application settings. Disabling it will stop future submissions.</li>
   </ul>
 
   <h2>6. Legal basis (GDPR)</h2>
-  <p>Processing of kernel parameters for analysis purposes is carried out on the legal basis of <strong>contract performance</strong> (Article 6(1)(b) GDPR) — it is necessary to deliver the service you purchased. Atlas telemetry, where enabled, is processed on the basis of <strong>consent</strong> (Article 6(1)(a) GDPR).</p>
+  <p>Processing of kernel parameters for analysis purposes is carried out on the legal basis of <strong>contract performance</strong> (Article 6(1)(b) GDPR) — it is necessary to deliver the service you purchased. Atlas telemetry, when available and enabled, will be processed on the basis of <strong>consent</strong> (Article 6(1)(a) GDPR).</p>
 
   <h2>7. Data retention</h2>
-  <p>Analysis requests are not stored beyond the time required to generate and return the response. License validation records are retained for the duration of the license. Atlas contributions are stored in aggregated, anonymized form with no retention limit.</p>
+  <p>Analysis requests are not stored beyond the time required to generate and return the response. License validation records are retained for the duration of the license. Atlas retention rules will be published before the feature is released.</p>
 
   <h2>8. Your rights</h2>
   <p>Under GDPR you have the right to access, rectify, or erase personal data we hold about you, and to object to or restrict processing. To exercise any of these rights, contact <a href="mailto:privacy@dixsystem.com">privacy@dixsystem.com</a>. We will respond within 30 days.</p>

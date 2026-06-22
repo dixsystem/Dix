@@ -2,12 +2,12 @@ const SAYINGS = [
   '¡Hola! Soy DIXBOT 🤖',
   'Tu kernel necesita amor ❤️',
   '¿Has optimizado hoy?',
-  '¡Score 91 o te debo una!',
+  'Sube tu score con un análisis real',
   'DIX: €14.99 de poder puro ⚡',
   'Linux > todo lo demás 🐧',
   'Corre, no camines, optimiza',
   '¿Qué hace tu governor ahora?',
-  'El 3% llega a 90+. Tú puedes.',
+  'Optimiza con datos de tu propio sistema.',
   '¡Cómprame! No me arrepiento.',
 ];
 
@@ -404,7 +404,7 @@ export class DixBotMascot {
       '¡Optimiza ya! ⚡',
       'Prueba DIX Linux por €14.99 🔥',
       'Tu kernel merece más 💪',
-      'Score 91 al alcance 🎯',
+      'Mejora tu score con un análisis 🎯',
       '¡Compra DIX y lo verás! 🚀',
     ];
     const reply = document.createElement('div');

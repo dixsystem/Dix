@@ -25,7 +25,7 @@ No hay respuesta incorrecta. Buscamos perspectivas externas sin sesgo para lleva
 
 Es un producto comercial desarrollado por **DixSystem** (startup personal del desarrollador). Se vende a **14,99€ pago único** y tiene un modelo de demo de 1 análisis gratuito antes de pedir licencia.
 
-**El claim de marca:** *"La primera AppIA del Mundo"* — una app que no solo tiene IA integrada como chatbot, sino que usa la IA como motor de razonamiento para tomar decisiones reales sobre el hardware.
+**El claim de marca:** *"AppIA para optimización Linux"* — una app que no solo tiene IA integrada como chatbot, sino que usa la IA como motor de razonamiento para tomar decisiones sobre el hardware. La prioridad mundial queda como eslogan no factual hasta contar con definición, registro y análisis competitivo documentados.
 
 ---
 
@@ -40,11 +40,11 @@ Un usuario Linux normal tiene su sistema con parámetros de kernel por defecto q
 
 Dix lee **16 métricas reales del kernel**, se las manda a Claude AI, recibe un plan personalizado de 8-12 optimizaciones con un script bash generado a medida para ese hardware concreto, y lo ejecuta con `pkexec` (sin exponer contraseña).
 
-**Resultados medidos en hardware real (i5-12400, 32GB DDR4, NVMe):**
-- CPU sysbench: +15% (6.700 → 7.760 events/s)
-- Score global: 62→91/100 (+47%)
-- TCP BBR activo: +40% throughput
-- NVMe kyber scheduler: -30% latencia I/O
+**Caso de prueba único en hardware real (i5-12400, 32GB DDR4, NVMe):**
+- CPU sysbench: +15% (6.700 → 7.760 events/s), pendiente de publicar con metodología completa y varias repeticiones.
+- Score global interno: 62→91/100 (+47%), calculado desde parámetros del sistema.
+- TCP BBR activo: cambio aplicado; porcentaje de throughput retirado hasta tener iperf3/netperf reproducible.
+- NVMe kyber scheduler: cambio aplicado; porcentaje de latencia retirado hasta tener fio reproducible con percentiles.
 
 ---
 

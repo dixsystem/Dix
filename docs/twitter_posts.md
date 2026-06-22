@@ -33,12 +33,12 @@ Every generated script is validated by a static policy engine before pkexec sees
 
 **Post 4 — El score**
 
-Tested on Intel i5-12400 + 32GB DDR4:
+Single test system: Intel i5-12400 + 32GB DDR4:
 
 Score before: 34/100
 Score after: 91/100
 
-Not estimated. Measured. Claude AI, kernel-level changes, your hardware.
+Internal DIX score from one hardware case. Methodology pending publication; not a general performance guarantee.
 
 dixsystem.com #DixSystem #Linux
 

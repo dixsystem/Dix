@@ -1,4 +1,4 @@
-# DIX — The World's First AppIA
+# DIX — AppIA for Linux Kernel Optimization
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
 ![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
@@ -11,9 +11,9 @@
 
 ## What is DIX
 
-DIX reads your hardware and kernel state, sends it to a Claude-powered analysis layer, and applies a tailored set of kernel parameter changes — all in under a minute. It does not guess. It measures your actual CPU governor, scheduler, memory pressure, and I/O stack, then generates a script specific to your machine.
+DIX reads your hardware and kernel state, sends it to a Claude-powered analysis layer, and applies a tailored set of kernel parameter changes. It reads your current CPU governor, scheduler, memory pressure, and I/O stack configuration, then generates a script specific to your machine.
 
-No generic tweaks. No placebo toggles. Real kernel tuning, validated before execution.
+No generic tweak pack. Kernel tuning recommendations are generated from your system snapshot and validated by policy before execution.
 
 ---
 
@@ -21,9 +21,9 @@ No generic tweaks. No placebo toggles. Real kernel tuning, validated before exec
 
 **1. Scan** — DIX reads `/proc`, `/sys`, and hardware identifiers to build a full picture of your current system state.
 
-**2. Analyze** — That snapshot is analyzed by Claude AI. The model returns a prioritized list of optimizations with estimated impact scores for your exact hardware.
+**2. Analyze** — That snapshot is analyzed by Claude AI. The model returns a prioritized list of optimizations with visible estimated impact scores based on that snapshot and your hardware profile.
 
-**3. Apply** — A validated bash script is generated, reviewed by a static policy engine, and executed via `pkexec`. Every change is snapshotted first for one-click rollback.
+**3. Apply** — A validated bash script is generated, reviewed by a static policy engine, and executed via `pkexec`. Covered parameter changes are snapshotted first for one-click rollback.
 
 ---
 
@@ -71,7 +71,7 @@ DIX enforces a strict static policy on every generated script before it touches 
 
 Scripts are also restricted to a whitelist of `sysctl` keys and `/sys/` paths. Any line that does not match — including `rm`, `curl`, `eval`, shell substitutions, and `/etc/` writes — causes the entire script to be rejected before execution.
 
-The API key for Claude never leaves the proxy server. The client binary contains no credentials.
+The Claude API key is designed to stay on the proxy server; release builds should not contain provider credentials.
 
 ---
 

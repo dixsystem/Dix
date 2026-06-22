@@ -108,14 +108,16 @@ Ranger Rojo    ██████████████████░░ 92% 
 
 ---
 
-## RESULTADOS MEDIDOS EN HARDWARE DE PRUEBAS
+## CASO DE PRUEBA ÚNICO — HARDWARE DE PRUEBAS
+
+Resultados internos de una única máquina de prueba. No son una promesa de rendimiento general; la metodología reproducible y los logs de medición quedan pendientes de publicar.
 
 | Métrica | Antes | Después | Mejora |
 |---|---|---|---|
-| Score global | 62/100 | 91/100 | **+47%** |
-| CPU sysbench | 6.700 events/s | 7.760 events/s | **+15%** |
-| NVMe latencia | mq-deadline | kyber | **-30%** |
-| TCP throughput | sin BBR | BBR activo | **+40%** |
+| Score global interno | 62/100 | 91/100 | **caso de prueba único (+47%)** |
+| CPU sysbench | 6.700 events/s | 7.760 events/s | **caso de prueba único (+15%)** |
+| NVMe scheduler | mq-deadline | kyber | **cambio aplicado; latencia pendiente de fio reproducible** |
+| TCP congestion control | sin BBR | BBR activo | **cambio aplicado; throughput pendiente de iperf3/netperf reproducible** |
 
 ---
 
@@ -149,10 +151,10 @@ Distribución     .deb (Debian/Ubuntu) + .rpm + .AppImage
 ## DECLARACIÓN DE ESTADO
 
 > Dix v1.0.0 está **instalado y operativo** en hardware de producción.  
-> Es el primer software del mundo que usa un LLM real para optimizar parámetros del kernel de Linux de forma personalizada por hardware.  
+> Usa un LLM para optimizar parámetros del kernel de Linux de forma personalizada por hardware.  
 > La categoría **AppIA** existe. El producto existe. Falta el sistema de venta.
 
 ---
 
-*DixSystem — Junio 2026 — "La primera AppIA del Mundo"*  
+*DixSystem — Junio 2026 — "AppIA para optimización Linux"*  
 *© 2026 DixSystem — Todos los derechos reservados.*
