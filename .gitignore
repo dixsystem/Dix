@@ -40,15 +40,10 @@ dix-proxy/
 .claude/
 
 # Resultados de tests y benchmarks locales
-batch_results/
-bench_results/
-bench_live.log
-stress_5000.sh
-batch_500.sh
-batch_5000.sh
-roulette.sh
-run_mock.sh
-mock_profiles/
+scripts/batch_results/
+scripts/bench_results/
+scripts/bench_live.log
+scripts/mock_profiles/
 sabios/
 
 # Archivos de desarrollo temporal

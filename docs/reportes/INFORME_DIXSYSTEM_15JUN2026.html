@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DixSystem — Informe de Estado 15/06/2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f8f9fa;
+    color: #1a1a2e;
+    font-size: 11pt;
+    line-height: 1.6;
+  }
+
+  /* ── PORTADA ── */
+  .cover {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 40%, #16213e 100%);
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    page-break-after: always;
+  }
+
+  .cover-logo {
+    font-size: 72pt;
+    font-weight: 900;
+    letter-spacing: -2px;
+    background: linear-gradient(90deg, #FF6B00, #FFD700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .cover-sub {
+    font-size: 14pt;
+    color: #FF6B00;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 60px;
+    font-weight: 500;
+  }
+
+  .cover-title {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 12px;
+  }
+
+  .cover-subtitle {
+    font-size: 13pt;
+    color: #8892b0;
+    margin-bottom: 60px;
+  }
+
+  .cover-date {
+    background: rgba(255,107,0,0.15);
+    border: 1px solid #FF6B00;
+    border-radius: 8px;
+    padding: 16px 40px;
+    color: #FF6B00;
+    font-size: 14pt;
+    font-weight: 600;
+    letter-spacing: 2px;
+    margin-bottom: 60px;
+  }
+
+  .cover-meta {
+    font-size: 9pt;
+    color: #4a5568;
+    line-height: 2;
+  }
+
+  .cover-meta strong { color: #8892b0; }
+
+  /* ── PÁGINA GENERAL ── */
+  .page {
+    background: white;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 70px;
+  }
+
+  .page-break { page-break-before: always; }
+
+  /* ── ENCABEZADOS ── */
+  h1 {
+    font-size: 22pt;
+    font-weight: 900;
+    color: #0d1117;
+    border-bottom: 4px solid #FF6B00;
+    padding-bottom: 12px;
+    margin-bottom: 28px;
+    margin-top: 0;
+  }
+
+  h2 {
+    font-size: 15pt;
+    font-weight: 700;
+    color: #0d1117;
+    margin-top: 36px;
+    margin-bottom: 14px;
+    padding-left: 14px;
+    border-left: 4px solid #FF6B00;
+  }
+
+  h3 {
+    font-size: 12pt;
+    font-weight: 600;
+    color: #2d3748;
+    margin-top: 22px;
+    margin-bottom: 10px;
+  }
+
+  h4 {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #4a5568;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  p { margin-bottom: 10px; }
+
+  /* ── ÍNDICE ── */
+  .toc { margin: 30px 0; }
+  .toc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px dotted #e2e8f0;
+    font-size: 10.5pt;
+  }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-section { color: #0d1117; font-weight: 500; }
+  .toc-dots { flex: 1; margin: 0 8px; border-bottom: 1px dotted #cbd5e0; }
+  .toc-page { color: #718096; font-size: 9.5pt; }
+  .toc-cat { font-size: 8pt; color: #FF6B00; font-weight: 700; margin-right: 8px; text-transform: uppercase; }
+
+  /* ── BADGES DE ESTADO ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .badge-done    { background: #c6f6d5; color: #276749; }
+  .badge-pending { background: #fed7d7; color: #9b2c2c; }
+  .badge-wip     { background: #fefcbf; color: #744210; }
+  .badge-concept { background: #e9d8fd; color: #553c9a; }
+  .badge-live    { background: #bee3f8; color: #2a69ac; }
+
+  /* ── TABLAS ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px 0;
+    font-size: 9.5pt;
+  }
+  th {
+    background: #0d1117;
+    color: #FF6B00;
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f7fafc; }
+  tr:hover td { background: #fff5f0; }
+
+  /* ── CAJAS ── */
+  .box {
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .box-orange {
+    background: #fff5f0;
+    border-left: 4px solid #FF6B00;
+  }
+  .box-green {
+    background: #f0fff4;
+    border-left: 4px solid #38a169;
+  }
+  .box-red {
+    background: #fff5f5;
+    border-left: 4px solid #e53e3e;
+  }
+  .box-blue {
+    background: #ebf8ff;
+    border-left: 4px solid #3182ce;
+  }
+  .box-dark {
+    background: #0d1117;
+    color: #a0aec0;
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 18px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+  }
+  .box-dark .highlight { color: #FF6B00; font-weight: 700; }
+  .box-dark .green { color: #00FF88; }
+
+  /* ── CUADRÍCULA KPI ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .kpi {
+    background: #0d1117;
+    border-radius: 8px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+  .kpi-value {
+    font-size: 22pt;
+    font-weight: 900;
+    color: #FF6B00;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .kpi-label {
+    font-size: 8pt;
+    color: #8892b0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── LÍNEA DE TIEMPO ── */
+  .timeline { margin: 20px 0; }
+  .tl-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .tl-dot {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-top: 3px;
+    border: 3px solid;
+  }
+  .tl-dot-done   { background: #38a169; border-color: #38a169; }
+  .tl-dot-wip    { background: #F6AD55; border-color: #F6AD55; }
+  .tl-dot-future { background: transparent; border-color: #4a5568; }
+  .tl-line {
+    display: flex;
+    flex-direction: column;
+  }
+  .tl-title { font-weight: 700; font-size: 10.5pt; color: #0d1117; }
+  .tl-desc  { font-size: 9.5pt; color: #4a5568; margin-top: 2px; }
+
+  /* ── PROGRESO ── */
+  .progress-bar {
+    background: #e2e8f0;
+    border-radius: 4px;
+    height: 10px;
+    margin: 6px 0 14px 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #FF6B00, #FFD700);
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: #4a5568;
+    margin-bottom: 2px;
+  }
+
+  /* ── SEPARADOR ── */
+  hr {
+    border: none;
+    border-top: 2px solid #e2e8f0;
+    margin: 32px 0;
+  }
+
+  .section-header {
+    background: linear-gradient(90deg, #0d1117, #1a1a2e);
+    color: white;
+    padding: 22px 30px;
+    margin: -60px -70px 40px -70px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-header-title { font-size: 11pt; color: #FF6B00; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+  .section-header-date  { font-size: 9pt; color: #4a5568; }
+
+  ul { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 5px; }
+
+  .tag {
+    display: inline-block;
+    background: #0d1117;
+    color: #FF6B00;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-weight: 700;
+    margin-right: 4px;
+    font-family: monospace;
+  }
+
+  .footer-page {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.5pt;
+    color: #a0aec0;
+  }
+
+  .warning {
+    background: #fffbeb;
+    border: 1px solid #f6c90e;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 9.5pt;
+    color: #744210;
+    margin: 12px 0;
+  }
+
+  .emoji { font-size: 12pt; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     PORTADA
+══════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">DIX</div>
+  <div class="cover-sub">by DixSystem</div>
+
+  <div class="cover-title">INFORME INTEGRAL DE ESTADO DEL PROYECTO</div>
+  <div class="cover-subtitle">Resumen ejecutivo · Arquitectura · Roadmap · Finanzas · Pendientes</div>
+
+  <div class="cover-date">15 JUNIO 2026</div>
+
+  <div class="cover-meta">
+    <strong>Empresa:</strong> DixSystem<br>
+    <strong>Fundador:</strong> Alonso Torres<br>
+    <strong>Producto:</strong> Dix — La primera AppIA del Mundo<br>
+    <strong>Tagline:</strong> "Tu sistema. Al máximo. Con IA."<br>
+    <strong>Versión del producto:</strong> Dix v1.0.0<br>
+    <strong>Documento generado:</strong> Claude Code — sesión 15/06/2026
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     ÍNDICE
+══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <span class="section-header-title">DixSystem · Informe 15/06/2026</span>
+    <span class="section-header-date">Índice de contenidos</span>
+  </div>
+
+  <h1>Índice de Contenidos</h1>
+
+  <div class="toc">
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">01</span>Resumen Ejecutivo y KPIs del Proyecto</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">3</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">02</span>Identidad, Marca y Ecosistema DixSystem</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">4</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">03</span>Arquitectura Técnica — Dix v1.0</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">5</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">04</span>Estado del Código y Módulos Rust</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">6</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">05</span>Roadmap Rangers — Estado por Fase</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">8</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">06</span>Web dixsystem.com — Estado de Despliegue</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">9</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">07</span>Productos del Ecosistema DixSystem</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">10</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">08</span>DIX Odyssey — Tier Premium</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">12</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">09</span>Proyecciones Financieras</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">13</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">10</span>NEXUS — Plataforma IA Central</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">14</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">11</span>Marketing y Campaña Viral</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">15</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">12</span>Pendientes Críticos y Próximos Pasos</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">16</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">13</span>Credenciales y Plataformas Externas</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">17</span>
+    </div>
+    <div class="toc-item">
+      <span class="toc-section"><span class="toc-cat">14</span>Reglas Absolutas del Sistema</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">18</span>
+    </div>
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 01 — RESUMEN EJECUTIVO
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">01 · Resumen Ejecutivo</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>01 · Resumen Ejecutivo y KPIs</h1>
+
+  <div class="box box-orange">
+    <strong>Resumen en una línea:</strong> Dix v1.0.0 está compilado, publicado en GitHub y con web en producción en dixsystem.com — el único bloqueo para monetizar es la integración de pagos con Lemon Squeezy y el puerto a Windows.
+  </div>
+
+  <h2>Estado Global del Proyecto</h2>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-value">92%</div>
+      <div class="kpi-label">Ranger Rojo<br>(Linux)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">53</div>
+      <div class="kpi-label">Commits<br>Junio 2026</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">v1.0.0</div>
+      <div class="kpi-label">Versión<br>Producción</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">LIVE</div>
+      <div class="kpi-label">dixsystem.com<br>en Netlify</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-value">+47%</div>
+      <div class="kpi-label">Score sistema<br>(62→91/100)</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">+15%</div>
+      <div class="kpi-label">CPU sysbench<br>medido</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">3.4 MB</div>
+      <div class="kpi-label">Tamaño binario<br>.deb</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-value">14,99€</div>
+      <div class="kpi-label">Precio<br>Dix v1 Linux</div>
+    </div>
+  </div>
+
+  <h2>Progreso por Áreas</h2>
+
+  <div class="progress-label"><span>Core Técnico (Rust + Tauri)</span><span>100%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+
+  <div class="progress-label"><span>UI / Frontend React</span><span>95%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:95%"></div></div>
+
+  <div class="progress-label"><span>Web dixsystem.com</span><span>90%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div>
+
+  <div class="progress-label"><span>Ranger Rojo (Linux completo)</span><span>92%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:92%"></div></div>
+
+  <div class="progress-label"><span>Integración Pagos (Lemon Squeezy)</span><span>30%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div>
+
+  <div class="progress-label"><span>Ranger Azul (Windows)</span><span>25%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:25%"></div></div>
+
+  <div class="progress-label"><span>DIX Odyssey (tier premium)</span><span>15%</span></div>
+  <div class="progress-bar"><div class="progress-fill" style="width:15%"></div></div>
+
+  <h2>Hitos Alcanzados en Junio 2026</h2>
+  <ul>
+    <li><strong>3 Jun:</strong> Core 100% completo, obfstr en prompts + headers API, modo demo, auto-updater GitHub Releases, build .deb 3.4 MB verificado</li>
+    <li><strong>3 Jun:</strong> Fix governor/pinned_params/serde — sistema verificado 16/16 parámetros aplicados, score 18→74 (+56 pts) en roulette crisis</li>
+    <li><strong>7 Jun:</strong> Refinamiento UI Dix v1 — tema #0d1117, ventana 920×800px, vistas idle/scanning/results/applying/done/activate</li>
+    <li><strong>12 Jun:</strong> Web nueva cyberpunk 11 secciones, deploy Netlify (commit dbe1c47), binario compilado y verificado, GitHub Releases 3 binarios</li>
+    <li><strong>12 Jun:</strong> DIXBOT — mascota animada con 7+ estados (walk/think/wave/hang/swing/point/cheer/kick), motor físico completo en landing</li>
+    <li><strong>15 Jun (aprox):</strong> Dix Odyssey card en landing, Windows BETA card, perfiles Gaming/Streaming/Dev/Servidor/Equilibrado, fix Windows rustls-tls + timeout 60s</li>
+  </ul>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 01</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 02 — IDENTIDAD Y MARCA
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">02 · Identidad y Marca</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>02 · Identidad, Marca y Ecosistema</h1>
+
+  <h2>Datos Corporativos</h2>
+  <table>
+    <tr><th>Campo</th><th>Valor</th></tr>
+    <tr><td>Empresa</td><td>DixSystem</td></tr>
+    <tr><td>Fundador</td><td>Alonso Torres (España)</td></tr>
+    <tr><td>Categoría inventada</td><td>AppIA — "La primera AppIA del Mundo"</td></tr>
+    <tr><td>Producto estrella</td><td>Dix (nombre de producto; MiniNexus es nombre de desarrollo)</td></tr>
+    <tr><td>Tagline</td><td>"Tu sistema. Al máximo. Con IA."</td></tr>
+    <tr><td>Web</td><td>dixsystem.com (live en Netlify)</td></tr>
+    <tr><td>GitHub</td><td>github.com/dixsystem/Dix (público)</td></tr>
+    <tr><td>Email contacto</td><td>hello@dixsystem.com</td></tr>
+    <tr><td>Email fundador</td><td>lidel2750@gmail.com</td></tr>
+  </table>
+
+  <h2>Paleta de Colores Oficial</h2>
+  <table>
+    <tr><th>Nombre</th><th>Hex</th><th>Uso</th></tr>
+    <tr><td>Naranja DIX</td><td>#FF6B00</td><td>Color principal, CTAs, acentos, logo</td></tr>
+    <tr><td>Amarillo Energía</td><td>#FFD700</td><td>Gradientes, highlights, ojos mascota</td></tr>
+    <tr><td>Negro Profundo</td><td>#0d1117</td><td>Fondo app, header, dark mode</td></tr>
+    <tr><td>Verde Éxito</td><td>#00FF88</td><td>Score alto, éxito, optimizaciones aplicadas</td></tr>
+  </table>
+
+  <h2>Assets Visuales Disponibles</h2>
+  <ul>
+    <li><strong>Logo DixSystem:</strong> circuito eléctrico + letras "DX" metálicas</li>
+    <li><strong>Icono Dix:</strong> máscara DIX naranja con ojos amarillos</li>
+    <li><strong>DIX mecánico sucio</strong> (estado inicial), <strong>DIX limpiando</strong> (proceso), <strong>DIX flamante badge 91/100</strong> (resultado)</li>
+    <li><strong>DIX + Tux tomando notas</strong> (colaboración Linux)</li>
+    <li><strong>dix_hero_full.png:</strong> imagen hero para landing (ya desplegada)</li>
+    <li><strong>DIXBOT:</strong> mascota animada JS con 7+ estados para web — motor físico, trepa, liana, chat</li>
+  </ul>
+
+  <h2>Protocolo ACP — AppIA Communication Protocol</h2>
+  <div class="box box-dark">
+    <span class="highlight">Formato ACP:</span> CPU:GOV=PWR|CPU:LOAD=82|MEM:SWP=60|NUMA=1|GPU:PWR=125<br>
+    <span class="green">64% menos bytes que JSON equivalente</span><br><br>
+    Analizado por multi-IA: ChatGPT (autor), DeepSeek (revisor)<br>
+    Conclusión: óptimo para comunicación IA↔IA (40-60% mejora). NO para humano↔IA.
+  </div>
+
+  <h4>Fases de implementación ACP (prioridad):</h4>
+  <ul>
+    <li><strong>ALTA:</strong> Cache local <code>~/.config/dix/state.json</code> — hash SHA256 del ACP — objetivo: 2º análisis &lt; 100ms</li>
+    <li><strong>MEDIA:</strong> ACP encoder en Rust + MiniNexus para comparación por embedding</li>
+    <li><strong>BAJA:</strong> Tensor Arena en VRAM para comunicación ultra-rápida MiniNexus↔NEXUS</li>
+    <li><strong>FUTURO:</strong> NEXUS Global cache compartido entre usuarios</li>
+  </ul>
+
+  <h2>División Multi-IA del Equipo</h2>
+  <table>
+    <tr><th>IA</th><th>Rol</th></tr>
+    <tr><td>Claude</td><td>Arquitecto Jefe &amp; Gobernanza (schema SSE, líneas rojas, documentación)</td></tr>
+    <tr><td>Gemini</td><td>Estratega Multimodal (roadmap, VRAM, hardware)</td></tr>
+    <tr><td>ChatGPT</td><td>Ingeniero Core (Policy Manager, audit trail, tests)</td></tr>
+    <tr><td>DeepSeek</td><td>Revisor Crítico (devil's advocate, revisión de código)</td></tr>
+    <tr><td>Kimi</td><td>Integrador &amp; Ejecutor (código VRAM Manager, SSE endpoint, UI React)</td></tr>
+  </table>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 02</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 03 — ARQUITECTURA TÉCNICA
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">03 · Arquitectura Técnica</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>03 · Arquitectura Técnica — Dix v1.0</h1>
+
+  <h2>Stack Tecnológico</h2>
+  <table>
+    <tr><th>Capa</th><th>Tecnología</th><th>Versión</th></tr>
+    <tr><td>Framework escritorio</td><td>Tauri v2</td><td>2.x</td></tr>
+    <tr><td>Frontend</td><td>React + TypeScript + Vite</td><td>React 19 / Vite 8</td></tr>
+    <tr><td>Backend / lógica</td><td>Rust</td><td>Stable</td></tr>
+    <tr><td>HTTP cliente IA</td><td>reqwest (rustls-tls)</td><td>0.12</td></tr>
+    <tr><td>Serialización</td><td>serde + serde_json</td><td>1.x</td></tr>
+    <tr><td>Ofuscación prompts</td><td>obfstr</td><td>0.4</td></tr>
+    <tr><td>Modelo IA</td><td>Claude Sonnet 4.6 (API Anthropic)</td><td>claude-sonnet-4-6</td></tr>
+    <tr><td>Modelo Odyssey</td><td>Claude Opus 4.8</td><td>claude-opus-4-8</td></tr>
+    <tr><td>Build Linux</td><td>.deb + .AppImage + .rpm (GitHub Releases)</td><td>3.4 MB / 83 MB</td></tr>
+    <tr><td>Proxy IA</td><td>dix-proxy.dixsystem.workers.dev (Cloudflare Workers)</td><td>Activo</td></tr>
+    <tr><td>Auto-updater</td><td>tauri-plugin-updater (GitHub Releases)</td><td>2.x</td></tr>
+  </table>
+
+  <h2>Hardware de Referencia (Desarrollo y Tests)</h2>
+  <table>
+    <tr><th>Componente</th><th>Especificación</th></tr>
+    <tr><td>CPU</td><td>Intel i5-12400 Alder Lake (6 P-cores, sin E-cores)</td></tr>
+    <tr><td>GPU</td><td>RTX 3060 12GB — NUNCA TOCAR en optimizaciones</td></tr>
+    <tr><td>RAM</td><td>32 GB DDR4</td></tr>
+    <tr><td>Almacenamiento</td><td>NVMe 2.4 TB</td></tr>
+    <tr><td>SO</td><td>Ubuntu 26.04, Kernel 7.0, GNOME 50 Wayland</td></tr>
+  </table>
+
+  <h2>Módulos Rust (src-tauri/src/)</h2>
+  <table>
+    <tr><th>Módulo</th><th>Responsabilidad</th><th>Estado</th></tr>
+    <tr><td><span class="tag">scanner.rs</span></td><td>Lee 16 métricas de /sys, /proc, pactl, systemctl</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">policy.rs</span></td><td>Motor de reglas: bloquea GPU/NUMA=0/dirty&gt;15/hugepages=never</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">memory.rs</span></td><td>Persiste API key + historial 20 sesiones en ~/.config/mininexus/store.json</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">claude_gateway.rs</span></td><td>Cliente HTTP Anthropic, soporte Sonnet 4.6 / Opus 4.8 (Odyssey)</td><td><span class="badge badge-wip">Modificado</span></td></tr>
+    <tr><td><span class="tag">executor.rs</span></td><td>Valida con policy, ejecuta con /usr/bin/pkexec, apply_persistence(), RollbackGuard</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">cache.rs</span></td><td>ACP encoding, SHA256 hit/miss, pinned_params, historial caché</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">atlas.rs</span></td><td>DIX Atlas — ranking de scores de la comunidad</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">benchmark.rs</span></td><td>sysbench integrado, medición delta antes/después</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">state.rs</span></td><td>Estado persistente en ~/.config/dix/state.json</td><td><span class="badge badge-done">Completo</span></td></tr>
+    <tr><td><span class="tag">main.rs</span></td><td>9+ comandos Tauri: scan/analyze/generate/execute/licencias/atlas/benchmark</td><td><span class="badge badge-wip">Modificado</span></td></tr>
+  </table>
+
+  <h2>Comandos Tauri Expuestos al Frontend</h2>
+  <div class="box box-dark">
+    <span class="green">scan_system</span> → Scanner lee 16 métricas del hardware<br>
+    <span class="green">analyze_system</span>(scan_json, bench_json, profile) → Claude API → AnalysisResponse<br>
+    <span class="green">generate_script</span> → Claude genera bash optimizado<br>
+    <span class="green">execute_script</span> → pkexec ejecuta con validación policy<br>
+    <span class="green">get_api_key_status</span> / <span class="green">save_api_key</span><br>
+    <span class="green">get_sessions</span> / <span class="green">save_session</span> / <span class="green">clear_sessions</span><br>
+    <span class="green">activate_license</span> → guarda key localmente (falta validación LS real)<br>
+    <span class="green">run_benchmark</span> → sysbench integrado
+  </div>
+
+  <h2>Resultados Medidos en Hardware Real</h2>
+  <table>
+    <tr><th>Métrica</th><th>Antes</th><th>Después</th><th>Mejora</th></tr>
+    <tr><td>CPU sysbench (events/s)</td><td>6.700</td><td>7.760</td><td>+15%</td></tr>
+    <tr><td>Score global DIX</td><td>62/100</td><td>91/100</td><td>+47%</td></tr>
+    <tr><td>TCP throughput (BBR activo)</td><td>Base</td><td>+40%</td><td>+40%</td></tr>
+    <tr><td>Latencia NVMe (kyber scheduler)</td><td>Base</td><td>-30%</td><td>-30%</td></tr>
+    <tr><td>Crisis scenario (roulette)</td><td>18/100</td><td>74/100</td><td>+56 pts</td></tr>
+    <tr><td>Parámetros aplicados (roulette)</td><td>0/17</td><td>17/17</td><td>100%</td></tr>
+  </table>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 03</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 04 — ESTADO DEL CÓDIGO
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">04 · Estado del Código</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>04 · Estado del Código — Módulos y Componentes</h1>
+
+  <h2>Checklist de Componentes Dix v1.0</h2>
+  <table>
+    <tr><th>Componente</th><th>Estado</th><th>Notas</th></tr>
+    <tr><td>Backend Rust (scan + claude + script)</td><td><span class="badge badge-done">Completo</span></td><td>10 módulos activos</td></tr>
+    <tr><td>Frontend React básico</td><td><span class="badge badge-done">Completo</span></td><td>React 19 + TypeScript + Vite 8</td></tr>
+    <tr><td>Ejecución con pkexec</td><td><span class="badge badge-done">Completo</span></td><td>Ruta absoluta /usr/bin/pkexec</td></tr>
+    <tr><td>Build .deb instalable</td><td><span class="badge badge-done">Completo</span></td><td>3.4 MB, GitHub Releases v1.0.0</td></tr>
+    <tr><td>UI premium oscura #0d1117 + DIX integrado</td><td><span class="badge badge-done">Completo</span></td><td>Ventana 920×800px, 6 vistas</td></tr>
+    <tr><td>Estado persistente (~/.config/dix/state.json)</td><td><span class="badge badge-done">Completo</span></td><td>state.rs activo</td></tr>
+    <tr><td>Script de reversión</td><td><span class="badge badge-done">Completo</span></td><td>RollbackGuard en executor.rs</td></tr>
+    <tr><td>Diálogo de reinicio obligatorio</td><td><span class="badge badge-done">Completo</span></td><td>Flujo UI completo</td></tr>
+    <tr><td>obfstr en system prompts + headers API</td><td><span class="badge badge-done">Completo</span></td><td>Ofuscación en binario</td></tr>
+    <tr><td>Modo demo (3 análisis gratis) + modal compra</td><td><span class="badge badge-done">Completo</span></td><td>Subido de 1 a 3 análisis</td></tr>
+    <tr><td>Auto-updater GitHub Releases</td><td><span class="badge badge-done">Completo</span></td><td>Clave en ~/.tauri/dix.key, workflow en .github/workflows/release.yml</td></tr>
+    <tr><td>Cache ACP + pinned_params</td><td><span class="badge badge-done">Completo</span></td><td>SHA256 hit/miss, 2º análisis &lt;100ms objetivo</td></tr>
+    <tr><td>Atlas de scores comunidad</td><td><span class="badge badge-done">Completo</span></td><td>atlas.rs + ranking TOP 5 + reto mensual + Club 90+</td></tr>
+    <tr><td>Benchmark integrado</td><td><span class="badge badge-done">Completo</span></td><td>sysbench en benchmark.rs</td></tr>
+    <tr><td>Perfiles de optimización</td><td><span class="badge badge-done">Completo</span></td><td>Gaming / Streaming / Dev / Servidor / Equilibrado</td></tr>
+    <tr><td>DIX Odyssey tier (infraestructura)</td><td><span class="badge badge-done">Completo</span></td><td>Claude Opus 4.8, 12k tokens, badge ✦ ODYSSEY, licencias ODYSSEY-*</td></tr>
+    <tr><td>Sistema licencias Lemon Squeezy</td><td><span class="badge badge-pending">Pendiente</span></td><td>activate_license() guarda key — falta POST real a LS API</td></tr>
+    <tr><td>Validación pago producción</td><td><span class="badge badge-pending">Pendiente</span></td><td>Checkout URL existe en LS, falta verificación cuenta</td></tr>
+    <tr><td>Windows .msi</td><td><span class="badge badge-wip">En progreso</span></td><td>CI workflow añadido, fix rustls-tls + timeout 60s aplicado, scanner Windows activo</td></tr>
+    <tr><td>macOS</td><td><span class="badge badge-concept">Futuro</span></td><td>Ranger Amarillo — tras Windows</td></tr>
+  </table>
+
+  <h2>Archivos con Cambios Pendientes de Commit (git status)</h2>
+  <div class="box box-dark">
+    <span class="highlight">Modificados (staged/unstaged):</span><br>
+    M  src-tauri/Cargo.lock<br>
+    M  src-tauri/Cargo.toml<br>
+    M  src-tauri/src/claude_gateway.rs<br>
+    M  src-tauri/src/main.rs<br>
+    M  src-tauri/src/scanner.rs<br><br>
+    <span class="highlight">Sin trackear (nuevos):</span><br>
+    ?? landing/README.md<br>
+    ?? landing/worker.js<br>
+    ?? landing/wrangler.toml
+  </div>
+
+  <div class="warning">
+    <strong>Nota:</strong> Los archivos modificados sin commit pueden incluir mejoras para Windows (rustls-tls, scanner Windows, perfiles). Commitear antes de avanzar para no perder trabajo.
+  </div>
+
+  <h2>Últimos Commits Principales (Junio 2026)</h2>
+  <table>
+    <tr><th>Commit</th><th>Descripción</th></tr>
+    <tr><td><span class="tag">d100b76</span></td><td>feat(landing): DIX Odyssey card, Windows BETA, notranslate fix, roadmap update</td></tr>
+    <tr><td><span class="tag">b9d6ff7</span></td><td>feat(odyssey): tier premium Dix Odyssey v2.0</td></tr>
+    <tr><td><span class="tag">6e5a97d</span></td><td>security: eliminar dix-proxy del repo público</td></tr>
+    <tr><td><span class="tag">d907d51</span></td><td>feat(profiles): selector de perfil Gaming/Streaming/Dev/Servidor/Equilibrado</td></tr>
+    <tr><td><span class="tag">1968132</span></td><td>fix(windows): rustls-tls + timeout 60s — corrige cuelgue en paso 3</td></tr>
+    <tr><td><span class="tag">6624b18</span></td><td>feat(demo): subir límite demo de 1 a 3 análisis por dispositivo</td></tr>
+    <tr><td><span class="tag">97bad26</span></td><td>fix(windows): ocultar consola PowerShell + device_fingerprint correcto</td></tr>
+    <tr><td><span class="tag">8fc18d2</span></td><td>ci: add build-windows workflow for push to main y manual dispatch</td></tr>
+  </table>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 04</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 05 — ROADMAP RANGERS
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">05 · Roadmap Rangers</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>05 · Roadmap Rangers — Estado por Fase</h1>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot tl-dot-wip"></div>
+      <div class="tl-line">
+        <div class="tl-title">Ranger ROJO — Dix Linux <span class="badge badge-wip">92%</span></div>
+        <div class="tl-desc">
+          <strong>Completo:</strong> Todo el core técnico, obfstr, modo demo (3 análisis), auto-updater, perfiles, DIX Odyssey tier, atlas, benchmark, UI cyberpunk.<br>
+          <strong>Pendiente:</strong> Integración real de licencias Lemon Squeezy (falta POST de validación con Store ID + Product ID). Email forwarding hello@dixsystem.com. Post HackerNews.<br>
+          <strong>Bloqueo principal:</strong> Cuenta LS pendiente de verificación completa para activar checkout.
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot tl-dot-wip"></div>
+      <div class="tl-line">
+        <div class="tl-title">Ranger AZUL — Dix Windows <span class="badge badge-wip">~25%</span></div>
+        <div class="tl-desc">
+          <strong>Completado:</strong> CI workflow build-windows, fix rustls-tls + timeout 60s, ocultar consola PowerShell, device_fingerprint Windows, scanner Windows mem_native, policy NETWORK_TOOL+SUDO rules para Windows.<br>
+          <strong>Pendiente:</strong> Compilar .msi instalador, Windows Service para auto-updater, test en hardware real Windows, publicar en GitHub Releases.<br>
+          <strong>Estimación:</strong> ~3 semanas desde Ranger Rojo cerrado.
+        </div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot tl-dot-future"></div>
+      <div class="tl-line">
+        <div class="tl-title">Ranger AMARILLO — Dix macOS <span class="badge badge-concept">Futuro</span></div>
+        <div class="tl-desc">~3 semanas tras Windows. Port con traits de abstracción Rust ya diseñados.</div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot tl-dot-future"></div>
+      <div class="tl-line">
+        <div class="tl-title">Ranger VERDE — NEXUS Backend Central <span class="badge badge-concept">Futuro</span></div>
+        <div class="tl-desc">Conectar Dix a NEXUS FastAPI. Reemplazar dependencia Claude API para análisis con LLM local + historial vectorial. Requiere NEXUS Fase 3 estable.</div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot tl-dot-future"></div>
+      <div class="tl-line">
+        <div class="tl-title">Ranger NEGRO — Portal Web SaaS dixsystem.com <span class="badge badge-concept">Futuro</span></div>
+        <div class="tl-desc">Panel de control, gestión de licencias, marketplace de perfiles, análisis de telemetría comunidad.</div>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-dot tl-dot-future"></div>
+      <div class="tl-line">
+        <div class="tl-title">MEGAZORD — Ecosistema Completo <span class="badge badge-concept">Futuro</span></div>
+        <div class="tl-desc">Integración total con DGX Spark, DIX Odyssey Company (B2B), marketplace activo, modelo ONNX entrenado con telemetría comunidad.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Próximos Pasos Exactos — Ranger Rojo al 100%</h2>
+  <div class="box box-orange">
+    <strong>Para cerrar el 8% restante del Ranger Rojo:</strong>
+    <ol style="margin-top: 10px; padding-left: 20px;">
+      <li style="margin-bottom: 6px;"><strong>Verificar cuenta Lemon Squeezy</strong> — completar proceso de verificación en lemonsqueezy.com</li>
+      <li style="margin-bottom: 6px;"><strong>Obtener Store ID + Product ID</strong> — panel de LS tras crear producto "Dix" a 14,99€ tipo "License Key"</li>
+      <li style="margin-bottom: 6px;"><strong>Implementar POST real</strong> en <code>activate_license()</code> dentro de <code>main.rs</code> → <code>https://api.lemonsqueezy.com/v1/licenses/validate</code></li>
+      <li style="margin-bottom: 6px;"><strong>Activar email forwarding</strong> hello@ / privacy@ / legal@dixsystem.com → Gmail (Porkbun DNS)</li>
+      <li style="margin-bottom: 6px;"><strong>Commitear cambios pendientes</strong> (5 archivos modificados sin commit)</li>
+      <li style="margin-bottom: 6px;"><strong>Publicar Show HN</strong> en Hacker News</li>
+    </ol>
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 05</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 06 — WEB
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">06 · Web dixsystem.com</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>06 · Web dixsystem.com — Estado de Despliegue</h1>
+
+  <h2>Infraestructura Web</h2>
+  <table>
+    <tr><th>Elemento</th><th>Estado</th><th>Detalle</th></tr>
+    <tr><td>Hosting</td><td><span class="badge badge-live">Live</span></td><td>Netlify — site ID: 87cd3812-26bf-4c37-92e6-185e79cf99a9</td></tr>
+    <tr><td>Dominio</td><td><span class="badge badge-live">Activo</span></td><td>dixsystem.com — DNS Porkbun → Netlify</td></tr>
+    <tr><td>Deploy automático</td><td><span class="badge badge-live">Activo</span></td><td>Auto-deploy en cada push a main, carpeta landing/</td></tr>
+    <tr><td>Último commit</td><td><span class="badge badge-done">Desplegado</span></td><td>d100b76 — DIX Odyssey card + Windows BETA</td></tr>
+    <tr><td>Email forwarding</td><td><span class="badge badge-pending">Pendiente</span></td><td>hello@ / privacy@ / legal@dixsystem.com sin configurar</td></tr>
+    <tr><td>Netlify admin</td><td>—</td><td>https://app.netlify.com/projects/resilient-flan-53c937</td></tr>
+  </table>
+
+  <h2>Secciones de la Landing (11 secciones implementadas)</h2>
+  <table>
+    <tr><th>#</th><th>Sección</th><th>Contenido</th></tr>
+    <tr><td>1</td><td>Preloader</td><td>3s — "INITIALIZING DIX SYSTEM..." animado</td></tr>
+    <tr><td>2</td><td>Navbar</td><td>Fija + dropdown Productos + toggle EN/ES (Orbitron font)</td></tr>
+    <tr><td>3</td><td>Hero 100vh</td><td>dix_hero_full.png de fondo + partículas naranjas CSS + DIXBOT</td></tr>
+    <tr><td>4</td><td>Ticker social proof</td><td>Animado con testimonios y métricas</td></tr>
+    <tr><td>5</td><td>Calculadora de score</td><td>CPU/RAM/Distro → score estimado interactivo</td></tr>
+    <tr><td>6</td><td>Product cards</td><td>DIX Linux (€14.99) / Windows BETA / DixKontrol / DixStream</td></tr>
+    <tr><td>7</td><td>How it works</td><td>3 pasos animados con IntersectionObserver</td></tr>
+    <tr><td>8</td><td>Benchmarks animados</td><td>-8% CPU / +6 FPS / -4°C / 34→91 score</td></tr>
+    <tr><td>9</td><td>DIX Atlas</td><td>Ranking TOP 5 + reto mensual + Club 90+ (DIX Odyssey card)</td></tr>
+    <tr><td>10</td><td>Roadmap vertical</td><td>v1→v2→v3→NEXUS</td></tr>
+    <tr><td>11</td><td>Under the Hood</td><td>Terminal cyberpunk + 5 reglas de seguridad</td></tr>
+    <tr><td>12</td><td>Footer</td><td>Privacy / Terms / Contact (hello@dixsystem.com)</td></tr>
+  </table>
+
+  <h2>Archivos Legales y Marketing</h2>
+  <ul>
+    <li><code>landing/privacy.html</code> — política de privacidad</li>
+    <li><code>landing/terms.html</code> — términos de uso</li>
+    <li><code>docs/twitter_posts.md</code> — 5 posts X/Twitter listos para publicar</li>
+    <li><code>landing/worker.js</code> + <code>landing/wrangler.toml</code> — Cloudflare Worker (sin commitear)</li>
+  </ul>
+
+  <h2>GitHub — dixsystem/Dix</h2>
+  <table>
+    <tr><th>Elemento</th><th>Estado</th></tr>
+    <tr><td>Repositorio</td><td>Público — github.com/dixsystem/Dix</td></tr>
+    <tr><td>GitHub Releases v1.0.0</td><td>3 binarios: .deb (3.4MB) / .AppImage (83MB) / .rpm</td></tr>
+    <tr><td>dix-proxy/</td><td>EXCLUIDO (.gitignore) — NUNCA publicar</td></tr>
+    <tr><td>README.md</td><td>Profesional con badges + Install section (deb/rpm/AppImage)</td></tr>
+    <tr><td>CI Windows</td><td>build-windows workflow activo para push a main + manual dispatch</td></tr>
+    <tr><td>Auto-updater key</td><td>~/.tauri/dix.key (en local, NO en repo)</td></tr>
+  </table>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 06</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 07 — PRODUCTOS DEL ECOSISTEMA
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">07 · Productos del Ecosistema</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>07 · Productos del Ecosistema DixSystem</h1>
+
+  <h2>Mapa de Productos</h2>
+  <table>
+    <tr><th>Producto</th><th>Público objetivo</th><th>Precio</th><th>Modelo</th><th>Estado</th></tr>
+    <tr>
+      <td><strong>Dix v1 Linux</strong></td>
+      <td>Cualquier usuario Linux</td>
+      <td>€14.99</td>
+      <td>Pago único</td>
+      <td><span class="badge badge-wip">92% — en producción</span></td>
+    </tr>
+    <tr>
+      <td><strong>Dix Windows</strong></td>
+      <td>Usuarios Windows</td>
+      <td>€14.99</td>
+      <td>Pago único</td>
+      <td><span class="badge badge-wip">~25% — en progreso</span></td>
+    </tr>
+    <tr>
+      <td><strong>DIX Odyssey</strong></td>
+      <td>Power users (tier premium)</td>
+      <td>€4.99/mes · €39.99/año</td>
+      <td>Suscripción</td>
+      <td><span class="badge badge-concept">Infra lista, producto post-Windows</span></td>
+    </tr>
+    <tr>
+      <td><strong>AppIA DixKontrol v2</strong></td>
+      <td>Power users, devs, gamers</td>
+      <td>€24.99</td>
+      <td>Pago único</td>
+      <td><span class="badge badge-concept">Diseño — post Ranger Rojo</span></td>
+    </tr>
+    <tr>
+      <td><strong>DixStreamKontrol v3</strong></td>
+      <td>Streamers, YouTubers</td>
+      <td>€4.99/mes</td>
+      <td>Suscripción</td>
+      <td><span class="badge badge-concept">Diseño — post DixKontrol v2</span></td>
+    </tr>
+    <tr>
+      <td><strong>NEXUS SaaS</strong></td>
+      <td>Futuro — todos los productos</td>
+      <td>€9.99/mes</td>
+      <td>Suscripción</td>
+      <td><span class="badge badge-concept">Futuro (Ranger Verde)</span></td>
+    </tr>
+  </table>
+
+  <h2>AppIA DixKontrol v2 — Daemon Adaptativo</h2>
+  <div class="box box-blue">
+    <strong>Concepto central:</strong> En lugar de optimización manual (el usuario pulsa botón), un daemon de sistema monitoriza continuamente los procesos activos y ajusta el kernel automáticamente según el contexto — sin intervención del usuario.
+  </div>
+
+  <h4>Arquitectura del Daemon:</h4>
+  <div class="box box-dark">
+    daemon (Rust systemd service)<br>
+    &nbsp;&nbsp;├─ <span class="highlight">ProcessWatcher</span> (inotify /proc + perf counters)<br>
+    &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ ContextDetector (confidence score + hysteresis timer)<br>
+    &nbsp;&nbsp;├─ <span class="highlight">EventWatcher</span> (logind/UPower D-Bus)<br>
+    &nbsp;&nbsp;├─ <span class="highlight">ProfileEngine</span> (profiles.json generados por Claude en setup)<br>
+    &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ TransitionManager (cambios graduales, evita jank)<br>
+    &nbsp;&nbsp;├─ <span class="highlight">KernelWriter</span> (sysctl + sysfs via pkexec / cap_sys_admin)<br>
+    &nbsp;&nbsp;├─ <span class="highlight">RollbackGuard</span> (snapshot antes de cada transición)<br>
+    &nbsp;&nbsp;└─ <span class="highlight">IPCServer</span> (Unix socket → UI v1 / tray icon)
+  </div>
+
+  <h4>Perfiles de contexto detectados:</h4>
+  <table>
+    <tr><th>Proceso detectado</th><th>Perfil activado</th><th>Acción kernel</th></tr>
+    <tr><td>cargo/gcc/make</td><td>Compilación</td><td>CPU scheduler + I/O, latencia NVMe reducida</td></tr>
+    <tr><td>Juego + GPU-bound</td><td>Gaming</td><td>Governor performance, libera RAM cache</td></tr>
+    <tr><td>DaVinci/Premiere/Kdenlive</td><td>Edición vídeo</td><td>vm.dirty_ratio, kyber agresivo</td></tr>
+    <tr><td>obs + RTMP:1935</td><td>Streaming</td><td>CPU affinity encoder, red prioritaria, vm.swappiness=0</td></tr>
+    <tr><td>python+torch/cuda</td><td>ML Training</td><td>hugepages, kyber, governor performance</td></tr>
+    <tr><td>Zoom/Teams/WebRTC</td><td>Videoconferencia</td><td>IRQ red + PipeWire RT + reduce I/O fondo</td></tr>
+    <tr><td>Idle</td><td>Reposo</td><td>Governor powersave, aumenta swappiness</td></tr>
+  </table>
+
+  <h2>DixKontrol v2 — App de Control en Tiempo Real</h2>
+  <div class="box box-green">
+    <strong>Directorio:</strong> /home/alons/dix-kontrol/ (app Tauri independiente de Dix)<br>
+    <strong>Distinción:</strong> Dix = análisis + optimización IA. DixKontrol = control directo en tiempo real sin IA.<br>
+    <strong>Estado:</strong> Publicado en GitHub. Pendiente documentar toggle AUTO ON/OFF.
+  </div>
+
+  <h4>Features implementadas en DixKontrol v2:</h4>
+  <ul>
+    <li>12 barras per-core (i5-12400) con % de uso + frecuencia en tiempo real</li>
+    <li>Temperatura CPU x86_pkg_temp en gauge segmentado (verde/amarillo/rojo, alerta throttling)</li>
+    <li>RAM + SWAP con zRAM integrado</li>
+    <li>4 perfiles: Gaming, Compilación, Descarga, Reposo — una sola contraseña pkexec</li>
+    <li>Auto-detección de workload escaneando /proc cada 5 segundos</li>
+    <li>nice/ionice automático por perfil (Steam, cargo, gcc, torrents)</li>
+    <li>zRAM 2/4/8 GB configurable vía pkexec</li>
+  </ul>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 07</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 08 — DIX ODYSSEY
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">08 · DIX Odyssey</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>08 · DIX Odyssey — Tier Premium</h1>
+
+  <div class="box box-orange">
+    <strong>Condición de inicio:</strong> NO implementar hasta que DIX Windows confirme ventas reales. La orden de arranque es: <em>"Inicia DIX Odyssey"</em>
+  </div>
+
+  <h2>Modelo Comercial</h2>
+  <table>
+    <tr><th>Plan</th><th>Precio</th></tr>
+    <tr><td>DIX Odyssey mensual</td><td>€4.99/mes</td></tr>
+    <tr><td>DIX Odyssey anual</td><td>€39.99/año (ahorro 33%)</td></tr>
+  </table>
+
+  <h2>Las 5 Capas de Odyssey</h2>
+  <table>
+    <tr><th>Capa</th><th>Contenido</th></tr>
+    <tr><td><strong>Capa 1 — Métricas Avanzadas</strong></td><td>Temperatura CPU/GPU tiempo real, uso por core individual, latencia RAM, health SSD (vida útil)</td></tr>
+    <tr><td><strong>Capa 2 — Optimizaciones Adicionales</strong></td><td>Servicios arranque innecesarios, IRQ affinity, NVMe queue depth (+80% velocidad disco), Power Plan Ultimate (Windows oculto), prioridad procesos por app</td></tr>
+    <tr><td><strong>Capa 3 — Perfiles Inteligentes</strong></td><td>Gaming, Edición vídeo (DaVinci/Premiere), Trabajo/productividad, Streaming (OBS) — profundiza perfiles base gratuitos</td></tr>
+    <tr><td><strong>Capa 4 — Memoria Histórica</strong></td><td>Estado antes/después por sesión, comparativa entre sesiones, <strong>detección de degradación</strong> (gancho clave renovación suscripción)</td></tr>
+    <tr><td><strong>Capa 5 — Actualizaciones Mensuales</strong></td><td>Nuevas optimizaciones cada mes, el PC mejora automáticamente con el tiempo</td></tr>
+  </table>
+
+  <h2>Tiers Odyssey por Tipo de Usuario</h2>
+  <table>
+    <tr><th>Tier</th><th>Precio</th><th>Público</th><th>Estado</th></tr>
+    <tr><td>DIX Odyssey Personal</td><td>€4.99/mes</td><td>Usuarios domésticos / power users</td><td><span class="badge badge-concept">Post-Windows</span></td></tr>
+    <tr><td>DIX Odyssey Stream</td><td>€6.99/mes</td><td>OBS + gaming + encoding</td><td><span class="badge badge-concept">Post-Windows</span></td></tr>
+    <tr><td>DIX Odyssey Company</td><td>€200-500€/mes</td><td>Gestión de flotas B2B</td><td><span class="badge badge-concept">Futuro</span></td></tr>
+  </table>
+
+  <h2>Infraestructura Técnica Ya Implementada</h2>
+  <div class="box box-green">
+    La <strong>infraestructura técnica de Odyssey YA está en el código</strong> (implementada en sesión 15-jun):
+    <ul style="margin-top: 8px;">
+      <li>claude_gateway.rs: rutas Claude Opus 4.8, 12.000 tokens de análisis, 100 análisis/día</li>
+      <li>Badge dorado <strong>✦ ODYSSEY</strong> en la UI</li>
+      <li>Licencias con prefijo <code>ODYSSEY-*</code> activan este tier automáticamente</li>
+      <li>Tarjeta DIX Odyssey visible en landing</li>
+    </ul>
+    El <strong>producto de suscripción real</strong> (checkout, renovación automática) se lanza cuando DIX Windows confirme ventas.
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 08</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 09 — FINANZAS
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">09 · Proyecciones Financieras</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>09 · Proyecciones Financieras</h1>
+
+  <h2>Precios Actuales (v1) vs Planificados (v2)</h2>
+  <table>
+    <tr><th>Producto</th><th>Precio v1</th><th>Precio v2 planificado</th><th>Justificación alza</th></tr>
+    <tr><td>Dix Linux / Windows / macOS</td><td>€14.99</td><td>€19.99</td><td>Daemon adaptativo + IA embebida + marketplace</td></tr>
+    <tr><td>Bundle 3 plataformas</td><td>—</td><td>€39.99</td><td>Cross-platform</td></tr>
+    <tr><td>Streamer Pack (add-on)</td><td>—</td><td>€9.99/mes</td><td>Suscripción, soporte continuo perfiles</td></tr>
+    <tr><td>NEXUS SaaS</td><td>—</td><td>€9.99/mes</td><td>Futuro</td></tr>
+  </table>
+
+  <div class="box box-blue">
+    <strong>Referencia de competencia:</strong> Process Lasso (competidor Windows) cuesta €34.95 y no tiene IA real ni daemon adaptativo ni es multiplataforma. DIX v2 a €19.99 es precio muy agresivo.
+  </div>
+
+  <h2>Escenarios Año 1 — Linux + Windows (Rangers Rojo + Azul)</h2>
+  <table>
+    <tr><th>Escenario</th><th>Descripción</th><th>Ingresos netos estimados</th></tr>
+    <tr>
+      <td><strong>Conservador</strong></td>
+      <td>Crecimiento orgánico, sin cobertura mediática<br>Linux 1.500 · Windows 5.000 · 300 bundles · 200 Streamer subs×12</td>
+      <td style="color:#276749;font-weight:700;">~€157.000</td>
+    </tr>
+    <tr>
+      <td><strong>Moderado</strong></td>
+      <td>1-2 reviews YouTube Linux gaming, post r/linux<br>Linux 4.000 · Windows 18.000 · 1.200 bundles · 800 Streamer subs×12</td>
+      <td style="color:#2a69ac;font-weight:700;">~€555.000</td>
+    </tr>
+    <tr>
+      <td><strong>Viral</strong></td>
+      <td>Linus Tech Tips / GamingOnLinux / streamer grande<br>Linux 12.000 · Windows 60.000 · 5.000 bundles · 3.000 Streamer subs×12</td>
+      <td style="color:#e53e3e;font-weight:700;">~€2.000.000</td>
+    </tr>
+  </table>
+
+  <h2>Año 2 — 3 Plataformas + Marketplace Activo</h2>
+  <table>
+    <tr><th>Fuente de ingresos</th><th>Rango estimado</th></tr>
+    <tr><td>Ventas nuevas (Linux + Windows + macOS)</td><td>€800.000 — €2.000.000</td></tr>
+    <tr><td>Streamer Pack acumulado</td><td>€150.000 — €400.000</td></tr>
+    <tr><td>NEXUS SaaS</td><td>€100.000 — €300.000</td></tr>
+    <tr><td>Marketplace (30% comisión)</td><td>€20.000 — €80.000</td></tr>
+    <tr><td>Plugins IDE</td><td>€15.000 — €50.000</td></tr>
+    <tr><td><strong>Total Año 2</strong></td><td><strong>€1.085.000 — €2.830.000</strong></td></tr>
+  </table>
+
+  <h2>Número Honesto (Sin Eufemismos)</h2>
+  <div class="box box-dark">
+    Sin marketing activo: <span class="highlight">€50.000 — €150.000 año 1</span><br>
+    Con 1-2 reviews importantes: <span class="green">€400.000 — €600.000 año 1</span><br>
+    Con campaña bien ejecutada (Remotion + Product Hunt + press tech): <span class="highlight">€1.000.000+ en 18 meses</span><br><br>
+    Palanca más importante: <span class="green">1.000 streamers suscritos = €120.000/año recurrentes garantizados</span><br>
+    Los streamers hacen marketing orgánico gratis cuando el producto les funciona en directo.
+  </div>
+
+  <h2>Comparativa con la Competencia</h2>
+  <table>
+    <tr><th>Producto</th><th>Precio</th><th>IA real</th><th>Daemon adaptativo</th><th>Multiplataforma</th></tr>
+    <tr><td><strong>Dix v2</strong></td><td>€19.99 + subs</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Process Lasso</td><td>€34.95</td><td>❌</td><td>❌</td><td>Solo Windows</td></tr>
+    <tr><td>CCleaner Pro</td><td>€29.95/año</td><td>❌</td><td>❌</td><td>Win/Mac</td></tr>
+    <tr><td>MSI Afterburner</td><td>Gratis</td><td>❌</td><td>Parcial</td><td>Solo Windows</td></tr>
+    <tr><td>Game Mode Ubuntu</td><td>Gratis</td><td>❌</td><td>Básico</td><td>Solo Linux</td></tr>
+  </table>
+
+  <div class="box box-green">
+    <strong>Ventaja competitiva clave:</strong> No existe un competidor directo con IA real + daemon adaptativo + multiplataforma. DIX ocupa un espacio de mercado sin rival directo.
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 09</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 10 — NEXUS
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">10 · NEXUS — IA Central</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>10 · NEXUS — Plataforma IA Central</h1>
+
+  <div class="box box-orange">
+    <strong>NEXUS es diferente de Dix.</strong> Es la plataforma IA central futura (FastAPI + ChromaDB + Redis + Ollama local) que eventualmente reemplazará la dependencia de Claude API para todos los productos DixSystem. También funciona como experimento personal de orquestación LLM local con narrativa inmersiva.
+  </div>
+
+  <h2>Stack Tecnológico NEXUS</h2>
+  <table>
+    <tr><th>Componente</th><th>Tecnología</th></tr>
+    <tr><td>LLM</td><td>Ollama + llama3:8b-instruct-q4_K_M (local)</td></tr>
+    <tr><td>Memoria vectorial</td><td>ChromaDB local (cosine similarity)</td></tr>
+    <tr><td>Event Bus</td><td>Redis (pub/sub)</td></tr>
+    <tr><td>Embeddings</td><td>sentence-transformers/all-MiniLM-L6-v2 (CPU, no VRAM)</td></tr>
+    <tr><td>Frontend</td><td>React + Vite + Three.js + Framer Motion + SSE</td></tr>
+    <tr><td>API</td><td>FastAPI en localhost:8080 — GET /health, POST /chat</td></tr>
+  </table>
+
+  <h2>Estado de Fases</h2>
+  <table>
+    <tr><th>Fase</th><th>Contenido</th><th>Estado</th></tr>
+    <tr><td>Fase 0</td><td>Foundation (arquitectura base)</td><td><span class="badge badge-done">Completa</span></td></tr>
+    <tr><td>Fase 1</td><td>Chat Básico</td><td><span class="badge badge-done">Completa</span></td></tr>
+    <tr><td>Fase 2</td><td>State Card + Memory</td><td><span class="badge badge-done">Completa</span></td></tr>
+    <tr><td>Fase 3</td><td>Gobernanza + UI Mínima (Policy Manager, SSE endpoint, VRAM Budget Manager, UI esfera reactiva, Scheduler, Audit trail)</td><td><span class="badge badge-wip">En curso (Mayo 2026)</span></td></tr>
+    <tr><td>Fase 4+</td><td>Voz (Whisper.cpp + Piper), Visión (Moondream), Domótica (Home Assistant)</td><td><span class="badge badge-concept">Futuro</span></td></tr>
+  </table>
+
+  <h2>Schema SSE — CONGELADO v1.0</h2>
+  <div class="box box-dark">
+    7 eventos: <span class="green">cognitive.idle | listening | thinking | responding | memory | learning | system.vram_pressure</span><br>
+    State Card con 5 emociones: fatigue, curiosity, empathy, caution, confidence (floats 0.0–1.0)<br>
+    Heartbeat: cognitive.idle cada 30s sin actividad.
+  </div>
+
+  <h2>VRAM Budget (Aprobado Fase 3)</h2>
+  <table>
+    <tr><th>Componente</th><th>MB asignados</th></tr>
+    <tr><td>Ollama LLM (intocable)</td><td>6.144 MB</td></tr>
+    <tr><td>Embeddings (CPU fallback)</td><td>1.024 MB</td></tr>
+    <tr><td>Reserva emergencia (NUNCA asignar)</td><td>512 MB</td></tr>
+    <tr><td>Total Fase 3</td><td>10.472 MB / 10.752 MB disponibles</td></tr>
+  </table>
+
+  <h2>Las 7 Líneas Rojas NEXUS (Inamovibles)</h2>
+  <ol>
+    <li>Sin técnicas AGI ni autoconsciencia en backend</li>
+    <li>Sin autonomía sin aprobación explícita del usuario</li>
+    <li>Sin consumo innecesario de VRAM — todo requiere cálculo aprobado</li>
+    <li>Sin complejidad que no aporte estabilidad</li>
+    <li>Narrativa "viva" solo en UI, nunca en arquitectura</li>
+    <li>Cada fase funciona antes de avanzar a la siguiente</li>
+    <li>Funcionalidad core 100% offline (chat, memoria, estado, gobernanza básica)</li>
+  </ol>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 10</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 11 — MARKETING
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">11 · Marketing</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>11 · Marketing y Campaña Viral</h1>
+
+  <h2>Canales y Plataformas</h2>
+  <table>
+    <tr><th>Canal</th><th>Estado</th><th>Notas</th></tr>
+    <tr><td>dixsystem.com</td><td><span class="badge badge-live">Live</span></td><td>Landing completa con calculadora de score y DIX Atlas</td></tr>
+    <tr><td>X/Twitter</td><td><span class="badge badge-wip">Listo para publicar</span></td><td>5 posts preparados en docs/twitter_posts.md + app X ID 33042396</td></tr>
+    <tr><td>Brevo (email marketing)</td><td><span class="badge badge-live">Conectado</span></td><td>Waitlist → lidel2750@gmail.com, formulario Formspree meewkwpa</td></tr>
+    <tr><td>Hacker News</td><td><span class="badge badge-pending">Pendiente</span></td><td>Show HN post preparado — publicar al cerrar Ranger Rojo</td></tr>
+    <tr><td>Reddit r/linux</td><td><span class="badge badge-pending">Pendiente</span></td><td>N8N workflow de Reddit monitor en localhost:5678</td></tr>
+    <tr><td>YouTube</td><td><span class="badge badge-concept">Futuro</span></td><td>Remotion trailer 45s (storyboard aprobado, GPU pendiente)</td></tr>
+    <tr><td>Product Hunt</td><td><span class="badge badge-concept">Futuro</span></td><td>Post al lanzamiento Windows</td></tr>
+  </table>
+
+  <h2>Campaña Viral — #MyDIXScore</h2>
+  <div class="box box-orange">
+    <strong>Estado:</strong> Integrada en landing como "DIX Atlas Challenge" desde v1. No espera a v2.<br><br>
+    <strong>Mecánica aprobada:</strong><br>
+    "Comparte tu score. Gana AppIA v2."<br>
+    Publica tu puntuación en X/Twitter con #MyDIXScore — las 10 mejores historias ganan una licencia vitalicia de AppIA v2 (solo durante el lanzamiento). 10 licencias / escasez real / urgencia.
+  </div>
+
+  <h4>Por qué funciona:</h4>
+  <ul>
+    <li>Acción específica: X/Twitter + hashtag #MyDIXScore (rastreable)</li>
+    <li>El score 34→91 es el contenido viral — la gente presume de números</li>
+    <li>Escasez real (10 licencias) + urgencia (solo lanzamiento)</li>
+    <li>Genera UGC orgánico gratuito</li>
+    <li>Sin precio mencionado hasta confirmarlo</li>
+  </ul>
+
+  <h2>DIX Atlas — Social Proof Técnico</h2>
+  <ul>
+    <li>Ranking TOP 5 de mejores scores de la comunidad (visible en landing)</li>
+    <li>Reto mensual — score mínimo para entrar al club</li>
+    <li>Club 90+ — badge exclusivo para usuarios con score ≥90</li>
+    <li>atlas.rs almacena y rankea puntuaciones localmente</li>
+  </ul>
+
+  <h2>N8N Workflows (localhost:5678)</h2>
+  <ul>
+    <li><strong>Post-compra:</strong> activación licencia + email bienvenida → pendiente configurar</li>
+    <li><strong>Reddit monitor:</strong> alerta cuando se menciona DIX en r/linux / r/linux_gaming → pendiente</li>
+  </ul>
+
+  <h2>DIXBOT — Mascota Web</h2>
+  <div class="box box-blue">
+    Motor físico completo en JavaScript para la web. 7+ estados: walk, think, wave, hang, swing, point, cheer, kick. Trepa por la pantalla, se cuelga de elementos, tiene chat integrado. Motor de física, colisiones, canvas 100vw/100vh. Eliminar DIXBOT del código Rust (completado: commit edef714).
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 11</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 12 — PENDIENTES
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">12 · Pendientes Críticos</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>12 · Pendientes Críticos y Próximos Pasos</h1>
+
+  <h2>Bloqueantes para Monetizar (Prioridad ALTA)</h2>
+  <table>
+    <tr><th>Tarea</th><th>Prioridad</th><th>Detalle</th></tr>
+    <tr>
+      <td><strong>Lemon Squeezy — validación real</strong></td>
+      <td><span class="badge badge-pending">CRÍTICO</span></td>
+      <td>Implementar POST a https://api.lemonsqueezy.com/v1/licenses/validate en activate_license() de main.rs con Store ID + Product ID reales. El esqueleto ya existe — solo falta la llamada HTTP.</td>
+    </tr>
+    <tr>
+      <td><strong>Verificación cuenta LS</strong></td>
+      <td><span class="badge badge-pending">CRÍTICO</span></td>
+      <td>Cuenta Lemon Squeezy pendiente de verificación completa. Checkout URL ya existe: dixsystem.lemonsqueezy.com/checkout/buy/ca61371a...</td>
+    </tr>
+    <tr>
+      <td><strong>Email forwarding</strong></td>
+      <td><span class="badge badge-wip">ALTA</span></td>
+      <td>hello@ / privacy@ / legal@dixsystem.com → Gmail. DNS en Porkbun, no confirmado aún.</td>
+    </tr>
+    <tr>
+      <td><strong>Commitear cambios sin commit</strong></td>
+      <td><span class="badge badge-wip">ALTA</span></td>
+      <td>5 archivos modificados: Cargo.lock, Cargo.toml, claude_gateway.rs, main.rs, scanner.rs. 3 sin trackear: landing/README.md, landing/worker.js, landing/wrangler.toml.</td>
+    </tr>
+  </table>
+
+  <h2>Pendientes para Ranger Azul (Windows)</h2>
+  <table>
+    <tr><th>Tarea</th><th>Estado</th></tr>
+    <tr><td>Compilar .msi instalador desde CI Windows</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+    <tr><td>Test completo en hardware Windows real</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+    <tr><td>Windows Service para auto-updater</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+    <tr><td>Publicar .msi en GitHub Releases v1.0.0</td><td><span class="badge badge-pending">Pendiente</span></td></tr>
+    <tr><td>UI adaptaciones Windows (rutas, permisos UAC)</td><td><span class="badge badge-wip">Parcial</span></td></tr>
+  </table>
+
+  <h2>Pendientes Marketing/Lanzamiento</h2>
+  <table>
+    <tr><th>Acción</th><th>Cuándo</th></tr>
+    <tr><td>Show HN — Hacker News</td><td>Al cerrar Ranger Rojo (8% restante)</td></tr>
+    <tr><td>Publicar posts X/Twitter (5 listos)</td><td>Al cerrar Ranger Rojo</td></tr>
+    <tr><td>Activar N8N workflows (post-compra + Reddit)</td><td>Al activar checkout LS</td></tr>
+    <tr><td>Campaña #MyDIXScore</td><td>Al acumular primeras ventas</td></tr>
+    <tr><td>Product Hunt</td><td>Con Ranger Azul (Windows) listo</td></tr>
+    <tr><td>Trailer Remotion 45s</td><td>Post-lanzamiento (GPU pendiente)</td></tr>
+    <tr><td>DIX Odyssey suscripción real (checkout)</td><td>Tras ventas confirmadas de Windows</td></tr>
+  </table>
+
+  <h2>Deuda Técnica Conocida</h2>
+  <ul>
+    <li>La ruta de config debería ser <code>~/.config/dix/</code> (no <code>~/.config/mininexus/</code>) — migración pendiente</li>
+    <li><code>main.rs.save</code> en src-tauri/src/ — archivo residual, eliminar</li>
+    <li>ACP encoder en Rust (Fase MEDIA del protocolo ACP) — post-lanzamiento</li>
+    <li>NEXUS Fase 3 completamente estable antes de conectar con Dix</li>
+  </ul>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 12</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 13 — CREDENCIALES
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">13 · Credenciales y Plataformas</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>13 · Credenciales y Plataformas Externas</h1>
+
+  <div class="warning">
+    <strong>Confidencial:</strong> Esta sección contiene referencias a cuentas y plataformas activas. No compartir este documento externamente sin revisar esta sección.
+  </div>
+
+  <h2>Plataformas Activas</h2>
+  <table>
+    <tr><th>Plataforma</th><th>Cuenta / ID</th><th>Uso</th></tr>
+    <tr><td>GitHub</td><td>DixSystem / repo Dix (público)</td><td>Código fuente + Releases + CI</td></tr>
+    <tr><td>Netlify</td><td>lidel2750@gmail.com / site 87cd3812-26bf-4c37-92e6-185e79cf99a9</td><td>Hosting dixsystem.com</td></tr>
+    <tr><td>Porkbun</td><td>—</td><td>Dominio dixsystem.com (DNS → Netlify)</td></tr>
+    <tr><td>Lemon Squeezy</td><td>dixsystem.lemonsqueezy.com / checkout ca61371a...</td><td>Pagos / licencias €14.99</td></tr>
+    <tr><td>Brevo</td><td>app.brevo.com / lidel2750@gmail.com</td><td>Email marketing / waitlist</td></tr>
+    <tr><td>Formspree</td><td>Form ID: meewkwpa</td><td>Waitlist → lidel2750@gmail.com</td></tr>
+    <tr><td>X/Twitter Developer</td><td>App ID 33042396 (console.x.com)</td><td>Campaña #MyDIXScore</td></tr>
+    <tr><td>N8N</td><td>localhost:5678</td><td>Workflows post-compra + Reddit monitor</td></tr>
+    <tr><td>Cloudflare Workers</td><td>dix-proxy.dixsystem.workers.dev</td><td>Proxy para Claude API (activo)</td></tr>
+    <tr><td>Google OAuth2</td><td>Client ID configurado en N8N</td><td>Redirect URI localhost:5678</td></tr>
+    <tr><td>Anthropic</td><td>API key en ~/.config/mininexus/store.json</td><td>Claude Sonnet 4.6 / Opus 4.8</td></tr>
+  </table>
+
+  <h2>Archivos de Credenciales Locales</h2>
+  <table>
+    <tr><th>Archivo</th><th>Contenido</th><th>Seguridad</th></tr>
+    <tr><td>~/.git-credentials</td><td>GitHub token (scope: repo, NO workflow)</td><td>Solo local, nunca en repo</td></tr>
+    <tr><td>~/.tauri/dix.key</td><td>Clave privada auto-updater</td><td>Solo local, nunca en repo</td></tr>
+    <tr><td>~/.config/mininexus/store.json</td><td>API key Anthropic + historial sesiones</td><td>Solo backend Rust</td></tr>
+    <tr><td>dix-proxy/</td><td>Código proxy Cloudflare Workers</td><td>En .gitignore — NUNCA publicar</td></tr>
+  </table>
+
+  <h2>Regla de Seguridad Principal</h2>
+  <div class="box box-red">
+    <strong>La API key de Anthropic NUNCA debe estar en el frontend.</strong> Solo en backend Rust (~/.config/mininexus/store.json o env ANTHROPIC_API_KEY). El archivo pc_optimizer.tsx es un demo/mockup antiguo con API key expuesta — NO es el código de producción Tauri.
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial</span>
+    <span>Informe 15/06/2026 · Sección 13</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 14 — REGLAS ABSOLUTAS
+══════════════════════════════════════════════ -->
+<div class="page page-break">
+  <div class="section-header">
+    <span class="section-header-title">14 · Reglas Absolutas</span>
+    <span class="section-header-date">15/06/2026</span>
+  </div>
+
+  <h1>14 · Reglas Absolutas del Sistema</h1>
+
+  <div class="box box-red">
+    <strong>Estas reglas no cambian en ninguna versión, plataforma ni tier. Son invariantes del sistema.</strong>
+  </div>
+
+  <h2>Reglas Técnicas del Kernel (policy.rs)</h2>
+  <table>
+    <tr><th>Regla</th><th>Motivo</th></tr>
+    <tr><td>NUNCA tocar GPU, nvidia, nouveau</td><td>Hardware gráfico es crítico, optimizaciones del kernel pueden dejar sin vídeo el sistema</td></tr>
+    <tr><td>NUNCA kernel.numa_balancing=0</td><td>Puede degradar el rendimiento en sistemas con un solo nodo NUMA</td></tr>
+    <tr><td>NUNCA vm.dirty_ratio &gt; 15</td><td>Valores altos pueden causar pérdida de datos en corte de corriente</td></tr>
+    <tr><td>NUNCA transparent_hugepages=never</td><td>Puede impactar negativamente cargas de trabajo de memoria</td></tr>
+    <tr><td>SIEMPRE /usr/bin/pkexec (ruta absoluta)</td><td>Evita path injection — la ruta relativa puede ser interceptada</td></tr>
+    <tr><td>SIEMPRE /sbin/sysctl (ruta absoluta)</td><td>Misma razón de seguridad que pkexec</td></tr>
+  </table>
+
+  <h2>Reglas de Seguridad de la API</h2>
+  <ul>
+    <li>API key de Anthropic SOLO en backend Rust (<code>~/.config/mininexus/store.json</code> o env <code>ANTHROPIC_API_KEY</code>)</li>
+    <li>Frontend NUNCA maneja la API key</li>
+    <li>Proxy <code>dix-proxy/</code> NUNCA en repositorio público</li>
+    <li>obfstr en todos los system prompts y headers de API en el binario</li>
+  </ul>
+
+  <h2>Reglas de Nomenclatura y Config</h2>
+  <ul>
+    <li>El nombre del producto visible al usuario es siempre <strong>Dix</strong> (nunca MiniNexus, nunca PCOptimizer)</li>
+    <li>El estado persistente vive en <code>~/.config/dix/state.json</code> (migración pendiente de mininexus)</li>
+    <li>Build de producción: <code>npm run tauri build -- --no-bundle</code> (no <code>cargo build --release</code> que usa devUrl)</li>
+  </ul>
+
+  <h2>Reglas del Roadmap</h2>
+  <ul>
+    <li>No avanzar al siguiente Ranger hasta cerrar el actual</li>
+    <li>DIX Odyssey producto real: esperar ventas confirmadas de DIX Windows</li>
+    <li>NEXUS Fase 4+: solo después de Fase 3 estable ≥72h</li>
+    <li>AppIA DixKontrol v2 y DixStreamKontrol v3: empezar solo después del Ranger Rojo</li>
+    <li>No implementar features de Odyssey hasta recibir la orden explícita: <em>"Inicia DIX Odyssey"</em></li>
+  </ul>
+
+  <hr>
+
+  <h2>Resumen Final — Dónde Estamos el 15/06/2026</h2>
+
+  <div class="box box-green">
+    <strong>Lo que funciona y está en producción:</strong>
+    <ul style="margin-top: 8px;">
+      <li>Dix v1.0.0 compilado, .deb en GitHub Releases — listo para instalar y usar</li>
+      <li>dixsystem.com live con 11 secciones, DIXBOT animado, calculadora de score</li>
+      <li>CI de Windows activo — el primer paso real hacia el Ranger Azul</li>
+      <li>DIX Odyssey tier técnico implementado en el código</li>
+      <li>DixKontrol v2 publicado en GitHub como app separada</li>
+    </ul>
+  </div>
+
+  <div class="box box-orange">
+    <strong>El único bloqueo real para monetizar:</strong><br>
+    Integrar la validación real de Lemon Squeezy (POST a su API) en <code>activate_license()</code> dentro de <code>main.rs</code>. Todo lo demás está construido. El checkout URL existe. La infraestructura está. Solo falta conectar los dos extremos.
+  </div>
+
+  <div style="margin-top: 40px; text-align: center; color: #8892b0; font-size: 9pt;">
+    <div style="font-size: 36pt; font-weight: 900; color: #FF6B00; margin-bottom: 4px;">DIX</div>
+    DixSystem — La primera AppIA del Mundo<br>
+    "Tu sistema. Al máximo. Con IA."<br><br>
+    <strong>Informe generado:</strong> 15 de junio de 2026<br>
+    <strong>Herramienta:</strong> Claude Code (claude-sonnet-4-6)<br>
+    <strong>Contacto:</strong> hello@dixsystem.com · dixsystem.com
+  </div>
+
+  <div class="footer-page">
+    <span>DixSystem · Confidencial — Todos los derechos reservados</span>
+    <span>Informe 15/06/2026 · Sección 14 (última)</span>
+  </div>
+</div>
+
+</body>
+</html>
