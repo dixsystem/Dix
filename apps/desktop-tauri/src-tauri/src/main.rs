@@ -80,7 +80,24 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>, profile: 
         policy::policy_rules_for_prompt(),
         analysis::profile_hint(profile_str)
     );
-    let user = analysis::build_analysis_prompt(&scan, bench.as_ref(), profile_str);
+    let mut user = analysis::build_analysis_prompt(&scan, bench.as_ref(), profile_str);
+
+    // Contexto de Atlas: solo si el usuario aceptó explícitamente compartir
+    // (y por tanto beneficiarse de) los datos de la comunidad. Sin opt-in,
+    // ni siquiera se hace la petición de red — cero datos salen ni entran
+    // por esta vía.
+    if memory::get_atlas_opt_in() == Some(true) {
+        if let Some(best) = atlas::fetch_best(&scan.cpu_model).await {
+            user.push_str(&format!(
+                "\n\nDATO DE LA COMUNIDAD (DIX Atlas, {} muestras para esta CPU): otros usuarios con \
+                 el mismo modelo de CPU consiguieron una mejora media de hasta {} puntos con esta \
+                 configuración: governor={}, scheduler={}, hugepages={}, swappiness={}. Tenlo como \
+                 referencia, no como obligación — prioriza siempre el estado real de ESTA máquina.",
+                best.n_muestras, best.mejora, best.governor, best.scheduler, best.hugepages, best.swappiness
+            ));
+        }
+    }
+
     let result = claude_gateway::call(&system, &user, 4000).await?;
 
     let elapsed_ms = start.elapsed().as_millis() as u32;
