@@ -78,3 +78,21 @@ export interface CacheStats {
   last_acp: string | null;
   pinned_params: Record<string, string>;
 }
+
+// ─── DixKontrol (ver docs/threat-model/dixkontrol.md) ──────────────────────
+
+export interface ForegroundContext {
+  app_name: string | null;
+  supported: boolean;
+}
+
+/** Espejo de `command_engine::DixOperation` en Rust — el tag "tipo" y los
+ *  nombres de variante en snake_case vienen de `#[serde(tag = "tipo",
+ *  rename_all = "snake_case")]`. Solo el subconjunto permitido en el nivel
+ *  Moderado (ver dixkontrol.rs::moderate::moderate_allows). */
+export type DixOperation =
+  | { tipo: "set_sysctl"; clave: string; valor: string }
+  | { tipo: "set_disk_scheduler"; scheduler: string }
+  | { tipo: "set_nr_requests"; valor: number }
+  | { tipo: "enable_service"; nombre: string }
+  | { tipo: "disable_service"; nombre: string };

@@ -53,8 +53,10 @@ const mockSessions = [
   { id: "2", timestamp: new Date(Date.now() - 86400000).toISOString(), score_before: 67, score_after: 74, optimizations_applied: ["Cambiar scheduler a mq-deadline", "Configurar Transparent Hugepages"], scan_summary: "gov:performance swap:10 dirty:15%" },
 ];
 
+let mockModerateActive = false;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function mockInvoke(cmd: string): Promise<any> {
+async function mockInvoke(cmd: string, args?: any): Promise<any> {
   await new Promise(r => setTimeout(r, 300));
   switch (cmd) {
     case "scan_system":        return mockScan;
@@ -68,6 +70,17 @@ async function mockInvoke(cmd: string): Promise<any> {
     case "list_rollbacks":     return [];
     case "save_session":       return null;
     case "clear_sessions":     return null;
+    case "dixkontrol_foreground_context":
+      return { app_name: "firefox (simulado, no hay Tauri real)", supported: true };
+    case "dixkontrol_start_moderate":
+      mockModerateActive = true;
+      return "Sesión Moderado iniciada (simulado).";
+    case "dixkontrol_apply_moderate":
+      if (!mockModerateActive) throw "no hay sesión Moderado activa — llama a start_moderate_session primero";
+      return `vm.swappiness = ${args?.operacion?.valor ?? "?"} (simulado)\n`;
+    case "dixkontrol_stop_moderate":
+      mockModerateActive = false;
+      return "Sesión Moderado cerrada (simulado).";
     default:                   return null;
   }
 }

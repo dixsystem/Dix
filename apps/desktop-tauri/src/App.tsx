@@ -21,6 +21,7 @@ import { LiveTerminal } from "./components/LiveTerminal";
 import { StepsPanel } from "./components/StepsPanel";
 import { AnalysisProgress } from "./components/AnalysisProgress";
 import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
+import { DixKontrolPanel } from "./components/DixKontrolPanel";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ export default function App() {
   const [rollbacks, setRollbacks]       = useState<RollbackInfo[]>([]);
   const [showRollbacks, setShowRollbacks] = useState(false);
   const [showStartupPanel, setShowStartupPanel] = useState(false);
+  const [showDixKontrol, setShowDixKontrol] = useState(false);
   const [startupItems, setStartupItems] = useState<StartupItem[]>([]);
   const [startupLoading, setStartupLoading] = useState(false);
   const [startupToDisable, setStartupToDisable] = useState<Set<string>>(new Set());
@@ -543,6 +545,11 @@ export default function App() {
               ⚡ Programas de inicio
             </button>
           )}
+          {view === "idle" && (
+            <button className="btn-secondary" onClick={() => setShowDixKontrol(!showDixKontrol)} style={{ fontSize: 12 }}>
+              🛡 DixKontrol
+            </button>
+          )}
           <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
           {isLicensed ? (
             isOdyssey ? (
@@ -935,6 +942,9 @@ export default function App() {
                       ))}
                     </div>
                   )}
+
+                  {/* DixKontrol — nivel Moderado (manual) */}
+                  {showDixKontrol && <DixKontrolPanel onClose={() => setShowDixKontrol(false)} />}
 
                   {/* Programas de inicio */}
                   {showStartupPanel && (
