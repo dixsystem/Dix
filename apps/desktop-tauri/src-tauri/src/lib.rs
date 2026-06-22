@@ -8,6 +8,7 @@
 // seguridad. Ningún módulo aquí depende de Tauri.
 
 pub mod scanner;
+pub mod analysis;
 pub mod policy;
 pub mod memory;
 pub mod claude_gateway;
