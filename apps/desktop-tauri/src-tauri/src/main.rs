@@ -116,7 +116,12 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>, profile: 
                 if titulo.is_empty() { None } else { Some(format!("{}: {}", cat, titulo)) }
             })
             .collect();
-        atlas::report(&scan, score_antes, score_despues, opts);
+        // Nunca enviar nada a Atlas sin opt-in explícito (por defecto, antes
+        // de preguntar o si el usuario dijo que no, get_atlas_opt_in() no es
+        // Some(true) y este bloque no se ejecuta). Ver memory::set_atlas_opt_in.
+        if memory::get_atlas_opt_in() == Some(true) {
+            atlas::report(&scan, score_antes, score_despues, opts);
+        }
     }
 
     Ok(AnalysisResponse {
@@ -926,6 +931,22 @@ fn get_tier() -> String {
     memory::get_tier()
 }
 
+// ─── DIX Atlas — consentimiento opt-in ─────────────────────────────────────────
+// Ver tarea 2.3 de docs/ORDEN_TRABAJO.md: "Por defecto desactivado". Hasta que
+// el usuario acepte explícitamente, get_atlas_opt_in() no devuelve Some(true)
+// y atlas::report() (ver analyze_system) no se ejecuta nunca.
+
+#[tauri::command]
+fn get_atlas_opt_in() -> Option<bool> {
+    memory::get_atlas_opt_in()
+}
+
+#[tauri::command]
+fn set_atlas_opt_in(value: bool) -> Result<String, String> {
+    memory::set_atlas_opt_in(value)?;
+    Ok(if value { "Atlas activado.".to_string() } else { "Atlas desactivado.".to_string() })
+}
+
 #[tauri::command]
 fn export_report(content: String, filename: String) -> Result<String, String> {
     let home = dirs::home_dir().ok_or("No se pudo determinar el directorio home")?;
@@ -1037,6 +1058,8 @@ fn main() {
             dixkontrol_start_moderate,
             dixkontrol_apply_moderate,
             dixkontrol_stop_moderate,
+            get_atlas_opt_in,
+            set_atlas_opt_in,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");

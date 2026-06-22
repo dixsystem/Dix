@@ -54,6 +54,7 @@ const mockSessions = [
 ];
 
 let mockModerateActive = false;
+let mockAtlasOptIn: boolean | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function mockInvoke(cmd: string, args?: any): Promise<any> {
@@ -81,6 +82,11 @@ async function mockInvoke(cmd: string, args?: any): Promise<any> {
     case "dixkontrol_stop_moderate":
       mockModerateActive = false;
       return "Sesión Moderado cerrada (simulado).";
+    case "get_atlas_opt_in":
+      return mockAtlasOptIn;
+    case "set_atlas_opt_in":
+      mockAtlasOptIn = !!args?.value;
+      return mockAtlasOptIn ? "Atlas activado." : "Atlas desactivado.";
     default:                   return null;
   }
 }

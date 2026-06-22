@@ -53,6 +53,11 @@ struct Store {
     demo_analyses_used: u32,
     #[serde(default)]
     tier: Option<String>,
+    /// None = nunca se le preguntó al usuario. Some(true)/Some(false) = ya
+    /// respondió. Por defecto (None tratado como "no") nunca se envía nada a
+    /// Atlas — ver docs/threat-model/dixkontrol.md y policy::atlas_privacy_rules.
+    #[serde(default)]
+    atlas_opt_in: Option<bool>,
 }
 
 /// Carpeta de configuración de Dix. Usa el crate `dirs` (resuelve la carpeta
@@ -224,5 +229,19 @@ pub fn get_tier() -> String {
 pub fn save_tier(tier: &str) -> Result<(), String> {
     let mut store = load();
     store.tier = Some(tier.to_string());
+    save(&store)
+}
+
+/// `None` = todavía no se le preguntó al usuario (la app debe mostrar el
+/// aviso de opt-in). `Some(true)` = aceptó compartir telemetría anónima con
+/// Atlas. `Some(false)` = la rechazó explícitamente. Hasta que esto sea
+/// `Some(true)`, ningún dato debe salir del dispositivo hacia Atlas.
+pub fn get_atlas_opt_in() -> Option<bool> {
+    load().atlas_opt_in
+}
+
+pub fn set_atlas_opt_in(value: bool) -> Result<(), String> {
+    let mut store = load();
+    store.atlas_opt_in = Some(value);
     save(&store)
 }
