@@ -44,6 +44,7 @@ scripts/batch_results/
 scripts/bench_results/
 scripts/bench_live.log
 scripts/mock_profiles/
+/bench_results/
 sabios/
 
 # Archivos de desarrollo temporal
