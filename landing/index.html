@@ -853,7 +853,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <div class="rule-icon">📸</div>
           <div>
             <div class="rule-title" data-i18n="rule3_title">Snapshot before every change</div>
-            <div class="rule-desc" data-i18n="rule3_desc">DIX reads the current value of every parameter it's about to change. Stores it in <code>~/.config/pcoptimizer/snapshot.json</code>. One click to revert exactly.</div>
+            <div class="rule-desc" data-i18n="rule3_desc">DIX reads the current value of every parameter it's about to change. Stores it in <code>~/.config/dix/snapshot.json</code>. One click to revert exactly.</div>
           </div>
         </div>
         <div class="rule-item">
@@ -979,7 +979,7 @@ const t = {
     rule2_title:'Static policy engine',
     rule2_desc:'Written in Rust. Every script checked line by line before pkexec. Whitelist of allowed sysctl keys.',
     rule3_title:'Snapshot before every change',
-    rule3_desc:'DIX reads the current value of every parameter before changing it. Stored in ~/.config/pcoptimizer/snapshot.json.',
+    rule3_desc:'DIX reads the current value of every parameter before changing it. Stored in ~/.config/dix/snapshot.json.',
     rule4_title:'Four permanent blocks',
     rule4_desc:'GPU drivers, NUMA balancing=0, hugepages=never, dirty_ratio above 15. Blocked regardless of what Claude AI returns.',
     rule5_title:'Script deleted after execution',
@@ -1063,7 +1063,7 @@ const t = {
     rule2_title:'Motor de política estático',
     rule2_desc:'Escrito en Rust. Cada script revisado línea por línea antes de pkexec. Whitelist de sysctl permitidos.',
     rule3_title:'Snapshot antes de cada cambio',
-    rule3_desc:'DIX lee el valor actual de cada parámetro antes de cambiarlo. Guardado en ~/.config/pcoptimizer/snapshot.json.',
+    rule3_desc:'DIX lee el valor actual de cada parámetro antes de cambiarlo. Guardado en ~/.config/dix/snapshot.json.',
     rule4_title:'Cuatro bloqueos permanentes',
     rule4_desc:'Drivers GPU, NUMA=0, hugepages=never, dirty_ratio>15. Bloqueados independientemente de lo que devuelva Claude AI.',
     rule5_title:'Script eliminado tras ejecución',
