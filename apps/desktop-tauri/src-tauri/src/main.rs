@@ -4,23 +4,15 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod scanner;
-mod policy;
-mod memory;
-mod claude_gateway;
-mod executor;
-mod cache;
-mod atlas;
-mod benchmark;
-mod state;
-mod startup;
-mod command_engine;
-mod journal;
-mod safe_mode;
-mod ai_budget;
-mod dixkontrol;
+// Los módulos del núcleo viven en lib.rs (crate `dix`) para poder
+// reutilizarse desde otros binarios (ver src/bin/dix_cli.rs) sin la capa
+// Tauri. Aquí solo se importan.
+use dix::{
+    ai_budget, atlas, benchmark, cache, claude_gateway, command_engine, dixkontrol, executor,
+    journal, memory, policy, safe_mode, scanner, startup, state,
+};
 #[cfg(target_os = "windows")]
-mod winutil;
+use dix::winutil;
 
 use executor::RollbackInfo;
 use memory::Session;
