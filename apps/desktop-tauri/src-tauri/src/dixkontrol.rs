@@ -357,4 +357,50 @@ mod tests {
         let sysctl = DixOperation::SetSysctl { clave: "vm.swappiness".into(), valor: "10".into() };
         assert!(moderate::moderate_allows(&sysctl));
     }
+
+    /// Prueba real de extremo a extremo en esta máquina: pide autenticación
+    /// pkexec de verdad (aparecerá un diálogo gráfico — hay que aceptarlo a
+    /// mano), aplica un cambio real de vm.swappiness, confirma que se aplicó
+    /// leyendo el sistema, y lo revierte con el rollback real que generó la
+    /// propia sesión Moderado. No se ejecuta en `cargo test` normal —
+    /// requiere `--ignored` y un escritorio gráfico con agente polkit.
+    #[test]
+    #[ignore = "requiere pkexec/polkit gráfico real — ejecutar con --ignored y aceptar el diálogo"]
+    #[cfg(not(target_os = "windows"))]
+    fn moderate_real_roundtrip_swappiness() {
+        use crate::command_engine::DixOperation;
+
+        fn read_swappiness() -> i64 {
+            let out = std::process::Command::new("/sbin/sysctl")
+                .args(["-n", "vm.swappiness"])
+                .output()
+                .expect("no se pudo leer vm.swappiness");
+            String::from_utf8_lossy(&out.stdout).trim().parse().expect("valor no numérico")
+        }
+
+        let before = read_swappiness();
+        let target = if before == 10 { 15 } else { 10 };
+        println!("[prueba real] vm.swappiness actual = {}, objetivo = {}", before, target);
+
+        start_moderate_session().expect("no se pudo iniciar la sesión Moderado (¿pkexec/polkit disponibles?)");
+
+        let op = DixOperation::SetSysctl { clave: "vm.swappiness".into(), valor: target.to_string() };
+        let apply_result = apply_moderate(op);
+        stop_moderate_session();
+        apply_result.clone().expect("la operación Moderado falló");
+        println!("[prueba real] apply() devolvió: {:?}", apply_result);
+
+        let after = read_swappiness();
+        assert_eq!(after, target, "vm.swappiness no cambió tras aplicar el cambio Moderado");
+        println!("[prueba real] confirmado: vm.swappiness ahora es {}", after);
+
+        let latest = crate::journal::latest().expect("la operación no dejó transacción en el journal");
+        println!("[prueba real] revirtiendo con {}", latest.rollback_filename);
+        crate::executor::execute_rollback(&latest.rollback_filename)
+            .expect("el rollback automático falló");
+
+        let restored = read_swappiness();
+        assert_eq!(restored, before, "el rollback no restauró el valor original de vm.swappiness");
+        println!("[prueba real] confirmado: vm.swappiness restaurado a {}", restored);
+    }
 }
