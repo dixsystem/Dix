@@ -153,6 +153,7 @@ section{padding:100px 40px}
 .card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
 .card-icon{width:48px;height:48px;display:flex;align-items:center;justify-content:center}
 .card-icon svg{width:36px;height:36px}
+.card-cover{width:100%;max-width:180px;aspect-ratio:2/3;object-fit:cover;border-radius:8px;margin-bottom:20px;border:1px solid var(--border);display:block}
 .card-title{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px}
 .card-desc{font-size:14px;color:var(--gray);line-height:1.6;margin-bottom:20px}
 .card-features{list-style:none;margin-bottom:28px}
@@ -265,6 +266,15 @@ section{padding:100px 40px}
 .rule-icon{font-size:20px;flex-shrink:0}
 .rule-title{font-size:13px;font-weight:600;margin-bottom:3px;color:var(--white)}
 .rule-desc{font-size:12px;color:var(--gray);line-height:1.5}
+
+/* ── BETA REWARDS ── */
+#beta-rewards{background:linear-gradient(135deg,#1a0f00 0%,var(--bg-dark) 60%);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.rewards-box{max-width:760px;margin:0 auto;text-align:center}
+.rewards-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:28px 0}
+.rewards-method{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.5}
+.rewards-method strong{display:block;color:var(--orange);font-family:'Orbitron',sans-serif;font-size:13px;margin-bottom:6px}
+.rewards-note{font-size:12px;color:var(--gray);margin-top:16px}
+.rewards-note a{color:var(--orange)}
 
 /* ── FOOTER ── */
 footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px 40px 32px}
@@ -506,6 +516,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           </div>
           <span class="badge badge-green" data-i18n="badge_available">AVAILABLE NOW</span>
         </div>
+        <img src="assets/dix_linux_box.jpg" alt="DIX Linux" class="card-cover">
         <div class="card-title">DIX Linux</div>
         <div class="card-desc" data-i18n="p1_desc">Native AI optimization for Linux. Rust binary + Claude AI. Validates every script before execution.</div>
         <ul class="card-features">
@@ -535,6 +546,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           </div>
           <span class="badge badge-orange" data-i18n="badge_planned">ROADMAP</span>
         </div>
+        <img src="assets/dix_windows_box.jpg" alt="DIX Windows" class="card-cover">
         <div class="card-title" translate="no">DIX Windows</div>
         <div class="card-desc" data-i18n="p2_desc">Planned Windows edition. Registry and service optimization are roadmap capabilities, pending a verified beta build.</div>
         <ul class="card-features">
@@ -872,6 +884,24 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
   </div>
 </section>
 
+<!-- ══ BETA REWARDS ══ -->
+<section id="beta-rewards" class="reveal">
+  <div class="container">
+    <div class="rewards-box">
+      <div class="section-label" data-i18n="rewards_label">Giveaway</div>
+      <h2 class="section-title" data-i18n="rewards_title">DIX BETA REWARDS</h2>
+      <p class="section-sub" data-i18n="rewards_sub">Every month we give away one lifetime DIX license (Linux or Windows). No purchase necessary — just test it and show it.</p>
+      <div class="rewards-methods">
+        <div class="rewards-method"><strong data-i18n="rewards_m1_title">A — Share your result</strong><span data-i18n="rewards_m1_desc">Post a real before/after DIX score on X, Instagram or TikTok, tagging @DixSystem with #DixBeta.</span></div>
+        <div class="rewards-method"><strong data-i18n="rewards_m2_title">B — Refer friends</strong><span data-i18n="rewards_m2_desc">Get your referral code and qualify with 3+ purchases in a month.</span></div>
+        <div class="rewards-method"><strong data-i18n="rewards_m3_title">C — Make a video</strong><span data-i18n="rewards_m3_desc">Publish any public video about DIX, tagging @DixSystem.</span></div>
+      </div>
+      <a href="beta-rewards-terms.html" class="btn-primary" style="display:inline-block" data-i18n="rewards_btn">SEE OFFICIAL RULES</a>
+      <p class="rewards-note" data-i18n="rewards_note">One winner per month, picked with a public random draw. <a href="beta-rewards-terms.html" data-i18n="rewards_note_link">Full terms here</a>.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ══ FOOTER ══ -->
 <footer>
   <div class="footer-grid">
@@ -982,6 +1012,12 @@ const t = {
     rule4_desc:'GPU drivers, NUMA balancing=0, hugepages=never, dirty_ratio above 15. Blocked regardless of what Claude AI returns.',
     rule5_title:'Script deleted after execution',
     rule5_desc:'Generated script is written to a private 0700 directory, executed once, then immediately deleted. Not /tmp.',
+    rewards_label:'Giveaway', rewards_title:'DIX BETA REWARDS',
+    rewards_sub:'Every month we give away one lifetime DIX license (Linux or Windows). No purchase necessary — just test it and show it.',
+    rewards_m1_title:'A — Share your result', rewards_m1_desc:'Post a real before/after DIX score on X, Instagram or TikTok, tagging @DixSystem with #DixBeta.',
+    rewards_m2_title:'B — Refer friends', rewards_m2_desc:'Get your referral code and qualify with 3+ purchases in a month.',
+    rewards_m3_title:'C — Make a video', rewards_m3_desc:'Publish any public video about DIX, tagging @DixSystem.',
+    rewards_btn:'SEE OFFICIAL RULES', rewards_note:'One winner per month, picked with a public random draw.', rewards_note_link:'Full terms here',
     footer_tagline:'AppIA for Linux optimization. Claude AI + Linux kernel. Transparent results.',
     footer_products:'Products', footer_linux:'DIX Linux', footer_windows:'DIX Windows',
     footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
@@ -1067,6 +1103,12 @@ const t = {
     rule4_desc:'Drivers GPU, NUMA=0, hugepages=never, dirty_ratio>15. Bloqueados independientemente de lo que devuelva Claude AI.',
     rule5_title:'Script eliminado tras ejecución',
     rule5_desc:'El script generado se escribe en directorio privado 0700, se ejecuta una vez y se elimina. Nunca /tmp.',
+    rewards_label:'Sorteo', rewards_title:'DIX BETA REWARDS',
+    rewards_sub:'Cada mes regalamos una licencia DIX de por vida (Linux o Windows). Sin compra necesaria — solo prueba DIX y compártelo.',
+    rewards_m1_title:'A — Comparte tu resultado', rewards_m1_desc:'Publica un score real antes/después de DIX en X, Instagram o TikTok, etiquetando a @DixSystem con #DixBeta.',
+    rewards_m2_title:'B — Refiere amigos', rewards_m2_desc:'Consigue tu código de referido y cualifica con 3+ compras en un mes.',
+    rewards_m3_title:'C — Haz un vídeo', rewards_m3_desc:'Publica cualquier vídeo público sobre DIX, etiquetando a @DixSystem.',
+    rewards_btn:'VER BASES OFICIALES', rewards_note:'Un ganador al mes, elegido con sorteo público y verificable.', rewards_note_link:'Bases completas aquí',
     footer_tagline:'AppIA para optimización Linux. Claude AI + kernel Linux. Resultados transparentes.',
     footer_products:'Productos', footer_linux:'DIX Linux', footer_windows:'DIX Windows',
     footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
