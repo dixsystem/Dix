@@ -3,6 +3,7 @@
 // Prohibida la reproducción sin autorización expresa de DixSystem.
 
 import { C, PROFILES } from "../constants";
+import { useT } from "../i18n";
 import type { Profile } from "../types/dix";
 
 export function AnalysisProgress({
@@ -10,20 +11,21 @@ export function AnalysisProgress({
 }: {
   scanStep: number; elapsed: number; fromCache: boolean; responseMs: number; profile: Profile;
 }) {
+  const { t } = useT();
   const prof = PROFILES.find(p => p.id === profile)!;
   const steps = [
-    { step: 1, label: "Leyendo métricas del kernel",       detail: "/proc · /sys · pactl" },
-    { step: 2, label: "Midiendo rendimiento del hardware",  detail: "sysbench cpu · memory · fio 4K (~8s)" },
-    { step: 3, label: "Consultando Claude AI",              detail: "POST api.anthropic.com · claude-sonnet-4-6" },
-    { step: 4, label: "Generando script bash",              detail: "optimizaciones personalizadas" },
+    { step: 1, label: t("analysis_progress_step1_label"), detail: "/proc · /sys · pactl" },
+    { step: 2, label: t("analysis_progress_step2_label"), detail: "sysbench cpu · memory · fio 4K (~8s)" },
+    { step: 3, label: t("analysis_progress_step3_label"), detail: "POST api.anthropic.com · claude-sonnet-4-6" },
+    { step: 4, label: t("analysis_progress_step4_label"), detail: t("analysis_progress_step4_detail") },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "16px 14px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <div style={{ fontSize: 10, color: C.muted, letterSpacing: "1px" }}>● DIX — PROGRESO DEL ANÁLISIS</div>
+        <div style={{ fontSize: 10, color: C.muted, letterSpacing: "1px" }}>{t("analysis_progress_header")}</div>
         <div style={{ fontSize: 10, background: `${C.orange}18`, border: `1px solid ${C.orange}44`, borderRadius: 4, padding: "2px 7px", color: C.orange, fontWeight: 700 }}>
-          {prof.icon} {prof.label}
+          {prof.icon} {t(prof.labelKey)}
         </div>
       </div>
       {steps.map(({ step, label, detail }) => {
@@ -72,7 +74,7 @@ export function AnalysisProgress({
       })}
       <div style={{ display: "flex", gap: 16, marginTop: 4, fontSize: 11, color: C.muted, fontFamily: "monospace" }}>
         {elapsed > 0 && <span>⏱ {elapsed}s</span>}
-        {fromCache && <span style={{ color: C.yellow }}>⚡ desde caché</span>}
+        {fromCache && <span style={{ color: C.yellow }}>{t("analysis_progress_from_cache")}</span>}
         {!fromCache && scanStep >= 2 && <span style={{ color: C.orange }}>📡 api.anthropic.com</span>}
         {responseMs > 0 && !fromCache && <span>IA: {(responseMs / 1000).toFixed(1)}s</span>}
       </div>

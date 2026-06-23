@@ -10,8 +10,10 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { C } from "../constants";
+import { useT } from "../i18n";
 
 export function AtlasConsentBanner() {
+  const { t } = useT();
   const [pending, setPending] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -39,21 +41,18 @@ export function AtlasConsentBanner() {
   return (
     <div className="card" style={{ marginBottom: 16, padding: "14px 16px", borderColor: `${C.orange}44` }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-        🛰 ¿Compartir datos anónimos con DIX Atlas?
+        {t("atlas_consent_banner_title")}
       </div>
       <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
-        Si aceptas, DIX envía de forma anónima tu modelo de CPU/GPU, distro y la mejora de score
-        antes/después de cada análisis, para mejorar las recomendaciones de todos. Nunca se envía
-        hostname, usuario, IP ni rutas de archivos. Puedes cambiarlo cuando quieras. Por defecto
-        está desactivado — si no decides ahora, sigue desactivado.
+        {t("atlas_consent_banner_body")}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn-secondary" disabled={pending} onClick={() => respond(true)}
           style={{ fontSize: 12, color: C.green, borderColor: `${C.green}55` }}>
-          Compartir datos anónimos
+          {t("atlas_consent_banner_accept_button")}
         </button>
         <button className="btn-secondary" disabled={pending} onClick={() => respond(false)} style={{ fontSize: 12 }}>
-          No, gracias
+          {t("atlas_consent_banner_decline_button")}
         </button>
       </div>
     </div>

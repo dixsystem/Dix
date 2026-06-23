@@ -4,12 +4,12 @@
 
 import type { Profile, LiveMetrics } from "./types/dix";
 
-export const PROFILES: { id: Profile; icon: string; label: string; hint: string }[] = [
-  { id: "gaming",    icon: "🎮", label: "Gaming",     hint: "FPS máximos, latencia mínima" },
-  { id: "streaming", icon: "📡", label: "Streaming",  hint: "Red estable, encoding sin drops" },
-  { id: "dev",       icon: "💻", label: "Desarrollo", hint: "Compilación rápida, I/O rápido" },
-  { id: "server",    icon: "🖥️", label: "Servidor",   hint: "Throughput máximo, uptime" },
-  { id: "balanced",  icon: "⚖️", label: "Equilibrado","hint": "Balance general" },
+export const PROFILES: { id: Profile; icon: string; label: string; hint: string; labelKey: string; hintKey: string }[] = [
+  { id: "gaming",    icon: "🎮", label: "Gaming",     hint: "FPS máximos, latencia mínima",      labelKey: "profile_gaming_label",    hintKey: "profile_gaming_hint" },
+  { id: "streaming", icon: "📡", label: "Streaming",  hint: "Red estable, encoding sin drops",    labelKey: "profile_streaming_label", hintKey: "profile_streaming_hint" },
+  { id: "dev",       icon: "💻", label: "Desarrollo", hint: "Compilación rápida, I/O rápido",     labelKey: "profile_dev_label",       hintKey: "profile_dev_hint" },
+  { id: "server",    icon: "🖥️", label: "Servidor",   hint: "Throughput máximo, uptime",          labelKey: "profile_server_label",    hintKey: "profile_server_hint" },
+  { id: "balanced",  icon: "⚖️", label: "Equilibrado", hint: "Balance general",                   labelKey: "profile_balanced_label",  hintKey: "profile_balanced_hint" },
 ];
 
 export const C = {

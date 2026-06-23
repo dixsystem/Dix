@@ -4,6 +4,7 @@
 
 import { useEffect, useRef } from "react";
 import { C } from "../constants";
+import { useT } from "../i18n";
 
 export function LiveTerminal({
   scan,
@@ -14,6 +15,7 @@ export function LiveTerminal({
   revealedCount: number;
   analysisText?: string;
 }) {
+  const { t } = useT();
   const termRef = useRef<HTMLDivElement>(null);
   const entries = scan ? Object.entries(scan) : [];
   const visible = entries.slice(0, revealedCount);
@@ -39,7 +41,7 @@ export function LiveTerminal({
       }}
     >
       <div style={{ color: C.muted, marginBottom: 6, fontSize: 10, letterSpacing: "0.5px" }}>
-        ● DIX — ANÁLISIS EN VIVO
+        {t("live_terminal_header")}
       </div>
       {visible.map(([k, v]) => (
         <div key={k} style={{ display: "flex", gap: 6 }}>

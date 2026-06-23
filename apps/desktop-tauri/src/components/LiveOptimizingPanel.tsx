@@ -5,9 +5,11 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { C, METRIC_DEFS, STATUS_COLOR, STATUS_LABEL } from "../constants";
+import { useT } from "../i18n";
 import type { LiveMetrics } from "../types/dix";
 
 export function LiveOptimizingPanel({ active }: { active: boolean }) {
+  const { t } = useT();
   const [m, setM] = useState<LiveMetrics | null>(null);
 
   useEffect(() => {
@@ -24,14 +26,14 @@ export function LiveOptimizingPanel({ active }: { active: boolean }) {
   if (!m) return (
     <div style={{ flex: 1, borderTop: `1px solid ${C.border}`, padding: "14px", display: "flex", alignItems: "center", gap: 8 }}>
       <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.orange, animation: "pulse 1s infinite" }} />
-      <div style={{ fontSize: 11, color: C.muted }}>Iniciando monitor…</div>
+      <div style={{ fontSize: 11, color: C.muted }}>{t("live_optimizing_panel_starting_monitor")}</div>
     </div>
   );
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderTop: `1px solid ${C.border}` }}>
       <div style={{ padding: "8px 14px 6px", fontSize: 10, color: C.muted, letterSpacing: "1px", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
-        <span>● ESTADO DEL SISTEMA EN TIEMPO REAL</span>
+        <span>{t("live_optimizing_panel_realtime_status")}</span>
         <span style={{ color: C.green, fontSize: 9 }}>⬤ LIVE 400ms</span>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 0 10px" }}>

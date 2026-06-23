@@ -3,13 +3,15 @@
 // Prohibida la reproducción sin autorización expresa de DixSystem.
 
 import { C } from "../constants";
+import { useT } from "../i18n";
 
 export function StepsPanel({ scanStep }: { scanStep: number }) {
+  const { t } = useT();
   const steps = [
-    { step: 1, label: "Leyendo métricas del kernel",       sublabel: "/proc · /sys · pactl" },
-    { step: 2, label: "Midiendo rendimiento del hardware",  sublabel: "sysbench cpu · memory · fio 4K" },
-    { step: 3, label: "Consultando Claude AI",              sublabel: "claude-sonnet-4-6" },
-    { step: 4, label: "Generando script bash",              sublabel: "optimizaciones personalizadas" },
+    { step: 1, label: t("steps_panel_step1_label"),       sublabel: "/proc · /sys · pactl" },
+    { step: 2, label: t("steps_panel_step2_label"),       sublabel: "sysbench cpu · memory · fio 4K" },
+    { step: 3, label: t("steps_panel_step3_label"),       sublabel: "claude-sonnet-4-6" },
+    { step: 4, label: t("steps_panel_step4_label"),       sublabel: t("steps_panel_step4_sublabel") },
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

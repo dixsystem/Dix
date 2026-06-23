@@ -126,9 +126,9 @@ export default function App() {
       invoke<SystemScan>("scan_system").then((s) => {
         const ramGb = Math.round((s.mem_total_mb + 512) / 1024);
         setHwSummary({
-          cpu: s.cpu_model || "CPU detectada",
+          cpu: s.cpu_model || "",
           ram: `${ramGb} GB RAM`,
-          distro: s.distro_id ? `${s.distro_id} ${s.distro_version}`.trim() : "Sistema",
+          distro: s.distro_id ? `${s.distro_id} ${s.distro_version}`.trim() : "",
         });
         setIdleScan(s);
 
@@ -286,7 +286,7 @@ export default function App() {
         scriptContent: script,
         scanJson: JSON.stringify(scanRef.current),
       });
-      setApplyLog(output || "Script ejecutado correctamente.");
+      setApplyLog(output || t("apply_success_log"));
 
       // Mantenimiento de disco lento (p.ej. Optimize-Volume en HDD): se lanza
       // aparte, sin esperar a que termine, porque puede tardar hasta 30 min y
@@ -369,7 +369,7 @@ export default function App() {
     setRollingBack(true); setError(null);
     try {
       await invoke("execute_rollback", { filename });
-      alert("Rollback completado. El sistema ha vuelto al estado previo.");
+      alert(t("rollback_success_alert"));
     } catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setRollingBack(false); }
   };
@@ -547,7 +547,7 @@ export default function App() {
           {pendingUpdate && (
             <button onClick={() => setShowUpdateModal(true)}
               style={{ background: `${C.green}18`, color: C.green, border: `1px solid ${C.green}55`, borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>
-              ↑ v{pendingUpdate.version} disponible
+              ↑ v{pendingUpdate.version} {t("header_update_available")}
             </button>
           )}
           {rollbacks.length > 0 && view === "idle" && (
@@ -557,12 +557,12 @@ export default function App() {
           )}
           {view === "idle" && (
             <button className="btn-secondary" onClick={() => { setShowStartupPanel(!showStartupPanel); if (!showStartupPanel) loadStartupItems(); }} style={{ fontSize: 12 }}>
-              ⚡ Programas de inicio
+              {t("nav_startup_items")}
             </button>
           )}
           {view === "idle" && (
             <button className="btn-secondary" onClick={() => setShowDixKontrol(!showDixKontrol)} style={{ fontSize: 12 }}>
-              🛡 DixKontrol
+              {t("nav_dixkontrol")}
             </button>
           )}
           <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
@@ -577,7 +577,7 @@ export default function App() {
           ) : (
             <button className="btn-secondary" onClick={() => setView("activate")}
               style={{ fontSize: 11, color: C.orange, borderColor: `${C.orange}55`, fontWeight: 600 }}>
-              {demoCount >= 3 ? "🔒 DEMO AGOTADO" : `🎁 DEMO (${3 - demoCount} gratis)`}
+              {demoCount >= 3 ? t("header_demo_exhausted") : t("header_demo_remaining").replace("{n}", String(3 - demoCount))}
             </button>
           )}
         </div>
@@ -594,11 +594,11 @@ export default function App() {
           <span style={{ fontSize: 13, color: rebootCountdown > 0 ? "#fca5a5" : C.green, fontWeight: 600 }}>
             {rebootCountdown > 0
               ? `🔄 Windows se reiniciará en ${rebootCountdown}s para terminar de aplicar los cambios — guarda tu trabajo`
-              : "Reiniciando ahora..."}
+              : t("reboot_countdown_restarting")}
           </span>
           {rebootCountdown > 0 && (
             <button className="btn-secondary" onClick={handleCancelReboot} style={{ fontSize: 12 }}>
-              Cancelar reinicio
+              {t("reboot_countdown_cancel")}
             </button>
           )}
         </div>
@@ -635,7 +635,7 @@ export default function App() {
               {/* Score instantáneo — calculado en local, no depende de Claude */}
               {view === "scanning" && instantScore !== null && scanStep >= 2 && (
                 <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", justifyContent: "center" }}>
-                  <ScoreRing score={instantScore} label="Tu PC ahora · calculado en local" size={84} />
+                  <ScoreRing score={instantScore} label={t("process_instant_score_label")} size={84} />
                 </div>
               )}
 
@@ -643,18 +643,18 @@ export default function App() {
               {view === "done" && analysis && (
                 <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 14px" }}>
                   <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center" }}>
-                    <ScoreRing score={analysis.score_actual} label="Antes" size={72} />
+                    <ScoreRing score={analysis.score_actual} label={t("process_before_label")} size={72} />
                     <div style={{ fontSize: 22, color: C.muted }}>→</div>
                     <ScoreRing
                       score={verifyingScore ? analysis.score_optimizado : (verifiedScoreAfter ?? analysis.score_optimizado)}
-                      label={verifyingScore ? "Midiendo…" : verifiedScoreAfter !== null ? "Verificado ✓" : "Estimado"}
+                      label={verifyingScore ? t("process_measuring_label") : verifiedScoreAfter !== null ? t("process_verified_label") : t("process_estimated_label")}
                       size={72}
                     />
                   </div>
                   <p style={{ textAlign: "center", fontSize: 10, color: C.muted, marginTop: 6 }}>
                     {verifiedScoreAfter !== null
-                      ? "Medido con benchmarks reales tras aplicar — no es una estimación."
-                      : "Proyección de la IA antes de aplicar — se verificará al terminar."}
+                      ? t("process_verified_score_note")
+                      : t("process_estimated_score_note")}
                   </p>
                   {scan && (
                     <button
@@ -678,7 +678,7 @@ export default function App() {
                         boxShadow: `0 2px 12px ${C.orange}55`,
                       }}
                     >
-                      📤 COMPARTIR MI SCORE
+                      {t("process_share_score_button")}
                     </button>
                   )}
                 </div>
@@ -709,8 +709,8 @@ export default function App() {
                 }}>
                   <span style={{ fontSize: 24, color: C.green }}>✓</span>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>OPTIMIZACIÓN COMPLETADA</div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Parámetros del kernel aplicados correctamente.</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.green }}>{t("done_banner_title")}</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{t("done_banner_subtitle")}</div>
                   </div>
                 </div>
               )}
@@ -727,9 +727,9 @@ export default function App() {
                   </span>
                   <div style={{ fontSize: 11, color: C.muted }}>
                     {diskMaintenanceStatus === "running" &&
-                      "Optimizando el disco en segundo plano (puede tardar hasta 30 min en discos mecánicos) — puedes seguir usando Dix mientras tanto."}
-                    {diskMaintenanceStatus === "done" && "Mantenimiento de disco completado."}
-                    {diskMaintenanceStatus === "error" && "El mantenimiento de disco no se pudo completar — el resto de optimizaciones se aplicaron bien."}
+                      t("disk_maintenance_running")}
+                    {diskMaintenanceStatus === "done" && t("disk_maintenance_done")}
+                    {diskMaintenanceStatus === "error" && t("disk_maintenance_error")}
                   </div>
                 </div>
               )}
@@ -750,7 +750,7 @@ export default function App() {
                   <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#00FF88" }} />
                 </div>
                 <span style={{ fontSize: 10, color: C.muted, fontFamily: "monospace", marginLeft: 4 }}>
-                  dix — análisis en vivo
+                  {t("process_live_analysis_title")}
                 </span>
                 {scan && (
                   <span style={{ marginLeft: "auto", fontSize: 10, color: C.green, fontFamily: "monospace" }}>
@@ -771,11 +771,11 @@ export default function App() {
                 <div style={{ background: `${C.orange}0a`, border: `1px solid ${C.orange}44`, borderRadius: 8, padding: "12px 14px", flexShrink: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.orange }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.orange }}>Aplicando optimizaciones…</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.orange }}>{t("applying_panel_title")}</span>
                   </div>
                   <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
-                    Dix está modificando parámetros del kernel con permisos de administrador.<br/>
-                    <span style={{ color: C.text }}>Observa cómo cambian los indicadores de rojo a verde en tiempo real.</span>
+                    {t("applying_panel_body")}<br/>
+                    <span style={{ color: C.text }}>{t("applying_panel_hint")}</span>
                   </div>
                 </div>
               )}
@@ -795,19 +795,19 @@ export default function App() {
                   {showReboot && (
                     <div className="card" style={{ padding: "12px 14px", border: `1px solid ${C.yellow}44` }}>
                       <p style={{ fontSize: 12, color: "#fbbf24", marginBottom: 10 }}>
-                        ⚠️ Se recomienda reiniciar para aplicar todos los cambios.
+                        {t("done_reboot_recommended")}
                       </p>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button className="btn-primary" onClick={handleReboot}
                           style={{ background: C.red, padding: "7px 18px", fontSize: 13 }}>
-                          Reiniciar ahora
+                          {t("reboot_now_button")}
                         </button>
-                        <button className="btn-secondary" onClick={() => { setShowReboot(false); localStorage.removeItem("dix_needs_reboot"); }} style={{ fontSize: 12 }}>Después</button>
+                        <button className="btn-secondary" onClick={() => { setShowReboot(false); localStorage.removeItem("dix_needs_reboot"); }} style={{ fontSize: 12 }}>{t("later_button")}</button>
                       </div>
                     </div>
                   )}
                   <button className="btn-primary" onClick={handleReset} style={{ alignSelf: "flex-start", padding: "9px 22px", fontSize: 13 }}>
-                    Nuevo análisis
+                    {t("new_analysis_button")}
                   </button>
                 </div>
               )}
@@ -823,7 +823,7 @@ export default function App() {
               {/* Error banner */}
               {error && (
                 <div style={{ background: "#2d0f0f", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, color: C.red, fontSize: 13, display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <span><strong>Error:</strong> {error}</span>
+                  <span><strong>{t("error_label")}:</strong> {error}</span>
                   <button onClick={() => setError(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.red, fontSize: 16 }}>✕</button>
                 </div>
               )}
@@ -852,7 +852,7 @@ export default function App() {
                     }}>
                       <span style={{ fontSize: 16 }}>⏳</span>
                       <div style={{ fontSize: 12, color: C.muted }}>
-                        Comprobando que las optimizaciones siguen activas tras el reinicio…
+                        {t("idle_post_reboot_checking")}
                       </div>
                     </div>
                   )}
@@ -866,8 +866,8 @@ export default function App() {
                     }}>
                       <span style={{ fontSize: 18, color: C.green }}>✓</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>Optimizaciones activas tras el reinicio</div>
-                        <div style={{ fontSize: 11, color: C.muted }}>Se comprobó el sistema real: todos los cambios aplicados se mantienen y Dix sigue trabajando con ellos.</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{t("idle_post_reboot_ok_title")}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{t("idle_post_reboot_ok_body")}</div>
                       </div>
                       <button onClick={() => setPostRebootStatus(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 14 }}>✕</button>
                     </div>
@@ -883,17 +883,17 @@ export default function App() {
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 18 }}>⚠️</span>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24" }}>Reinicio pendiente</div>
-                          <div style={{ fontSize: 11, color: C.muted }}>Algunas optimizaciones requieren reiniciar para aplicarse completamente.</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24" }}>{t("idle_reboot_pending_title")}</div>
+                          <div style={{ fontSize: 11, color: C.muted }}>{t("idle_reboot_pending_body")}</div>
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                         <button className="btn-primary" onClick={handleReboot}
                           style={{ background: C.red, padding: "7px 16px", fontSize: 12 }}>
-                          Reiniciar ahora
+                          {t("reboot_now_button")}
                         </button>
                         <button className="btn-secondary" onClick={() => { setShowReboot(false); localStorage.removeItem("dix_needs_reboot"); }} style={{ fontSize: 12 }}>
-                          Ignorar
+                          {t("ignore_button")}
                         </button>
                       </div>
                     </div>
@@ -928,10 +928,10 @@ export default function App() {
                               disabled={reapplying}
                               style={{ padding: "7px 18px", fontSize: 12 }}
                             >
-                              {reapplying ? "Reaplicando…" : "Reaplicar ahora"}
+                              {reapplying ? t("lost_opts_reapplying") : t("lost_opts_reapply_now")}
                             </button>
                             <button className="btn-secondary" onClick={() => setLostOpts([])} style={{ fontSize: 12 }}>
-                              Ignorar
+                              {t("ignore_button")}
                             </button>
                           </div>
                         </div>
@@ -943,8 +943,8 @@ export default function App() {
                   {showRollbacks && rollbacks.length > 0 && (
                     <div className="card" style={{ marginBottom: 16, overflow: "hidden" }}>
                       <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>↩ Rollbacks disponibles</span>
-                        <button className="btn-secondary" onClick={() => setShowRollbacks(false)} style={{ fontSize: 11 }}>Cerrar</button>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{t("rollbacks_title")}</span>
+                        <button className="btn-secondary" onClick={() => setShowRollbacks(false)} style={{ fontSize: 11 }}>{t("close_button")}</button>
                       </div>
                       {rollbacks.map((rb) => (
                         <div key={rb.filename} style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -953,7 +953,7 @@ export default function App() {
                             <div style={{ fontSize: 11, color: C.muted, fontFamily: "monospace" }}>{rb.filename}</div>
                           </div>
                           <button className="btn-secondary" onClick={() => handleRollback(rb.filename)} disabled={rollingBack} style={{ fontSize: 12, color: C.orange, borderColor: `${C.orange}55` }}>
-                            {rollingBack ? "Restaurando…" : "Restaurar"}
+                            {rollingBack ? t("rollbacks_restoring") : t("rollbacks_restore")}
                           </button>
                         </div>
                       ))}
@@ -967,22 +967,22 @@ export default function App() {
                   {showStartupPanel && (
                     <div className="card" style={{ marginBottom: 16, overflow: "hidden" }}>
                       <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>⚡ Programas de inicio</span>
-                        <button className="btn-secondary" onClick={() => setShowStartupPanel(false)} style={{ fontSize: 11 }}>Cerrar</button>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{t("nav_startup_items")}</span>
+                        <button className="btn-secondary" onClick={() => setShowStartupPanel(false)} style={{ fontSize: 11 }}>{t("close_button")}</button>
                       </div>
 
                       {startupLoading && (
-                        <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>Analizando programas de inicio…</div>
+                        <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>{t("startup_loading")}</div>
                       )}
 
                       {!startupLoading && startupItems.length === 0 && (
-                        <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>No se detectaron programas de inicio gestionables.</div>
+                        <div style={{ padding: 20, textAlign: "center", color: C.muted, fontSize: 13 }}>{t("startup_empty")}</div>
                       )}
 
                       {!startupLoading && startupItems.length > 0 && (
                         <>
                           <div style={{ padding: "10px 16px", fontSize: 11, color: C.muted, borderBottom: `1px solid ${C.border}` }}>
-                            🟢 Seguro (preseleccionado) · 🟡 Revisar (marca tú lo que quieras) · Nunca se muestran antivirus, drivers, nube o VPN.
+                            {t("startup_help_text")}
                           </div>
                           {startupItems
                             .filter((i) => i.trust !== "NeverTouch")
@@ -1002,12 +1002,12 @@ export default function App() {
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <div style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</div>
                                   <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {item.trust === "Orphan" ? "Entrada huérfana — el programa ya no existe en disco" : item.location}
+                                    {item.trust === "Orphan" ? t("startup_orphan_location") : item.location}
                                   </div>
                                 </div>
                                 {!item.enabled && (
                                   <button className="btn-secondary" onClick={() => handleUndoStartupItem(item)} style={{ fontSize: 11, flexShrink: 0 }}>
-                                    Reactivar
+                                    {t("startup_reactivate")}
                                   </button>
                                 )}
                               </div>
@@ -1019,7 +1019,7 @@ export default function App() {
                             <button className="btn-primary" onClick={handleApplyStartupChanges}
                               disabled={startupApplying || startupToDisable.size === 0}
                               style={{ padding: "7px 18px", fontSize: 13 }}>
-                              {startupApplying ? "Aplicando…" : "Desactivar seleccionados"}
+                              {startupApplying ? t("startup_applying") : t("startup_disable_selected")}
                             </button>
                           </div>
                         </>
@@ -1034,11 +1034,11 @@ export default function App() {
                     {/* Hardware en una sola línea */}
                     <div style={{ display: "flex", gap: 18, fontSize: 11, color: C.muted, fontFamily: "monospace", marginBottom: 24, flexWrap: "wrap" }}>
                       <span style={{ color: C.orange }}>⚙</span>
-                      <span>{hwSummary?.cpu ?? "Detectando CPU…"}</span>
+                      <span>{hwSummary ? (hwSummary.cpu || t("idle_cpu_fallback")) : t("idle_detecting_cpu")}</span>
                       <span style={{ color: C.border }}>·</span>
                       <span>{hwSummary?.ram ?? "…"}</span>
                       <span style={{ color: C.border }}>·</span>
-                      <span>{hwSummary?.distro ?? "Sistema"}</span>
+                      <span>{hwSummary?.distro || t("idle_system_fallback")}</span>
                       {idleScan && <><span style={{ color: C.border }}>·</span><span>kernel {idleScan.kernel_version}</span></>}
                     </div>
 
@@ -1046,7 +1046,7 @@ export default function App() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40, marginBottom: 28 }}>
                       {sessions.length >= 2 ? (
                         <>
-                          <ScoreRing score={sessions[1].score_after} label="Hace 2 sesiones" size={100} />
+                          <ScoreRing score={sessions[1].score_after} label={t("idle_score_two_sessions_ago")} size={100} />
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                             <div style={{ fontSize: 22, color: C.border }}>→</div>
                             {(() => {
@@ -1058,16 +1058,16 @@ export default function App() {
                               );
                             })()}
                           </div>
-                          <ScoreRing score={sessions[0].score_after} label="Última sesión" size={120} />
+                          <ScoreRing score={sessions[0].score_after} label={t("idle_score_last_session")} size={120} />
                         </>
                       ) : sessions.length === 1 ? (
                         <>
                           <div style={{ textAlign: "center" }}>
                             <div style={{ fontSize: 44, color: C.border, fontWeight: 800, lineHeight: 1 }}>—</div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Antes de Dix</div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>{t("idle_before_dix")}</div>
                           </div>
                           <div style={{ fontSize: 22, color: C.border }}>→</div>
-                          <ScoreRing score={sessions[0].score_after} label="Tras optimizar" size={120} />
+                          <ScoreRing score={sessions[0].score_after} label={t("idle_after_optimizing")} size={120} />
                         </>
                       ) : (
                         <div style={{ textAlign: "center", padding: "8px 0" }}>
@@ -1081,7 +1081,7 @@ export default function App() {
                               <span style={{ fontSize: 36, color: C.border, fontWeight: 800, lineHeight: 1 }}>?</span>
                             </div>
                           </div>
-                          <div style={{ fontSize: 11, color: C.border, marginTop: 10 }}>Analiza para ver tu puntuación real</div>
+                          <div style={{ fontSize: 11, color: C.border, marginTop: 10 }}>{t("idle_analyze_for_score")}</div>
                         </div>
                       )}
                     </div>
@@ -1089,14 +1089,14 @@ export default function App() {
                     {/* Selector de perfil */}
                     <div style={{ width: "100%" }}>
                       <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, fontWeight: 600 }}>
-                        Perfil de optimización
+                        {t("idle_profile_label")}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
                         {PROFILES.map(p => {
                           const active = profile === p.id;
                           return (
                             <button key={p.id}
-                              title={p.hint}
+                              title={t(p.hintKey)}
                               onClick={() => { setProfile(p.id); localStorage.setItem("dix_profile", p.id); }}
                               style={{
                                 background: active ? `${C.orange}18` : C.card,
@@ -1112,24 +1112,24 @@ export default function App() {
                               }}>
                               <span style={{ fontSize: 16 }}>{p.icon}</span>
                               <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, color: active ? C.orange : C.muted, letterSpacing: "0.3px" }}>
-                                {p.label}
+                                {t(p.labelKey)}
                               </span>
                             </button>
                           );
                         })}
                       </div>
                       <div style={{ fontSize: 10, color: C.muted, marginTop: 5, textAlign: "center" }}>
-                        {PROFILES.find(p => p.id === profile)?.hint}
+                        {(() => { const hk = PROFILES.find(p => p.id === profile)?.hintKey; return hk ? t(hk) : ""; })()}
                       </div>
                     </div>
 
                     {/* CTA */}
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                       <button className="btn-primary" onClick={handleStart} style={{ padding: "13px 48px", fontSize: 15 }}>
-                        ⚡ ANALIZAR Y OPTIMIZAR
+                        {t("idle_analyze_button")}
                       </button>
                       <div style={{ fontSize: 11, color: C.border }}>
-                        22 métricas del kernel · Claude AI · Script personalizado
+                        {t("idle_analyze_details")}
                       </div>
                     </div>
                   </div>
@@ -1143,7 +1143,7 @@ export default function App() {
                         </span>
                         <button onClick={() => invoke("clear_sessions").then(() => setSessions([])).catch(() => {})}
                           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.muted }}>
-                          Limpiar
+                          {t("history_clear")}
                         </button>
                       </div>
                       {sessions.slice(0, 5).map((s, i) => {
@@ -1188,17 +1188,17 @@ export default function App() {
                   <div className="card" style={{ padding: "48px 32px", textAlign: "center", position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 50% 0%, ${C.green}12 0%, transparent 65%)`, pointerEvents: "none" }} />
                     <div style={{ marginBottom: 28, display: "flex", justifyContent: "center" }}>
-                      <ScoreRing score={analysis.score_actual} label="Score actual" size={130} />
+                      <ScoreRing score={analysis.score_actual} label={t("results_current_score_label")} size={130} />
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: C.green, marginBottom: 10, letterSpacing: "-0.3px" }}>
-                      Tu sistema está al máximo rendimiento
+                      {t("results_optimal_title")}
                     </div>
                     <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, maxWidth: 420, margin: "0 auto 24px" }}>
                       Dix ha analizado {Object.keys(scan ?? {}).length} parámetros del kernel y determina que tu sistema ya está optimizado. No hay cambios necesarios en este momento.
                     </p>
                     {analysis.analisis && (
                       <div style={{ background: `${C.green}08`, border: `1px solid ${C.green}22`, borderRadius: 10, padding: "14px 18px", maxWidth: 480, margin: "0 auto 24px", textAlign: "left" }}>
-                        <div style={{ fontSize: 10, color: C.green, letterSpacing: "1px", marginBottom: 6 }}>● DIAGNÓSTICO CLAUDE AI</div>
+                        <div style={{ fontSize: 10, color: C.green, letterSpacing: "1px", marginBottom: 6 }}>{t("results_claude_diagnosis_label")}</div>
                         <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.65 }}>{analysis.analisis}</p>
                       </div>
                     )}
@@ -1208,7 +1208,7 @@ export default function App() {
                       </div>
                     )}
                     <button className="btn-primary" onClick={handleReset} style={{ padding: "11px 32px" }}>
-                      Volver al inicio
+                      {t("results_back_home_button")}
                     </button>
                   </div>
                 </div>
@@ -1221,24 +1221,24 @@ export default function App() {
                     <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 100% 50%, ${C.green}08 0%, transparent 60%)`, pointerEvents: "none" }} />
                     <img src={dixIdle} alt="DIX" style={{ width: 90, height: 90, objectFit: "contain", filter: "drop-shadow(0 0 16px #00FF8844)" }} />
                     <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                      <ScoreRing score={analysis.score_actual}    label="Actual"     size={100} />
+                      <ScoreRing score={analysis.score_actual}    label={t("results_actual_label")}     size={100} />
                       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                         <div style={{ fontSize: 28, color: C.muted }}>→</div>
                       </div>
-                      <ScoreRing score={analysis.score_optimizado} label="Optimizado" size={100} />
+                      <ScoreRing score={analysis.score_optimizado} label={t("results_optimized_label")} size={100} />
                       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 4, minWidth: 80 }}>
                         <div style={{ fontSize: 28, fontWeight: 800, color: C.green }}>+<AnimatedCounter target={mejora} /></div>
-                        <div style={{ fontSize: 11, color: C.muted }}>puntos</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{t("results_points_label")}</div>
                       </div>
                     </div>
                     <div style={{ flex: 1, minWidth: 200 }}>
                       {fromCache && (
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: `${C.yellow}15`, border: `1px solid ${C.yellow}44`, borderRadius: 6, padding: "3px 10px", fontSize: 11, color: C.yellow, marginBottom: 10 }}>
-                          ⚡ Desde caché · instantáneo
+                          {t("results_from_cache_badge")}
                         </div>
                       )}
                       {!fromCache && responseMs > 0 && (
-                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>⏱ Análisis IA en {(responseMs / 1000).toFixed(1)}s</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>⏱ {t("results_ai_analysis_in")} {(responseMs / 1000).toFixed(1)}s</div>
                       )}
                       {cacheStats && cacheStats.hit_count + cacheStats.miss_count > 1 && (
                         <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>
@@ -1256,7 +1256,7 @@ export default function App() {
                       background: `${C.orange}08`, border: `1px solid ${C.orange}22`,
                     }}>
                       <div style={{ fontSize: 11, color: C.orange, fontWeight: 700, marginBottom: 6 }}>
-                        🧠 Dix recuerda para este PC
+                        {t("results_cache_memory_title")}
                       </div>
                       <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
                         {Object.entries(cacheStats.pinned_params).map(([k, v]) => (
@@ -1272,11 +1272,7 @@ export default function App() {
                       background: `${C.yellow}0d`, border: `1px solid ${C.yellow}33`,
                       fontSize: 12, color: C.muted, lineHeight: 1.6,
                     }}>
-                      ℹ️ Este hardware tiene un techo de rendimiento bajo y la mayoría de sus parámetros
-                      clave ya estaban en su valor óptimo — por eso el margen de mejora <strong style={{ color: C.text }}>medible</strong> es
-                      pequeño. Las optimizaciones que verás abajo (servicios, indexado, inicio…) siguen
-                      siendo reales y mejoran la fluidez del día a día, aunque el número del score apenas
-                      se mueva: este score mide solo velocidad bruta de CPU/RAM/disco, no fluidez percibida.
+                      {t("results_low_ceiling_part_1")} <strong style={{ color: C.text }}>{t("results_low_ceiling_measurable")}</strong> {t("results_low_ceiling_part_2")}
                     </div>
                   )}
 
@@ -1294,7 +1290,7 @@ export default function App() {
                         background: benchmarks.measured ? C.green : C.yellow,
                         borderRadius: 4, padding: "2px 7px", flexShrink: 0,
                       }}>
-                        {benchmarks.measured ? "MEDIDO" : "ESTIMADO"}
+                        {benchmarks.measured ? t("benchmarks_measured_badge") : t("benchmarks_estimated_badge")}
                       </span>
                       {benchmarks.measured ? (
                         <span style={{ fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
@@ -1314,7 +1310,7 @@ export default function App() {
                         <span style={{ fontSize: 11, color: C.muted }}>
                           {benchmarks.missing_tools.length > 0
                             ? `Instala ${benchmarks.missing_tools.join(" y ")} para score medido`
-                            : "Score basado en parámetros del kernel"}
+                            : t("benchmarks_kernel_score")}
                         </span>
                       )}
                     </div>
@@ -1323,7 +1319,7 @@ export default function App() {
                   {scan && (
                     <details className="card" style={{ marginBottom: 16, overflow: "hidden" }}>
                       <summary style={{ padding: "11px 16px", cursor: "pointer", fontSize: 12, color: C.muted, userSelect: "none" }}>
-                        Ver métricas del sistema ({Object.keys(scan).length} parámetros)
+                        {t("results_view_system_metrics")} ({Object.keys(scan).length} {t("results_parameters_label")})
                       </summary>
                       <div style={{ padding: "12px 16px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.85, borderTop: `1px solid ${C.border}` }}>
                         {Object.entries(scan).map(([k, v]) => (
@@ -1333,7 +1329,7 @@ export default function App() {
                     </details>
                   )}
 
-                  <h3 style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 10 }}>✅ A aplicar ({aplicadas.length})</h3>
+                  <h3 style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 10 }}>✅ {t("results_to_apply_title")} ({aplicadas.length})</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
                     {aplicadas.map((o) => {
                       const cat = CAT[o.categoria] ?? CAT.Sistema;
@@ -1343,7 +1339,7 @@ export default function App() {
                             <input type="checkbox" checked disabled={regeneratingScript}
                               onChange={() => toggleOptimization(o.id)}
                               style={{ marginTop: 3, flexShrink: 0, cursor: regeneratingScript ? "wait" : "pointer" }}
-                              title="Desmarcar para excluirla del script" />
+                              title={t("results_uncheck_title")} />
                             <span style={{ background: cat.bg, color: cat.color, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, flexShrink: 0, height: "fit-content" }}>{o.categoria}</span>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{o.titulo}</div>
@@ -1373,7 +1369,7 @@ export default function App() {
 
                   {saltadas.length > 0 && (
                     <>
-                      <h3 style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>⏭ Descartadas ({saltadas.length})</h3>
+                      <h3 style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>⏭ {t("results_skipped_title")} ({saltadas.length})</h3>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 20 }}>
                         {saltadas.map((o) => (
                           <div key={o.id} className="card" style={{ padding: "8px 14px", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", opacity: 0.65, gap: 10 }}>
@@ -1381,7 +1377,7 @@ export default function App() {
                               <input type="checkbox" checked={false} disabled={regeneratingScript}
                                 onChange={() => toggleOptimization(o.id)}
                                 style={{ cursor: regeneratingScript ? "wait" : "pointer" }}
-                                title="Marcar para incluirla en el script" />
+                                title={t("results_check_title")} />
                               {o.titulo}
                             </span>
                             <span style={{ color: C.muted, fontSize: 12 }}>{o.mejora_estimada} · riesgo {o.riesgo}</span>
@@ -1394,14 +1390,14 @@ export default function App() {
                   <div className="card" style={{ overflow: "hidden", marginBottom: 12 }}>
                     <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: scriptVisible ? `1px solid ${C.border}` : "none" }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>Script bash generado</div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{t("results_generated_script_title")}</div>
                         <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontFamily: "monospace" }}>sudo bash dix_boost.sh</div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn-secondary" onClick={() => setScriptVisible(!scriptVisible)} style={{ fontSize: 11 }}>{scriptVisible ? "Ocultar" : "Ver"}</button>
-                        <button className="btn-secondary" onClick={handleDownload} style={{ fontSize: 11 }}>⬇ Descargar</button>
+                        <button className="btn-secondary" onClick={() => setScriptVisible(!scriptVisible)} style={{ fontSize: 11 }}>{scriptVisible ? t("results_hide_script") : t("results_show_script")}</button>
+                        <button className="btn-secondary" onClick={handleDownload} style={{ fontSize: 11 }}>{t("results_download_script")}</button>
                         <button className="btn-primary" onClick={handleApply} disabled={regeneratingScript} style={{ padding: "7px 20px", fontSize: 13, opacity: regeneratingScript ? 0.6 : 1, cursor: regeneratingScript ? "wait" : "pointer" }}>
-                          {regeneratingScript ? "Actualizando…" : "▶ Aplicar"}
+                          {regeneratingScript ? t("results_updating_script") : t("results_apply_button")}
                         </button>
                       </div>
                     </div>
@@ -1413,10 +1409,10 @@ export default function App() {
                   </div>
 
                   <div style={{ background: "#1a1208", border: `1px solid ${C.yellow}33`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#fbbf24", marginBottom: 14 }}>
-                    ⚠️ Se abrirá el diálogo de autenticación GNOME. El script requiere privilegios root. Se guardará un rollback automáticamente.
+                    {t("results_gnome_auth_warning")}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button className="btn-secondary" onClick={handleReset}>← Nuevo análisis</button>
+                    <button className="btn-secondary" onClick={handleReset}>{t("results_new_analysis_back")}</button>
                     {isOdyssey && analysis && (
                       <button className="btn-secondary"
                         style={{ color: "#FFD700", borderColor: "#FFD70055" }}
@@ -1426,26 +1422,26 @@ export default function App() {
                           const filename = `dix-odyssey-report-${ts}.txt`;
                           const content = [
                             "╔══════════════════════════════════════════════════════╗",
-                            "║          DIX ODYSSEY — INFORME DE ANÁLISIS           ║",
+                            t("odyssey_report_title_box"),
                             "╚══════════════════════════════════════════════════════╝",
                             `Fecha: ${new Date().toLocaleString("es-ES")}`,
-                            `Perfil: ${prof?.label ?? profile}  (${prof?.hint ?? ""})`,
+                            `Perfil: ${(prof && t(prof.labelKey)) ?? profile}  (${(prof && t(prof.hintKey)) ?? ""})`,
                             `Sistema: ${scan?.cpu_model ?? ""} · ${scan?.distro_id ?? ""} ${scan?.distro_version ?? ""}`,
                             `RAM: ${Math.round(((scan?.mem_total_mb ?? 0) + 512) / 1024)} GB  ·  GPU: ${scan?.gpu_model ?? ""}`,
                             "",
-                            "─── DIAGNÓSTICO ────────────────────────────────────────",
+                            t("odyssey_report_diagnosis_heading"),
                             analysis.analisis,
                             "",
                             `Score actual: ${analysis.score_actual}/100`,
                             `Score optimizado: ${analysis.score_optimizado}/100`,
                             `Mejora esperada: +${analysis.score_optimizado - analysis.score_actual} puntos`,
                             "",
-                            "─── OPTIMIZACIONES ─────────────────────────────────────",
+                            t("odyssey_report_optimizations_heading"),
                             ...analysis.optimizaciones.map((o, i) =>
                               `${i + 1}. [${o.categoria}] ${o.titulo}\n   ${o.descripcion}\n   Mejora: ${o.mejora_estimada} · Riesgo: ${o.riesgo}\n   ${o.comando_preview ? `$ ${o.comando_preview}` : ""}`.trim()
                             ),
                             "",
-                            "─── SCRIPT GENERADO ────────────────────────────────────",
+                            t("odyssey_report_script_heading"),
                             script,
                             "",
                             "© 2026 DixSystem — dixsystem.com",
@@ -1453,7 +1449,7 @@ export default function App() {
                           const path = await invoke<string>("export_report", { content, filename }).catch(e => String(e));
                           alert(`✦ Reporte Odyssey guardado en:\n${path}`);
                         }}>
-                        ✦ Exportar reporte
+                        {t("results_export_report_button")}
                       </button>
                     )}
                   </div>
@@ -1464,12 +1460,12 @@ export default function App() {
               {view === "activate" && (
                 <div className="card fade-in" style={{ padding: "2.5rem 2rem", textAlign: "center", maxWidth: 480, margin: "40px auto" }}>
                   <div style={{ fontSize: 36, marginBottom: 16 }}>🔑</div>
-                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Activar Dix</h2>
-                  <p style={{ color: C.muted, fontSize: 13, marginBottom: 8, lineHeight: 1.6 }}>Introduce tu clave de licencia para desbloquear análisis ilimitados.</p>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t("activate_title")}</h2>
+                  <p style={{ color: C.muted, fontSize: 13, marginBottom: 8, lineHeight: 1.6 }}>{t("activate_body")}</p>
                   <p style={{ fontSize: 12, color: C.muted, marginBottom: 24 }}>
-                    ¿No tienes licencia?{" "}
+                    {t("activate_no_license")}{" "}
                     <span style={{ color: C.orange, cursor: "pointer", textDecoration: "underline" }} onClick={() => window.open("https://dixsystem.com/comprar", "_blank")}>
-                      Comprar por 14,99€ →
+                      {t("activate_buy_link")}
                     </span>
                   </p>
                   <input
@@ -1482,9 +1478,9 @@ export default function App() {
                   {error && <p style={{ color: C.red, fontSize: 12, marginBottom: 12 }}>{error}</p>}
                   <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                     <button className="btn-primary" onClick={handleActivateLicense} disabled={activatingLicense || !licenseInput.trim()} style={{ opacity: activatingLicense || !licenseInput.trim() ? 0.5 : 1,  }}>
-                      {activatingLicense ? "Verificando…" : "Activar"}
+                      {activatingLicense ? t("activate_verifying") : t("activate_button")}
                     </button>
-                    <button className="btn-secondary" onClick={() => { setError(null); setView("idle"); }}>Cancelar</button>
+                    <button className="btn-secondary" onClick={() => { setError(null); setView("idle"); }}>{t("cancel_button")}</button>
                   </div>
                 </div>
               )}
@@ -1511,15 +1507,15 @@ export default function App() {
                   <div style={{ height: "100%", borderRadius: 3, background: C.green, width: updateTotal > 0 ? `${Math.round((updateProgress / updateTotal) * 100)}%` : "0%",  }} />
                 </div>
                 <div style={{ fontSize: 12, color: C.muted }}>
-                  {updateTotal > 0 ? `${(updateProgress / 1024 / 1024).toFixed(1)} / ${(updateTotal / 1024 / 1024).toFixed(1)} MB` : "Descargando…"}
+                  {updateTotal > 0 ? `${(updateProgress / 1024 / 1024).toFixed(1)} / ${(updateTotal / 1024 / 1024).toFixed(1)} MB` : t("update_downloading")}
                 </div>
               </div>
             )}
-            {updateState === "done" && <p style={{ color: C.green, fontSize: 13, marginBottom: 16 }}>✓ Instalado — reiniciando…</p>}
+            {updateState === "done" && <p style={{ color: C.green, fontSize: 13, marginBottom: 16 }}>{t("update_installed_restarting")}</p>}
             {updateState === "idle" && (
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                <button className="btn-primary" onClick={handleInstallUpdate} style={{ padding: "10px 24px",  }}>Descargar e instalar</button>
-                <button className="btn-secondary" onClick={() => setShowUpdateModal(false)}>Después</button>
+                <button className="btn-primary" onClick={handleInstallUpdate} style={{ padding: "10px 24px",  }}>{t("update_download_install")}</button>
+                <button className="btn-secondary" onClick={() => setShowUpdateModal(false)}>{t("later_button")}</button>
               </div>
             )}
           </div>
@@ -1531,21 +1527,21 @@ export default function App() {
         <div style={{ position: "fixed", inset: 0, background: "#00000099", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20 }}>
           <div className="card fade-in" style={{ padding: "2.5rem 2rem", textAlign: "center", maxWidth: 440, width: "100%", border: `1px solid ${C.orange}44` }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🚀</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Has agotado el análisis gratuito</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>{t("demo_modal_title")}</h2>
             <p style={{ color: C.muted, fontSize: 14, marginBottom: 24, lineHeight: 1.7 }}>
-              Ya realizaste tu análisis de demo. Con Dix tienes análisis ilimitados, caché inteligente y actualizaciones de por vida.
+              {t("demo_modal_body")}
             </p>
             <div className="card" style={{ padding: "16px", marginBottom: 20, background: "#0f1a0f", border: `1px solid ${C.green}33` }}>
               <div style={{ fontSize: 28, fontWeight: 800, color: C.green, marginBottom: 4 }}>14,99€</div>
-              <div style={{ fontSize: 12, color: C.muted }}>pago único · sin suscripción · actualizaciones incluidas</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{t("demo_modal_price_note")}</div>
             </div>
             <button className="btn-primary" onClick={() => window.open("https://dixsystem.com/comprar", "_blank")} style={{ width: "100%", marginBottom: 10, padding: "13px" }}>
-              Comprar Dix →
+              {t("demo_modal_buy_button")}
             </button>
             <button className="btn-secondary" onClick={() => { setShowDemoModal(false); setView("activate"); }} style={{ width: "100%", marginBottom: 8 }}>
-              Ya tengo una clave — Activar licencia
+              {t("demo_modal_activate_button")}
             </button>
-            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: C.muted }} onClick={() => setShowDemoModal(false)}>Cerrar</button>
+            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: C.muted }} onClick={() => setShowDemoModal(false)}>{t("close_button")}</button>
           </div>
         </div>
       )}
@@ -1557,8 +1553,8 @@ export default function App() {
             {/* Cabecera */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>Tu tarjeta de score lista</div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Comparte en Twitter, Reddit o LinkedIn y consigue DIX a precio de founding member</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>{t("share_modal_title")}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{t("share_modal_subtitle")}</div>
               </div>
               <button onClick={() => setShareCardUrl(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 20, padding: 4 }}>✕</button>
             </div>
@@ -1588,7 +1584,7 @@ export default function App() {
                   cursor: "pointer", boxShadow: `0 2px 12px ${C.orange}55`,
                 }}
               >
-                ⬇ Descargar imagen
+                {t("share_download_image")}
               </button>
               <button
                 onClick={() => {
@@ -1602,12 +1598,12 @@ export default function App() {
                   padding: "11px 0", fontSize: 13, fontWeight: 700, cursor: "pointer",
                 }}
               >
-                📋 Copiar texto
+                {t("share_copy_text")}
               </button>
             </div>
 
             <div style={{ marginTop: 12, fontSize: 11, color: C.muted, textAlign: "center" }}>
-              Comparte la imagen + el texto en cualquier red y mándanos el enlace para conseguir precio founding member
+              {t("share_modal_footer")}
             </div>
           </div>
         </div>
@@ -1615,7 +1611,7 @@ export default function App() {
 
       {/* ── Footer ── */}
       <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 24px", textAlign: "center", fontSize: 11, color: C.border, flexShrink: 0 }}>
-        DixSystem · Dix v1.0 · <span style={{ color: C.orange }}>La primera AppIA del Mundo</span>
+        DixSystem · Dix v1.0 · <span style={{ color: C.orange }}>{t("header_tagline")}</span>
       </div>
     </div>
   );
