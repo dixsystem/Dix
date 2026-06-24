@@ -270,11 +270,22 @@ section{padding:100px 40px}
 /* ── BETA REWARDS ── */
 #beta-rewards{background:linear-gradient(135deg,#1a0f00 0%,var(--bg-dark) 60%);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .rewards-box{max-width:760px;margin:0 auto;text-align:center}
-.rewards-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:28px 0}
+.rewards-methods{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:28px 0}
 .rewards-method{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.5}
 .rewards-method strong{display:block;color:var(--orange);font-family:'Orbitron',sans-serif;font-size:13px;margin-bottom:6px}
 .rewards-note{font-size:12px;color:var(--gray);margin-top:16px}
 .rewards-note a{color:var(--orange)}
+.rewards-form{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;margin:8px 0 20px;text-align:left}
+.rewards-form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.rewards-form input,.rewards-form select,.rewards-form textarea{flex:1;min-width:140px;padding:10px 12px;background:#0d1117;color:var(--white);border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'Inter',sans-serif}
+.rewards-form input:focus,.rewards-form select:focus,.rewards-form textarea:focus{outline:none;border-color:var(--orange)}
+.rewards-form textarea{width:100%;min-height:90px;resize:vertical;margin-bottom:10px;font-family:'Inter',sans-serif}
+.rewards-questions{display:none;margin-bottom:10px}
+.rewards-questions label{display:block;font-size:12px;color:var(--gray);margin:8px 0 4px}
+.rewards-form button{padding:11px 22px;font-size:12px;font-weight:700;background:var(--orange);color:#0d1117;border:none;border-radius:6px;cursor:pointer;font-family:'Orbitron',sans-serif}
+.rewards-form button:hover{opacity:.9}
+.rewards-form-msg{font-size:13px;margin-top:10px;min-height:18px}
+.rewards-counter{font-size:12px;color:var(--gray);margin-bottom:16px}
 
 /* ── FOOTER ── */
 footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px 40px 32px}
@@ -361,7 +372,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           DIX Linux <span class="badge badge-green">AVAILABLE</span>
         </a>
         <a class="dd-item" href="#products">
-          DIX Windows <span class="badge badge-gray">SOON</span>
+          DIX WIN <span class="badge badge-gray">SOON</span>
         </a>
         <a class="dd-item" href="#products">
           DIX Kontrol <span class="badge badge-blue">DEV</span>
@@ -516,7 +527,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           </div>
           <span class="badge badge-green" data-i18n="badge_available">AVAILABLE NOW</span>
         </div>
-        <img src="assets/dix_linux_box.jpg" alt="DIX Linux" class="card-cover">
+        <img src="assets/dix_linux_box.png" alt="DIX Linux" class="card-cover">
         <div class="card-title">DIX Linux</div>
         <div class="card-desc" data-i18n="p1_desc">Native AI optimization for Linux. Rust binary + Claude AI. Validates every script before execution.</div>
         <ul class="card-features">
@@ -533,7 +544,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <a href="https://github.com/dixsystem/Dix/releases" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:8px;font-size:12px;color:var(--muted)" data-i18n="p1_trial">Try the free demo first (3 analyses, no card needed)</a>
       </div>
 
-      <!-- CARD 2: DIX Windows -->
+      <!-- CARD 2: DIX WIN -->
       <div class="prod-card reveal">
         <div class="card-header">
           <div class="card-icon">
@@ -546,8 +557,8 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           </div>
           <span class="badge badge-orange" data-i18n="badge_planned">ROADMAP</span>
         </div>
-        <img src="assets/dix_windows_box.jpg" alt="DIX Windows" class="card-cover">
-        <div class="card-title" translate="no">DIX Windows</div>
+        <img src="assets/dix_windows_box.png" alt="DIX WIN" class="card-cover">
+        <div class="card-title" translate="no">DIX WIN</div>
         <div class="card-desc" data-i18n="p2_desc">Planned Windows edition. Registry and service optimization are roadmap capabilities, pending a verified beta build.</div>
         <ul class="card-features">
           <li data-i18n="p2_f1">Registry + services optimization planned</li>
@@ -890,14 +901,52 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     <div class="rewards-box">
       <div class="section-label" data-i18n="rewards_label">Giveaway</div>
       <h2 class="section-title" data-i18n="rewards_title">DIX BETA REWARDS</h2>
-      <p class="section-sub" data-i18n="rewards_sub">Every month we give away one lifetime DIX license (Linux or Windows). No purchase necessary — just test it and show it.</p>
+      <p class="section-sub" data-i18n="rewards_sub">Launch week: we're giving away 20 lifetime DIX licenses (Linux or Windows). No purchase necessary — just try the free demo and tell us.</p>
+      <p class="rewards-counter" id="rewardsCounter" data-i18n="rewards_counter_loading">Loading entries…</p>
       <div class="rewards-methods">
-        <div class="rewards-method"><strong data-i18n="rewards_m1_title">A — Share your result</strong><span data-i18n="rewards_m1_desc">Post a real before/after DIX score on X, Instagram or TikTok, tagging @DixSystem with #DixBeta.</span></div>
-        <div class="rewards-method"><strong data-i18n="rewards_m2_title">B — Refer friends</strong><span data-i18n="rewards_m2_desc">Get your referral code and qualify with 3+ purchases in a month.</span></div>
-        <div class="rewards-method"><strong data-i18n="rewards_m3_title">C — Make a video</strong><span data-i18n="rewards_m3_desc">Publish any public video about DIX, tagging @DixSystem.</span></div>
+        <div class="rewards-method"><strong data-i18n="rewards_m1_title">A — Share your result</strong><span data-i18n="rewards_m1_desc">Try the free demo, then post a real before/after DIX score on X, Instagram or TikTok, tagging @DixSystem with #DixBeta.</span></div>
+        <div class="rewards-method"><strong data-i18n="rewards_m2_title">B — Answer the feedback test</strong><span data-i18n="rewards_m2_desc">Try the free demo, then answer 5 short questions about your experience.</span></div>
       </div>
+
+      <form class="rewards-form" id="rewardsForm" onsubmit="submitRewardsEntry(event)">
+        <div class="rewards-form-row">
+          <input type="text" id="rwName" data-i18n-placeholder="rewards_ph_name" placeholder="Your name" required>
+          <input type="text" id="rwContact" data-i18n-placeholder="rewards_ph_contact" placeholder="Email or @handle" required>
+        </div>
+        <div class="rewards-form-row">
+          <select id="rwPlatform">
+            <option value="linux">Linux</option>
+            <option value="windows">Windows</option>
+          </select>
+          <select id="rwMethod" onchange="toggleRewardsMethod()">
+            <option value="post" data-i18n="rewards_opt_post">A — I posted my score</option>
+            <option value="test" data-i18n="rewards_opt_test">B — Feedback test</option>
+          </select>
+        </div>
+
+        <div id="rwPostBlock">
+          <input type="url" id="rwLink" data-i18n-placeholder="rewards_ph_link" placeholder="Link to your public post" style="width:100%;margin-bottom:10px">
+        </div>
+
+        <div id="rwTestBlock" class="rewards-questions">
+          <label data-i18n="rewards_q1">1. Which OS did you test DIX on?</label>
+          <input type="text" id="rwQ1">
+          <label data-i18n="rewards_q2">2. What improved the most after running DIX?</label>
+          <input type="text" id="rwQ2">
+          <label data-i18n="rewards_q3">3. From 1 to 10, how easy was it to install and use?</label>
+          <input type="text" id="rwQ3">
+          <label data-i18n="rewards_q4">4. What should DIX improve?</label>
+          <input type="text" id="rwQ4">
+          <label data-i18n="rewards_q5">5. Would you recommend DIX to a friend? Why?</label>
+          <input type="text" id="rwQ5">
+        </div>
+
+        <button type="submit" data-i18n="rewards_submit">ENTER NOW</button>
+        <p class="rewards-form-msg" id="rwMsg"></p>
+      </form>
+
       <a href="beta-rewards-terms.html" class="btn-primary" style="display:inline-block" data-i18n="rewards_btn">SEE OFFICIAL RULES</a>
-      <p class="rewards-note" data-i18n="rewards_note">One winner per month, picked with a public random draw. <a href="beta-rewards-terms.html" data-i18n="rewards_note_link">Full terms here</a>.</p>
+      <p class="rewards-note" data-i18n="rewards_note">20 winners, launch week only — picked with a public random draw if needed. <a href="beta-rewards-terms.html" data-i18n="rewards_note_link">Full terms here</a>.</p>
     </div>
   </div>
 </section>
@@ -915,7 +964,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     <div class="footer-col">
       <h4 data-i18n="footer_products">Products</h4>
       <a href="#products" data-i18n="footer_linux">DIX Linux</a>
-      <a href="#products" data-i18n="footer_windows">DIX Windows</a>
+      <a href="#products" data-i18n="footer_windows">DIX WIN</a>
       <a href="#products" data-i18n="footer_kontrol">DIX Kontrol</a>
       <a href="#products" data-i18n="footer_stream">DIX Stream</a>
       <a href="#products" data-i18n="footer_odyssey">DIX Odyssey</a>
@@ -1013,13 +1062,19 @@ const t = {
     rule5_title:'Script deleted after execution',
     rule5_desc:'Generated script is written to a private 0700 directory, executed once, then immediately deleted. Not /tmp.',
     rewards_label:'Giveaway', rewards_title:'DIX BETA REWARDS',
-    rewards_sub:'Every month we give away one lifetime DIX license (Linux or Windows). No purchase necessary — just test it and show it.',
-    rewards_m1_title:'A — Share your result', rewards_m1_desc:'Post a real before/after DIX score on X, Instagram or TikTok, tagging @DixSystem with #DixBeta.',
-    rewards_m2_title:'B — Refer friends', rewards_m2_desc:'Get your referral code and qualify with 3+ purchases in a month.',
-    rewards_m3_title:'C — Make a video', rewards_m3_desc:'Publish any public video about DIX, tagging @DixSystem.',
-    rewards_btn:'SEE OFFICIAL RULES', rewards_note:'One winner per month, picked with a public random draw.', rewards_note_link:'Full terms here',
+    rewards_sub:'Launch week: we\'re giving away 20 lifetime DIX licenses (Linux or Windows). No purchase necessary — just try the free demo and tell us.',
+    rewards_counter_loading:'Loading entries…',
+    rewards_m1_title:'A — Share your result', rewards_m1_desc:'Try the free demo, then post a real before/after DIX score on X, Instagram or TikTok, tagging @DixSystem with #DixBeta.',
+    rewards_m2_title:'B — Answer the feedback test', rewards_m2_desc:'Try the free demo, then answer 5 short questions about your experience.',
+    rewards_ph_name:'Your name', rewards_ph_contact:'Email or @handle', rewards_ph_link:'Link to your public post',
+    rewards_opt_post:'A — I posted my score', rewards_opt_test:'B — Feedback test',
+    rewards_q1:'1. Which OS did you test DIX on?', rewards_q2:'2. What improved the most after running DIX?',
+    rewards_q3:'3. From 1 to 10, how easy was it to install and use?', rewards_q4:'4. What should DIX improve?',
+    rewards_q5:'5. Would you recommend DIX to a friend? Why?',
+    rewards_submit:'ENTER NOW',
+    rewards_btn:'SEE OFFICIAL RULES', rewards_note:'20 winners, launch week only — picked with a public random draw if needed.', rewards_note_link:'Full terms here',
     footer_tagline:'AppIA for Linux optimization. Claude AI + Linux kernel. Transparent results.',
-    footer_products:'Products', footer_linux:'DIX Linux', footer_windows:'DIX Windows',
+    footer_products:'Products', footer_linux:'DIX Linux', footer_windows:'DIX WIN',
     footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
     footer_company:'Company', footer_atlas:'Atlas', footer_roadmap:'Roadmap',
     footer_hood:'Under the Hood', footer_legal:'Legal', footer_rights:'All rights reserved.',
@@ -1104,13 +1159,19 @@ const t = {
     rule5_title:'Script eliminado tras ejecución',
     rule5_desc:'El script generado se escribe en directorio privado 0700, se ejecuta una vez y se elimina. Nunca /tmp.',
     rewards_label:'Sorteo', rewards_title:'DIX BETA REWARDS',
-    rewards_sub:'Cada mes regalamos una licencia DIX de por vida (Linux o Windows). Sin compra necesaria — solo prueba DIX y compártelo.',
-    rewards_m1_title:'A — Comparte tu resultado', rewards_m1_desc:'Publica un score real antes/después de DIX en X, Instagram o TikTok, etiquetando a @DixSystem con #DixBeta.',
-    rewards_m2_title:'B — Refiere amigos', rewards_m2_desc:'Consigue tu código de referido y cualifica con 3+ compras en un mes.',
-    rewards_m3_title:'C — Haz un vídeo', rewards_m3_desc:'Publica cualquier vídeo público sobre DIX, etiquetando a @DixSystem.',
-    rewards_btn:'VER BASES OFICIALES', rewards_note:'Un ganador al mes, elegido con sorteo público y verificable.', rewards_note_link:'Bases completas aquí',
+    rewards_sub:'Semana de lanzamiento: regalamos 20 licencias DIX de por vida (Linux o Windows). Sin compra necesaria — solo prueba el demo gratis y cuéntanoslo.',
+    rewards_counter_loading:'Cargando participaciones…',
+    rewards_m1_title:'A — Comparte tu resultado', rewards_m1_desc:'Prueba el demo gratis y publica un score real antes/después de DIX en X, Instagram o TikTok, etiquetando a @DixSystem con #DixBeta.',
+    rewards_m2_title:'B — Responde el mini-test', rewards_m2_desc:'Prueba el demo gratis y responde 5 preguntas breves sobre tu experiencia.',
+    rewards_ph_name:'Tu nombre', rewards_ph_contact:'Email o @usuario', rewards_ph_link:'Enlace a tu publicación pública',
+    rewards_opt_post:'A — Publiqué mi score', rewards_opt_test:'B — Mini-test',
+    rewards_q1:'1. ¿En qué sistema probaste DIX?', rewards_q2:'2. ¿Qué fue lo que más mejoró tras usar DIX?',
+    rewards_q3:'3. Del 1 al 10, ¿qué tan fácil fue instalarlo y usarlo?', rewards_q4:'4. ¿Qué debería mejorar DIX?',
+    rewards_q5:'5. ¿Recomendarías DIX a un amigo? ¿Por qué?',
+    rewards_submit:'PARTICIPAR',
+    rewards_btn:'VER BASES OFICIALES', rewards_note:'20 ganadores, solo en la semana de lanzamiento — sorteo público si hace falta.', rewards_note_link:'Bases completas aquí',
     footer_tagline:'AppIA para optimización Linux. Claude AI + kernel Linux. Resultados transparentes.',
-    footer_products:'Productos', footer_linux:'DIX Linux', footer_windows:'DIX Windows',
+    footer_products:'Productos', footer_linux:'DIX Linux', footer_windows:'DIX WIN',
     footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
     footer_company:'Empresa', footer_atlas:'Atlas', footer_roadmap:'Roadmap',
     footer_hood:'Bajo el Capó', footer_legal:'Legal', footer_rights:'Todos los derechos reservados.',
@@ -1138,6 +1199,10 @@ function setLang(lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (t[lang][key] !== undefined) el.innerHTML = t[lang][key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (t[lang][key] !== undefined) el.placeholder = t[lang][key];
   });
 }
 
@@ -1261,6 +1326,73 @@ function joinWaitlist(product) {
   input.style.borderColor = 'var(--green)';
   setTimeout(() => { input.placeholder = 'your@email.com'; input.style.borderColor = ''; }, 3000);
 }
+
+// ── DIX BETA REWARDS — formulario real (POST a dix-proxy, guardado en KV) ──
+const REWARDS_API = 'https://dix-proxy.dixsystem.workers.dev';
+
+function toggleRewardsMethod() {
+  const isTest = document.getElementById('rwMethod').value === 'test';
+  document.getElementById('rwPostBlock').style.display = isTest ? 'none' : 'block';
+  document.getElementById('rwTestBlock').style.display = isTest ? 'block' : 'none';
+}
+
+async function submitRewardsEntry(ev) {
+  ev.preventDefault();
+  const msg = document.getElementById('rwMsg');
+  const name    = document.getElementById('rwName').value.trim();
+  const contact = document.getElementById('rwContact').value.trim();
+  const method  = document.getElementById('rwMethod').value;
+  const platform = document.getElementById('rwPlatform').value;
+
+  if (!name || !contact) {
+    msg.style.color = '#ff5f56';
+    msg.textContent = currentLang === 'es' ? 'Rellena tu nombre y contacto.' : 'Please fill in your name and contact.';
+    return;
+  }
+
+  const body = { name, contact, method, platform };
+  if (method === 'post') {
+    body.link = document.getElementById('rwLink').value.trim();
+  } else {
+    const qs = ['rwQ1','rwQ2','rwQ3','rwQ4','rwQ5'].map(id => document.getElementById(id).value.trim());
+    body.answers = `Q1: ${qs[0]}\nQ2: ${qs[1]}\nQ3: ${qs[2]}\nQ4: ${qs[3]}\nQ5: ${qs[4]}`;
+  }
+
+  msg.style.color = 'var(--gray)';
+  msg.textContent = currentLang === 'es' ? 'Enviando…' : 'Submitting…';
+
+  try {
+    const resp = await fetch(`${REWARDS_API}/beta-rewards/entry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error('bad status');
+    msg.style.color = 'var(--green)';
+    msg.textContent = currentLang === 'es' ? '✓ ¡Participación registrada! Revisa tu email/handle si eres ganador.' : "✓ Entry recorded! We'll reach out there if you win.";
+    document.getElementById('rewardsForm').reset();
+    toggleRewardsMethod();
+    loadRewardsCounter();
+  } catch {
+    msg.style.color = '#ff5f56';
+    msg.textContent = currentLang === 'es' ? 'Error al enviar. Inténtalo de nuevo en un momento.' : 'Submission failed. Please try again in a moment.';
+  }
+}
+
+async function loadRewardsCounter() {
+  const el = document.getElementById('rewardsCounter');
+  if (!el) return;
+  try {
+    const resp = await fetch(`${REWARDS_API}/beta-rewards/count`);
+    const data = await resp.json();
+    el.textContent = (currentLang === 'es'
+      ? `${data.count} personas ya han participado`
+      : `${data.count} people have entered so far`);
+  } catch {
+    el.textContent = '';
+  }
+}
+loadRewardsCounter();
 
 // ── SCROLL REVEAL + COUNTERS ──
 const observer = new IntersectionObserver((entries) => {
