@@ -25,6 +25,7 @@ dist-ssr
 
 # Rust / Tauri
 apps/desktop-tauri/src-tauri/target/
+apps/desktop-tauri/dix-cli/target/
 
 # Proxy — lógica de servidor privada, NUNCA publicar
 dix-proxy/

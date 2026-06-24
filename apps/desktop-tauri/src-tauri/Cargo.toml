@@ -7,10 +7,6 @@ edition = "2021"
 name = "dix"
 path = "src/main.rs"
 
-[[bin]]
-name = "dix-cli"
-path = "src/bin/dix_cli.rs"
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

@@ -1,0 +1,20 @@
+[package]
+name    = "dix-cli"
+version = "1.0.5"
+edition = "2021"
+
+[[bin]]
+name = "dix-cli"
+path = "src/main.rs"
+
+[dependencies]
+dix        = { path = "../src-tauri" }
+tokio      = { version = "1", features = ["full"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto           = true
+opt-level     = "s"
+panic         = "abort"
+strip         = true
