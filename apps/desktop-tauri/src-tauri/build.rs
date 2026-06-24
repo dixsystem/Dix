@@ -1,8 +1,11 @@
 fn main() {
     #[cfg(target_os = "windows")]
     {
-        let mut res = winres::WindowsResource::new();
-        res.set_manifest(r#"
+        // El manifiesto de admin se registra a través de tauri_build (no con
+        // winres por separado): dos pasadas de compilación de recursos en el
+        // mismo build script generan dos bloques VERSION y el linker de MSVC
+        // falla con LNK1123 "duplicate resource".
+        let manifest = r#"
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
@@ -18,8 +21,14 @@ fn main() {
     </application>
   </compatibility>
 </assembly>
-"#);
-        res.compile().unwrap();
+"#;
+        let windows = tauri_build::WindowsAttributes::new().app_manifest(manifest);
+        let attrs = tauri_build::Attributes::new().windows_attributes(windows);
+        tauri_build::try_build(attrs).expect("fallo en tauri_build con manifiesto de Windows");
     }
-    tauri_build::build()
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        tauri_build::build();
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name    = "dix"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2021"
 
 [[bin]]
@@ -13,9 +13,6 @@ path = "src/bin/dix_cli.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
 
 [dependencies]
 tauri                 = { version = "2", features = ["image-png"] }
