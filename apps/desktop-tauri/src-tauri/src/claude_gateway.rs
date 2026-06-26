@@ -122,6 +122,9 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
                 if err_type == "demo_limit" {
                     return Err(obfstr!("DEMO_LIMIT_REACHED").to_string());
                 }
+                if err_type == "service_temporarily_unavailable" {
+                    return Err(obfstr!("SERVICE_UNAVAILABLE").to_string());
+                }
                 return Err(format!("[{}] {}", err_type, err_msg));
             }
         }

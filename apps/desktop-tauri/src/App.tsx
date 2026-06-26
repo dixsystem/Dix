@@ -248,6 +248,9 @@ export default function App() {
       if (msg === "DEMO_LIMIT_REACHED") {
         setShowDemoModal(true); setView("idle"); return;
       }
+      if (msg === "SERVICE_UNAVAILABLE") {
+        setError("El servicio de análisis IA no está disponible ahora mismo. Inténtalo de nuevo en unos minutos."); setView("idle"); return;
+      }
       setError(msg); setView("idle");
     }
     invoke<number>("get_demo_count").then(setDemoCount).catch(() => {});
