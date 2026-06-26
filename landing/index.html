@@ -475,13 +475,15 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           </select>
         </div>
         <div class="calc-select-wrap">
-          <label data-i18n="calc_distro">Distribution</label>
+          <label data-i18n="calc_distro">OS</label>
           <select id="calcDistro">
             <option value="ubuntu" selected>Ubuntu</option>
             <option value="arch">Arch Linux</option>
             <option value="fedora">Fedora</option>
             <option value="debian">Debian</option>
-            <option value="other">Other</option>
+            <option value="other">Other Linux</option>
+            <option value="win11">Windows 11</option>
+            <option value="win10">Windows 10</option>
           </select>
         </div>
       </div>
@@ -555,22 +557,23 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
               <rect x="20" y="20" width="11" height="11" rx="1" stroke="#ffffff"/>
             </svg>
           </div>
-          <span class="badge badge-orange" data-i18n="badge_planned">ROADMAP</span>
+          <span class="badge badge-gold" data-i18n="badge_beta">BETA</span>
         </div>
         <img src="assets/dix_windows_box.png" alt="DIX WIN" class="card-cover">
         <div class="card-title" translate="no">DIX WIN</div>
-        <div class="card-desc" data-i18n="p2_desc">Planned Windows edition. Registry and service optimization are roadmap capabilities, pending a verified beta build.</div>
+        <div class="card-desc" data-i18n="p2_desc">Windows edition, fresh beta build. Real registry and power-plan tweaks, AI score, and rollback — same engine as DIX Linux. Help us stress-test it on real hardware.</div>
         <ul class="card-features">
-          <li data-i18n="p2_f1">Registry + services optimization planned</li>
-          <li data-i18n="p2_f2">Windows 10 / 11 testing pending</li>
-          <li data-i18n="p2_f3">Score 0–100 planned</li>
-          <li data-i18n="p2_f4">Rollback planned</li>
+          <li data-i18n="p2_f1">Real registry + power plan tweaks (with UAC verification)</li>
+          <li data-i18n="p2_f2">Windows 10 / 11</li>
+          <li data-i18n="p2_f3">Score 0–100 before and after</li>
+          <li data-i18n="p2_f4">One-click rollback</li>
         </ul>
         <div class="card-price">
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="#products" class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn">JOIN WAITLIST</a>
+        <a href="https://github.com/dixsystem/Dix/releases" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn">DOWNLOAD FREE TRIAL</a>
+        <span style="display:block;text-align:center;margin-top:8px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p2_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
 
       <!-- CARD 3: DIX Kontrol -->
@@ -1005,18 +1008,18 @@ const t = {
     hero_btn1:'FREE ANALYSIS', hero_btn2:'BUY DIX — €14.99', hero_scroll:'scroll',
     calc_label:'Interactive Demo', calc_title:'HOW MUCH CAN YOUR SYSTEM IMPROVE?',
     calc_sub:'Select your hardware and get a score estimate before you even install DIX.',
-    calc_cpu:'CPU', calc_ram:'RAM', calc_distro:'Distribution',
+    calc_cpu:'CPU', calc_ram:'RAM', calc_distro:'OS',
     calc_btn:'CALCULATE MY SCORE', calc_before:'BEFORE DIX', calc_after:'WITH DIX',
     calc_cta:'Verify it for real →',
     prod_label:'Ecosystem', prod_title:'THE DIX ECOSYSTEM',
     prod_sub:'One platform. Multiple tools. Each one solving a specific performance problem.',
-    badge_available:'AVAILABLE NOW', badge_soon:'COMING SOON', badge_dev:'IN DEVELOPMENT', badge_planned:'ROADMAP',
+    badge_available:'AVAILABLE NOW', badge_soon:'COMING SOON', badge_dev:'IN DEVELOPMENT', badge_planned:'ROADMAP', badge_beta:'BETA',
     p1_desc:'Native AI optimization for Linux. Rust binary + Claude AI. Validates every script before execution.',
     p1_f1:'Real kernel scan — /proc and /sys', p1_f2:'Score 0–100 before and after',
     p1_f3:'Custom script per hardware', p1_f4:'One-click rollback',
     p1_btn:'DOWNLOAD FREE TRIAL',
     p1_trial:'Purchase — coming soon',
-    p2_desc:'Planned Windows edition. Registry and service optimization are roadmap capabilities, pending a verified beta build.',
+    p2_desc:'Windows edition, fresh beta build. Real registry and power-plan tweaks, AI score, and rollback — same engine as DIX Linux. Help us stress-test it on real hardware.',
     p2_launch:'Launch target: ', p2_waiting:'847 people on the waitlist',
     p3_desc:'Adaptive daemon. Detects your workload and adjusts automatically.',
     p4_desc:'Planned streamer mode for OBS + games, focused on scheduler tuning and fewer dropped frames.',
@@ -1102,7 +1105,7 @@ const t = {
     hero_btn1:'ANÁLISIS GRATUITO', hero_btn2:'COMPRAR DIX — €14.99', hero_scroll:'bajar',
     calc_label:'Demo Interactivo', calc_title:'¿CUÁNTO PUEDE MEJORAR TU SISTEMA?',
     calc_sub:'Selecciona tu hardware y obtén una estimación antes de instalar DIX.',
-    calc_cpu:'CPU', calc_ram:'RAM', calc_distro:'Distribución',
+    calc_cpu:'CPU', calc_ram:'RAM', calc_distro:'Sistema',
     calc_btn:'CALCULAR MI PUNTUACIÓN', calc_before:'ANTES DE DIX', calc_after:'CON DIX',
     calc_cta:'Compruébalo de verdad →',
     prod_label:'Ecosistema', prod_title:'EL ECOSISTEMA DIX',
@@ -1266,7 +1269,8 @@ function runCalc() {
   const distro = document.getElementById('calcDistro').value;
   const baseMap = {i3:42,i5:38,i7:34,i9:30,r5:40,r7:35,r9:29,other:45};
   const ramBonus = ram >= 32 ? 3 : ram >= 16 ? 0 : -5;
-  const distroBonus = {ubuntu:0,arch:-3,fedora:1,debian:2,other:0}[distro] || 0;
+  const distroBonus = {ubuntu:0,arch:-3,fedora:1,debian:2,other:0,win10:-2,win11:-1}[distro] || 0;
+  const isWindows = distro === 'win10' || distro === 'win11';
   const before = Math.min(55, Math.max(22, (baseMap[cpu] || 38) + ramBonus + distroBonus));
   const after = Math.min(93, before + 48 + Math.floor(Math.random()*8));
 
@@ -1290,7 +1294,8 @@ function runCalc() {
     }, 35);
     const msg = document.getElementById('calcMsg');
     const lang = currentLang;
-    msg.innerHTML = `<span style="color:var(--gray);font-size:13px">${lang==='es'?'Tu sistema podría pasar de':'Your system could go from'} <strong style="color:var(--orange)">${before}</strong> → <strong style="color:var(--green)">${after}/100</strong></span><br><a href="#products" data-i18n="calc_cta">${t[lang].calc_cta}</a>`;
+    const productName = isWindows ? 'DIX WIN' : 'DIX Linux';
+    msg.innerHTML = `<span style="color:var(--gray);font-size:13px">${lang==='es'?'Tu sistema podría pasar de':'Your system could go from'} <strong style="color:var(--orange)">${before}</strong> → <strong style="color:var(--green)">${after}/100</strong> ${lang==='es'?'con':'with'} ${productName}</span><br><a href="#products" data-i18n="calc_cta">${t[lang].calc_cta}</a>`;
   }, 100);
 }
 

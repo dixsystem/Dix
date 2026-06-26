@@ -15,3 +15,5 @@ assets/gifs/
 test_dix.html
 tools/
 .wrangler/
+worker.js
+wrangler.toml

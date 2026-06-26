@@ -54,3 +54,6 @@ apps/desktop-tauri/src-tauri/src/main.rs.save
 # Local Netlify folder
 .netlify
 .gstack/
+
+# Wrangler CLI (Cloudflare Workers — datos locales, nunca publicar)
+.wrangler/
