@@ -130,3 +130,12 @@ jobs:
           prerelease: false
           args: --target x86_64-pc-windows-msvc
           updaterJsonPreferNsis: true
+
+      - name: Subir alias estable dix-setup.exe
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $src = Get-ChildItem -Path "apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          Copy-Item $src.FullName "dix-setup.exe"
+          gh release upload "${{ github.ref_name }}" "dix-setup.exe" --clobber
