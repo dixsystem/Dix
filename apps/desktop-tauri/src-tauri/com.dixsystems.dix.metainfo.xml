@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.dixsystems.dix</id>
+  <name>Dix</name>
+  <summary>La primera AppIA del Mundo</summary>
+  <description>
+    <p>DIX optimiza tu PC con inteligencia artificial real. Analiza tu hardware, genera un script personalizado, aplica las mejoras en segundos y permite revertir con un clic.</p>
+    <p>Sin humo, sin promesas vacías — cada optimización es verificada antes y después del reinicio.</p>
+  </description>
+  <developer>
+    <name>DixSystem</name>
+  </developer>
+  <url type="homepage">https://dixsystem.com</url>
+  <url type="bugtracker">https://github.com/dixsystem/Dix/issues</url>
+  <releases>
+    <release version="1.0.7" date="2026-06-28"/>
+  </releases>
+  <provides>
+    <binary>dix</binary>
+  </provides>
+  <metadata_license>MIT</metadata_license>
+  <project_license>LicenseRef-Proprietary</project_license>
+  <content_rating type="oars-1.1"/>
+</component>

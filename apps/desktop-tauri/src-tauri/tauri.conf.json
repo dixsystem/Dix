@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Dix",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "identifier": "com.dixsystems.dix",
   "build": {
     "frontendDist": "../dist",
@@ -35,7 +35,15 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
-    }
+    },
+    "shortDescription": "La primera AppIA del Mundo",
+    "longDescription": "DIX optimiza tu PC con inteligencia artificial real. Analiza tu hardware, genera un script personalizado, aplica las mejoras en segundos y permite revertir con un clic. Sin humo, sin promesas vacías — todo verificado.",
+    "resources": [
+      {
+        "src": "com.dixsystems.dix.metainfo.xml",
+        "target": "usr/share/metainfo/com.dixsystems.dix.metainfo.xml"
+      }
+    ]
   },
   "plugins": {
     "updater": {
