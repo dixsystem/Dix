@@ -21,14 +21,29 @@ fn fnv1a(s: &str) -> u64 {
     h
 }
 
+fn machine_id() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        crate::winutil::run_powershell(
+            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography').MachineGuid",
+            std::time::Duration::from_secs(10),
+        )
+        .filter(|s| s.len() >= 16)
+        .unwrap_or_else(|| "unknown_win".to_string())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::fs::read_to_string("/etc/machine-id")
+            .unwrap_or_else(|_| std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default())
+    }
+}
+
 fn generate_code() -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let machine = std::fs::read_to_string("/etc/machine-id")
-        .unwrap_or_else(|_| std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default());
-    let seed = fnv1a(&format!("{}{}", nanos, machine.trim()));
+    let seed = fnv1a(&format!("{}{}", nanos, machine_id().trim()));
     let a = ((seed >> 16) & 0xFFFF) as u32;
     let b = (seed & 0xFFFF) as u32;
     format!("DIX-{:04X}-{:04X}", a, b)
