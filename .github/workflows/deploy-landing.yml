@@ -14,5 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Descargar binarios del último release
+        run: |
+          mkdir -p landing/downloads
+          curl -sL "https://github.com/dixsystem/Dix/releases/latest/download/dix-setup.exe" -o landing/downloads/dix-setup.exe
+          curl -sL "$(curl -s https://api.github.com/repos/dixsystem/Dix/releases/latest | python3 -c "import sys,json; assets=json.load(sys.stdin)['assets']; print(next(a['browser_download_url'] for a in assets if a['name'].endswith('amd64.deb')))")" -o landing/downloads/dix-linux.deb
+          ls -lh landing/downloads/
+
       - name: Deploy landing
         run: npx netlify deploy --prod --dir=landing --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} --site=${{ secrets.NETLIFY_SITE_ID }}
