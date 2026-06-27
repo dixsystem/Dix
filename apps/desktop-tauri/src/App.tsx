@@ -23,6 +23,7 @@ import { AnalysisProgress } from "./components/AnalysisProgress";
 import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
 import { DixKontrolPanel } from "./components/DixKontrolPanel";
 import { AtlasConsentBanner } from "./components/AtlasConsentBanner";
+import { ReferralPanel } from "./components/ReferralPanel";
 import { useT } from "./i18n";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -843,6 +844,8 @@ export default function App() {
                 <div className="fade-in">
 
                   <AtlasConsentBanner />
+
+                  <ReferralPanel />
 
                   {/* Esperando a que el sistema se asiente tras un arranque en frío
                       antes de comparar — evita falsos positivos de "se perdió" por

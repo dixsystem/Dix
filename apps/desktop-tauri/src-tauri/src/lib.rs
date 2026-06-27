@@ -23,5 +23,6 @@ pub mod journal;
 pub mod safe_mode;
 pub mod ai_budget;
 pub mod dixkontrol;
+pub mod referral;
 #[cfg(target_os = "windows")]
 pub mod winutil;

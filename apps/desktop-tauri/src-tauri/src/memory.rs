@@ -58,6 +58,10 @@ struct Store {
     /// Atlas — ver docs/threat-model/dixkontrol.md y policy::atlas_privacy_rules.
     #[serde(default)]
     atlas_opt_in: Option<bool>,
+    #[serde(default)]
+    referral_code: Option<String>,
+    #[serde(default)]
+    referral_email: Option<String>,
 }
 
 /// Carpeta de configuración de Dix. Usa el crate `dirs` (resuelve la carpeta
@@ -243,5 +247,25 @@ pub fn get_atlas_opt_in() -> Option<bool> {
 pub fn set_atlas_opt_in(value: bool) -> Result<(), String> {
     let mut store = load();
     store.atlas_opt_in = Some(value);
+    save(&store)
+}
+
+pub fn get_referral_code() -> Option<String> {
+    load().referral_code.filter(|c| !c.is_empty())
+}
+
+pub fn save_referral_code(code: &str) -> Result<(), String> {
+    let mut store = load();
+    store.referral_code = Some(code.trim().to_string());
+    save(&store)
+}
+
+pub fn get_referral_email() -> Option<String> {
+    load().referral_email.filter(|e| !e.is_empty())
+}
+
+pub fn save_referral_email(email: &str) -> Result<(), String> {
+    let mut store = load();
+    store.referral_email = Some(email.trim().to_string());
     save(&store)
 }

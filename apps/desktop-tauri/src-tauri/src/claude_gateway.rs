@@ -153,6 +153,10 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
     Ok(strip_fences(&text))
 }
 
+pub fn get_device_fingerprint() -> String {
+    device_fingerprint()
+}
+
 fn device_fingerprint() -> String {
     #[cfg(target_os = "windows")]
     {

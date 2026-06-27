@@ -9,7 +9,7 @@
 // Tauri. Aquí solo se importan.
 use dix::{
     ai_budget, analysis, atlas, benchmark, cache, claude_gateway, command_engine, dixkontrol, executor,
-    journal, memory, policy, safe_mode, scanner, startup, state,
+    journal, memory, policy, referral, safe_mode, scanner, startup, state,
 };
 #[cfg(target_os = "windows")]
 use dix::winutil;
@@ -998,6 +998,51 @@ fn dixkontrol_stop_moderate() -> String {
     "Sesión Moderado cerrada.".to_string()
 }
 
+// ─── Sistema de referidos ─────────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct ReferralInfo {
+    code: String,
+    link: String,
+    downloads: u32,
+    activated: bool,
+    email: Option<String>,
+}
+
+#[tauri::command]
+async fn get_referral_info() -> Result<ReferralInfo, String> {
+    let code = referral::get_or_create_code();
+    let device_id = claude_gateway::get_device_fingerprint();
+    let email = memory::get_referral_email();
+    let _ = referral::register(&code, &device_id, email.as_deref()).await;
+    let status = referral::get_status(&code).await.unwrap_or(referral::ReferralStatus {
+        code: code.clone(),
+        downloads: 0,
+        activated: false,
+        email: email.clone(),
+    });
+    Ok(ReferralInfo {
+        code: code.clone(),
+        link: format!("https://dixsystem.com/ref/{}", code),
+        downloads: status.downloads,
+        activated: status.activated,
+        email,
+    })
+}
+
+#[tauri::command]
+async fn set_referral_email(email: String) -> Result<(), String> {
+    let email = email.trim().to_string();
+    if email.is_empty() || !email.contains('@') {
+        return Err("Email inválido".to_string());
+    }
+    memory::save_referral_email(&email)?;
+    let code = referral::get_or_create_code();
+    let device_id = claude_gateway::get_device_fingerprint();
+    let _ = referral::register(&code, &device_id, Some(&email)).await;
+    Ok(())
+}
+
 // ─── Arranque ─────────────────────────────────────────────────────────────────
 
 /// Comprueba si el WebView2 Runtime está presente; si no, busca el instalador
@@ -1077,6 +1122,8 @@ fn main() {
             dixkontrol_stop_moderate,
             get_atlas_opt_in,
             set_atlas_opt_in,
+            get_referral_info,
+            set_referral_email,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
