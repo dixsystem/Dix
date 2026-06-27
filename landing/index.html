@@ -542,7 +542,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="https://github.com/dixsystem/Dix/releases" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center" data-i18n="p1_btn">DOWNLOAD FREE TRIAL</a>
+        <button onclick="downloadDix('linux')" class="btn-primary" style="display:block;width:100%;text-align:center;cursor:pointer;border:none" data-i18n="p1_btn">DOWNLOAD FREE TRIAL</button>
         <span style="display:block;text-align:center;margin-top:8px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p1_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
 
@@ -572,7 +572,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="https://github.com/dixsystem/Dix/releases" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn">DOWNLOAD FREE TRIAL</a>
+        <button onclick="downloadDix('windows')" class="btn-primary" style="display:block;width:100%;text-align:center;cursor:pointer;border:none" data-i18n="p2_btn">DOWNLOAD FREE TRIAL</button>
         <span style="display:block;text-align:center;margin-top:8px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p2_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
 
@@ -997,6 +997,15 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 </footer>
 
 <script>
+// ── DOWNLOAD ──
+function downloadDix(platform) {
+  if (platform === 'windows') {
+    location.href = 'https://github.com/dixsystem/Dix/releases/latest/download/dix-setup.exe';
+  } else {
+    location.href = 'https://github.com/dixsystem/Dix/releases/latest';
+  }
+}
+
 // ── TRANSLATIONS ──
 const t = {
   en: {
