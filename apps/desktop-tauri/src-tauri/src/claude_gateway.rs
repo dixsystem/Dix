@@ -64,21 +64,52 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
         }],
     };
 
-    // Si hay API key directa → llamada directa a Anthropic sin pasar por el proxy
+    // Si hay API key directa → llamada directa a Anthropic sin pasar por el proxy.
+    // Si la clave falla por autenticación (401), se limpia y se reintenta por proxy.
     let api_key = memory::get_api_key();
-    let use_direct = api_key.is_some();
 
-    let response = if use_direct {
-        client
+    if let Some(key) = api_key {
+        let r = client
             .post("https://api.anthropic.com/v1/messages")
             .header("content-type", "application/json")
-            .header("x-api-key", api_key.unwrap())
+            .header("x-api-key", key)
             .header("anthropic-version", "2023-06-01")
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("Error de red: {}", e))?
-    } else {
+            .map_err(|e| format!("Error de red: {}", e))?;
+
+        if r.status() != 401 {
+            let status = r.status();
+            let tier_from_header = r.headers()
+                .get("x-dix-tier")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.to_string());
+            let raw = r.text().await.map_err(|e| format!("Error leyendo respuesta: {}", e))?;
+            if let Some(ref tier) = tier_from_header { memory::save_tier(tier).ok(); }
+            if !status.is_success() {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(err) = val.get("error") {
+                        let t = err.get("type").and_then(|v| v.as_str()).unwrap_or("error");
+                        let m = err.get("message").and_then(|v| v.as_str()).unwrap_or("Error del servidor");
+                        if t == "demo_limit" { return Err(obfstr!("DEMO_LIMIT_REACHED").to_string()); }
+                        if t == "service_temporarily_unavailable" { return Err(obfstr!("SERVICE_UNAVAILABLE").to_string()); }
+                        return Err(format!("[{}] {}", t, m));
+                    }
+                }
+                return Err(format!("Error HTTP {}: {}", status, &raw[..raw.len().min(200)]));
+            }
+            let parsed: ApiResponse = serde_json::from_str(&raw)
+                .map_err(|e| format!("JSON inválido: {} — fragmento: {}", e, &raw[..raw.len().min(200)]))?;
+            if let Some(err) = parsed.error { return Err(format!("[Anthropic {}] {}", err.error_type, err.message)); }
+            let text = parsed.content.into_iter().find(|b| b.block_type == "text").map(|b| b.text).unwrap_or_default();
+            return Ok(strip_fences(&text));
+        }
+        // 401 → clave inválida, limpiar y continuar al proxy
+        memory::clear_api_key();
+    }
+
+    let response = {
         // Sin API key → proxy con licencia o device_id (modo demo)
         let mut req = client
             .post(obfstr!("https://dix-proxy.dixsystem.workers.dev/v1/messages"))

@@ -142,6 +142,14 @@ pub fn save_api_key(key: &str) -> Result<(), String> {
     save(&store)
 }
 
+pub fn clear_api_key() {
+    let _ = keyring::Entry::new(KEYRING_SERVICE, "api_key")
+        .and_then(|e| e.delete_credential());
+    let mut store = load();
+    store.api_key = None;
+    let _ = save(&store);
+}
+
 pub fn add_session(session: Session) -> Result<(), String> {
     let mut store = load();
     store.sessions.push(session);
