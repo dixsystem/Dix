@@ -57,6 +57,7 @@ nav.scrolled{border-bottom-color:rgba(255,107,0,.35)}
 .nav-links a::after,.nav-dd-toggle::after{content:'';position:absolute;bottom:4px;left:14px;right:14px;height:1px;background:var(--orange);transform:scaleX(0);transition:transform .2s}
 .nav-links a:hover,.nav-dd-toggle:hover{color:var(--white)}
 .nav-links a:hover::after,.nav-dd-toggle:hover::after{transform:scaleX(1)}
+.nav-links a.nav-active{color:var(--white)}.nav-links a.nav-active::after{transform:scaleX(1)}
 .dd-wrap{position:relative}
 .dd-menu{position:absolute;top:calc(100% + 8px);left:0;background:#161b22;border:1px solid var(--border);border-radius:8px;padding:8px 0;min-width:220px;opacity:0;pointer-events:none;transform:translateY(-8px);transition:all .2s;z-index:100}
 .dd-wrap:hover .dd-menu,.dd-menu:hover{opacity:1;pointer-events:all;transform:translateY(0)}
@@ -68,6 +69,7 @@ nav.scrolled{border-bottom-color:rgba(255,107,0,.35)}
 .badge-blue{background:rgba(0,255,255,.1);color:var(--cyan);border:1px solid rgba(0,255,255,.2)}
 .badge-purple{background:rgba(255,0,255,.1);color:var(--magenta);border:1px solid rgba(255,0,255,.2)}
 .badge-orange{background:rgba(255,107,0,.15);color:var(--orange);border:1px solid rgba(255,107,0,.3)}
+.badge-gold{background:rgba(255,215,0,.15);color:var(--yellow);border:1px solid rgba(255,215,0,.3)}
 .nav-right{display:flex;align-items:center;gap:16px;margin-left:auto}
 .lang-toggle{display:flex;gap:0;border:1px solid var(--border);border-radius:4px;overflow:hidden}
 .lang-btn{padding:4px 10px;font-size:11px;font-weight:600;background:none;border:none;color:var(--gray);cursor:pointer;transition:all .15s}
@@ -368,25 +370,25 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     <div class="dd-wrap">
       <button class="nav-dd-toggle" data-i18n="nav_products">Products</button>
       <div class="dd-menu">
-        <a class="dd-item" href="#products">
+        <a class="dd-item" href="#dix-linux">
           DIX Linux <span class="badge badge-green">AVAILABLE</span>
         </a>
-        <a class="dd-item" href="#products">
+        <a class="dd-item" href="#dix-win">
           DIX WIN <span class="badge badge-gold">BETA</span>
         </a>
-        <a class="dd-item" href="#products">
+        <a class="dd-item" href="#dix-kontrol">
           DIX Kontrol <span class="badge badge-blue">DEV</span>
         </a>
-        <a class="dd-item" href="#products">
+        <a class="dd-item" href="#dix-stream">
           DIX Stream <span class="badge badge-purple">v2</span>
         </a>
-        <a class="dd-item" href="#products">
+        <a class="dd-item" href="#dix-odyssey">
           DIX Odyssey <span class="badge badge-gold">BETA</span>
         </a>
       </div>
     </div>
     <a href="#atlas" data-i18n="nav_atlas">Atlas</a>
-    <a href="#atlas" data-i18n="nav_community">Community</a>
+    <a href="#beta-rewards" data-i18n="nav_community">Community</a>
     <a href="#roadmap" data-i18n="nav_news">News</a>
     <a href="#hood" data-i18n="nav_hood">Under the Hood</a>
   </div>
@@ -407,6 +409,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 <div class="mobile-menu" id="mobileMenu">
   <a href="#products" data-i18n="nav_products">Products</a>
   <a href="#atlas" data-i18n="nav_atlas">Atlas</a>
+  <a href="#beta-rewards" data-i18n="nav_community">Community</a>
   <a href="#roadmap" data-i18n="nav_news">News</a>
   <a href="#hood" data-i18n="nav_hood">Under the Hood</a>
   <a href="#products" data-i18n="nav_cta" style="color:var(--orange);font-weight:700">GET DIX →</a>
@@ -516,7 +519,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     <div class="products-grid">
 
       <!-- CARD 1: DIX Linux -->
-      <div class="prod-card reveal">
+      <div class="prod-card reveal" id="dix-linux">
         <div class="card-header">
           <div class="card-icon">
             <svg viewBox="0 0 36 36" fill="none" stroke="#FF6B00" stroke-width="1.5">
@@ -548,7 +551,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       </div>
 
       <!-- CARD 2: DIX WIN -->
-      <div class="prod-card reveal">
+      <div class="prod-card reveal" id="dix-win">
         <div class="card-header">
           <div class="card-icon">
             <svg viewBox="0 0 36 36" fill="none" stroke-width="1.5">
@@ -579,7 +582,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       </div>
 
       <!-- CARD 3: DIX Kontrol -->
-      <div class="prod-card unavailable reveal">
+      <div class="prod-card unavailable reveal" id="dix-kontrol">
         <div class="card-header">
           <div class="card-icon">
             <svg viewBox="0 0 36 36" fill="none" stroke="#00FFFF" stroke-width="1.5">
@@ -600,7 +603,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       </div>
 
       <!-- CARD 4: DIX Stream -->
-      <div class="prod-card unavailable reveal">
+      <div class="prod-card unavailable reveal" id="dix-stream">
         <div class="card-header">
           <div class="card-icon">
             <svg viewBox="0 0 36 36" fill="none" stroke="#FF00FF" stroke-width="1.5">
@@ -619,7 +622,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       </div>
 
       <!-- CARD 5: DIX Odyssey (full width) -->
-      <div class="prod-card odyssey odyssey-full reveal">
+      <div class="prod-card odyssey odyssey-full reveal" id="dix-odyssey">
         <div class="odyssey-grid">
           <div>
             <div class="card-header" style="margin-bottom:20px">
@@ -752,11 +755,11 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
               </tr>
             </thead>
             <tbody>
-              <tr><td>Demo</td><td>i9-13900K 64GB</td><td>Arch</td><td>—</td><td>—</td><td class="score-up">placeholder</td></tr>
-              <tr><td>Demo</td><td>Ryzen 9 7950X</td><td>Ubuntu</td><td>—</td><td>—</td><td class="score-up">placeholder</td></tr>
-              <tr><td>Demo</td><td>i7-11800H 32GB</td><td>Fedora</td><td>—</td><td>—</td><td class="score-up">placeholder</td></tr>
-              <tr><td>Demo</td><td>Ryzen 7 5800X</td><td>Debian</td><td>—</td><td>—</td><td class="score-up">placeholder</td></tr>
-              <tr><td>Demo</td><td>i5-12400 32GB</td><td>Ubuntu</td><td>—</td><td>—</td><td class="score-up">placeholder</td></tr>
+              <tr><td>Demo</td><td>i9-13900K 64GB</td><td>Arch</td><td>—</td><td>—</td><td class="score-up">—</td></tr>
+              <tr><td>Demo</td><td>Ryzen 9 7950X</td><td>Ubuntu</td><td>—</td><td>—</td><td class="score-up">—</td></tr>
+              <tr><td>Demo</td><td>i7-11800H 32GB</td><td>Fedora</td><td>—</td><td>—</td><td class="score-up">—</td></tr>
+              <tr><td>Demo</td><td>Ryzen 7 5800X</td><td>Debian</td><td>—</td><td>—</td><td class="score-up">—</td></tr>
+              <tr><td>Demo</td><td>i5-12400 32GB</td><td>Ubuntu</td><td>—</td><td>—</td><td class="score-up">—</td></tr>
             </tbody>
           </table>
         </div>
@@ -1314,7 +1317,6 @@ function runCalc() {
 
 // ── COUNTDOWNS ──
 function fmtCountdown(target) {
-  return 'ROADMAP';
   const diff = target - Date.now();
   if (diff <= 0) return 'LIVE';
   const d = Math.floor(diff/86400000);
@@ -1332,13 +1334,20 @@ updateCountdowns();
 setInterval(updateCountdowns, 1000);
 
 // ── WAITLIST ──
-function joinWaitlist(product) {
+async function joinWaitlist(product) {
   const input = document.getElementById('email' + product.charAt(0).toUpperCase() + product.slice(1));
   if (!input || !input.value.includes('@')) {
-    input.style.borderColor = '#ff5f56';
-    setTimeout(() => input.style.borderColor = '', 1500);
+    if (input) { input.style.borderColor = '#ff5f56'; setTimeout(() => input.style.borderColor = '', 1500); }
     return;
   }
+  const email = input.value.trim();
+  try {
+    await fetch('https://dix-proxy.dixsystem.workers.dev/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, product }),
+    });
+  } catch {}
   input.value = '';
   input.placeholder = currentLang === 'es' ? '✓ ¡Apuntado!' : '✓ You\'re on the list!';
   input.style.borderColor = 'var(--green)';
@@ -1439,6 +1448,28 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.15 });
 
 document.querySelectorAll('.reveal, .step, .bench-card, .rm-item').forEach(el => observer.observe(el));
+
+// ── SCROLL-SPY — resaltar sección activa en la nav ──
+const navSections = ['hero','products','how','benchmarks','atlas','roadmap','hood','beta-rewards'];
+const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+const spyObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const id = entry.target.id;
+    navLinks.forEach(link => {
+      link.classList.toggle('nav-active', link.getAttribute('href') === '#' + id);
+    });
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+navSections.forEach(id => { const el = document.getElementById(id); if (el) spyObserver.observe(el); });
+
+// ── CERRAR MOBILE MENU AL HACER CLIC EN ENLACE ──
+document.querySelectorAll('.mobile-menu a').forEach(a => {
+  a.addEventListener('click', () => {
+    document.getElementById('mobileMenu').style.display = 'none';
+  });
+});
+
 </script>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "322a4b2bb4794989957b5e3d365eb618"}'></script><!-- End Cloudflare Web Analytics -->
