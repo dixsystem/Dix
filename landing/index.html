@@ -34,6 +34,51 @@ h1,h2,h3,h4{font-family:'Orbitron',sans-serif}
 img{max-width:100%}
 button{cursor:pointer;font-family:'Inter',sans-serif}
 
+
+/* ── PRODUCT MODAL ── */
+.pmodal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.pmodal-overlay.open{opacity:1;pointer-events:all}
+.pmodal{background:#0d1117;border:1px solid var(--border);border-radius:12px;width:100%;max-width:860px;max-height:90vh;display:flex;flex-direction:column;transform:translateY(24px);transition:transform .25s;overflow:hidden}
+.pmodal-overlay.open .pmodal{transform:translateY(0)}
+.pmodal-head{display:flex;align-items:center;gap:14px;padding:22px 28px;border-bottom:1px solid var(--border);flex-shrink:0}
+.pmodal-icon{width:48px;height:48px;background:rgba(255,107,0,.08);border:1px solid rgba(255,107,0,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pmodal-name{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;flex:1}
+.pmodal-close{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--gray);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.pmodal-close:hover{border-color:var(--orange);color:var(--white)}
+.pmodal-tabs{display:flex;gap:0;padding:0 28px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.pmodal-tab{padding:14px 20px;font-size:13px;font-weight:600;color:var(--gray);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Inter',sans-serif}
+.pmodal-tab:hover{color:var(--white)}
+.pmodal-tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+.pmodal-body{overflow-y:auto;padding:28px;flex:1}
+.pmodal-panel{display:none}
+.pmodal-panel.active{display:block}
+.pmodal-section{margin-bottom:28px}
+.pmodal-section h3{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--orange);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.pmodal-steps{display:flex;flex-direction:column;gap:14px}
+.pmodal-step{display:flex;gap:14px;align-items:flex-start}
+.pmodal-step-n{width:28px;height:28px;background:rgba(255,107,0,.12);border:1px solid rgba(255,107,0,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--orange);flex-shrink:0;margin-top:2px}
+.pmodal-step-txt{font-size:14px;color:rgba(255,255,255,.8);line-height:1.6}
+.pmodal-step-txt strong{color:var(--white)}
+.pmodal-params{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.pmodal-param{background:#161b22;border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.pmodal-param code{display:block;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cyan);margin-bottom:4px}
+.pmodal-param span{font-size:12px;color:var(--gray);line-height:1.4}
+.pmodal-reqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.pmodal-req{background:#161b22;border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;color:rgba(255,255,255,.8)}
+.pmodal-req strong{display:block;color:var(--orange);font-size:11px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-family:'Orbitron',sans-serif}
+.pmodal-faq{display:flex;flex-direction:column;gap:12px}
+.pmodal-faq-item{background:#161b22;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.pmodal-faq-q{width:100%;text-align:left;padding:14px 18px;background:none;border:none;color:var(--white);font-size:14px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:'Inter',sans-serif}
+.pmodal-faq-q::after{content:'+';color:var(--orange);font-size:18px;font-weight:300;flex-shrink:0;margin-left:10px;transition:transform .2s}
+.pmodal-faq-item.open .pmodal-faq-q::after{transform:rotate(45deg)}
+.pmodal-faq-a{display:none;padding:0 18px 14px;font-size:13px;color:var(--gray);line-height:1.7}
+.pmodal-faq-item.open .pmodal-faq-a{display:block}
+.pmodal-cta{border-top:1px solid var(--border);padding:20px 28px;display:flex;gap:12px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.pmodal-cta-note{font-size:12px;color:var(--gray);flex:1}
+/* Botón abrir modal en tarjeta */
+.btn-details{width:100%;margin-bottom:12px;padding:9px 0;background:none;border:1px solid var(--border);border-radius:6px;color:var(--gray);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;letter-spacing:.3px}
+.btn-details:hover{border-color:var(--orange);color:var(--orange)}
+
 /* ── PRELOADER ── */
 #preloader{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .6s ease}
 #preloader.hidden{opacity:0;pointer-events:none}
@@ -541,6 +586,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <li data-i18n="p1_f3">Custom script per hardware</li>
           <li data-i18n="p1_f4">One-click rollback</li>
         </ul>
+        <button class="btn-details" onclick="openProductModal('dix-linux')" data-i18n="btn_details">Ver todo sobre este producto →</button>
         <div class="card-price">
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
@@ -572,6 +618,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <li data-i18n="p2_f3">Score 0–100 before and after</li>
           <li data-i18n="p2_f4">One-click rollback</li>
         </ul>
+        <button class="btn-details" onclick="openProductModal('dix-win')" data-i18n="btn_details">Ver todo sobre este producto →</button>
         <div class="card-price">
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
@@ -596,7 +643,8 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         </div>
         <div class="card-title" style="color:var(--cyan)">DIX Kontrol</div>
         <div class="card-desc" data-i18n="p3_desc">Adaptive daemon. Detects what you're doing — coding, gaming, rendering — and adjusts kernel parameters automatically. No clicks.</div>
-        <div class="waitlist-input" style="margin-top:20px">
+        <button class="btn-details" onclick="openProductModal('dix-kontrol')" data-i18n="btn_details">Ver todo sobre este producto →</button>
+          <div class="waitlist-input" style="margin-top:20px">
           <input type="email" id="emailKontrol" placeholder="your@email.com">
           <button onclick="joinWaitlist('kontrol')" data-i18n="btn_waitlist">JOIN</button>
         </div>
@@ -615,7 +663,8 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         </div>
         <div class="card-title" style="color:var(--magenta)">DIX Stream</div>
         <div class="card-desc" data-i18n="p4_desc">Planned streamer mode for OBS + games, focused on scheduler tuning and fewer dropped frames.</div>
-        <div class="waitlist-input" style="margin-top:20px">
+        <button class="btn-details" onclick="openProductModal('dix-stream')" data-i18n="btn_details">Ver todo sobre este producto →</button>
+          <div class="waitlist-input" style="margin-top:20px">
           <input type="email" id="emailStream" placeholder="your@email.com">
           <button onclick="joinWaitlist('stream')" data-i18n="btn_waitlist">JOIN</button>
         </div>
@@ -654,6 +703,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
               </div>
               <div class="odyssey-price-note" data-i18n="p5_sub_note">Beta — ODYSSEY-XXXXXX license key required</div>
             </div>
+            <button class="btn-details" onclick="openProductModal('dix-odyssey')" data-i18n="btn_details">Ver todo sobre este producto →</button>
             <div class="waitlist-input">
               <input type="email" id="emailOdyssey" placeholder="your@email.com">
               <button onclick="joinWaitlist('odyssey')" style="white-space:nowrap;font-size:11px" data-i18n="p5_btn">GET EARLY ACCESS</button>
@@ -1039,6 +1089,7 @@ const t = {
     p3_desc:'Adaptive daemon. Detects your workload and adjusts automatically.',
     p4_desc:'Planned streamer mode for OBS + games, focused on scheduler tuning and fewer dropped frames.',
     btn_waitlist:'JOIN',
+    btn_details:'See full product details →',
     how_label:'Process', how_title:'THREE STEPS. SECONDS.',
     how_sub:'No configuration files. No manual tuning. DIX handles the entire process.',
     step1_label:'Step 01', step1_title:'SCAN',
@@ -1137,6 +1188,7 @@ const t = {
     p3_desc:'Daemon adaptativo. Detecta tu carga de trabajo y ajusta automáticamente.',
     p4_desc:'Modo streamer planificado para OBS + juegos, centrado en scheduler y menos fotogramas perdidos.',
     btn_waitlist:'UNIRSE',
+    btn_details:'Ver todo sobre este producto →',
     how_label:'Proceso', how_title:'TRES PASOS. SEGUNDOS.',
     how_sub:'Sin archivos de configuración. Sin ajuste manual. DIX gestiona todo el proceso.',
     step1_label:'Paso 01', step1_title:'ESCANEAR',
@@ -1449,6 +1501,239 @@ const observer = new IntersectionObserver((entries) => {
 
 document.querySelectorAll('.reveal, .step, .bench-card, .rm-item').forEach(el => observer.observe(el));
 
+
+// ── PRODUCT MODAL DATA ──────────────────────────────────────────────────────
+const PRODUCTS = {
+  'dix-linux': {
+    name: 'DIX Linux',
+    badge: '<span class="badge badge-green">AVAILABLE NOW</span>',
+    icon: `<svg viewBox="0 0 36 36" fill="none" stroke="#FF6B00" stroke-width="1.5" width="28"><ellipse cx="18" cy="10" rx="5" ry="7"/><path d="M9 28c0-5 4-9 9-9s9 4 9 9"/><circle cx="14" cy="9" r="1.2" fill="#FF6B00"/><circle cx="22" cy="9" r="1.2" fill="#FF6B00"/><path d="M9 28l-3 3m21-3l3 3"/></svg>`,
+    cta: { label: 'DESCARGAR GRATIS (.deb)', href: '/downloads/dix-linux.deb', download: true, note: 'Ubuntu/Debian · 3 análisis gratis · sin tarjeta · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange)">AppImage / RPM / otros formatos</a>' },
+    tabs: [
+      { id: 'how',    label: 'Cómo funciona' },
+      { id: 'params', label: 'Qué optimiza' },
+      { id: 'reqs',   label: 'Compatibilidad' },
+      { id: 'faq',    label: 'FAQ' },
+    ],
+    how: `<div class="pmodal-steps">
+      <div class="pmodal-step"><div class="pmodal-step-n">1</div><div class="pmodal-step-txt"><strong>Lectura del sistema</strong> — el binario Rust analiza más de 33 parámetros en tiempo real: <code>/proc/cpuinfo</code>, <code>/proc/meminfo</code>, colas de I/O de cada dispositivo, temperatura, governor de CPU, scheduler de disco y configuración de red.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">2</div><div class="pmodal-step-txt"><strong>Análisis con IA</strong> — el snapshot de tu sistema viaja a Claude AI a través del proxy seguro de DIX (nunca expone tu API key). La IA conoce tu CPU, RAM, disco y distro exactos y genera un plan de optimización personalizado, no genérico.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">3</div><div class="pmodal-step-txt"><strong>Validación de seguridad</strong> — cada cambio propuesto se valida contra una whitelist de parámetros seguros. Si algún valor sale del rango verificado para tu hardware, se rechaza antes de mostrártelo.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">4</div><div class="pmodal-step-txt"><strong>Aplicación con privilegio mínimo</strong> — DIX aplica los cambios usando <code>pkexec</code> (autenticación de sistema estándar de Linux), nunca como root permanente. Cada sesión se registra en el journal.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">5</div><div class="pmodal-step-txt"><strong>Score antes y después</strong> — el benchmark integrado (sysbench CPU + RAM + disco) mide el impacto real. Ves el número subir en pantalla.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">6</div><div class="pmodal-step-txt"><strong>Rollback con un clic</strong> — cada optimización guarda un snapshot del estado anterior del kernel. Si algo no te convence, restauras en segundos.</div></div>
+    </div>`,
+    params: `<div class="pmodal-params">
+      <div class="pmodal-param"><code>vm.dirty_ratio</code><span>Controla cuánta RAM puede acumular datos sin escribir al disco. DIX lo ajusta según velocidad de tu disco.</span></div>
+      <div class="pmodal-param"><code>vm.dirty_background_ratio</code><span>Umbral para escrituras en background. Reduce latencia en NVMe con valores más bajos.</span></div>
+      <div class="pmodal-param"><code>Transparent Hugepages</code><span>Gestión de páginas grandes de memoria. Se desactiva en gaming/latencia y se activa en servidores/compilación.</span></div>
+      <div class="pmodal-param"><code>I/O Scheduler</code><span>kyber → mq-deadline → none según si tu disco es NVMe, SATA SSD o HDD. Impacto enorme en benchmarks.</span></div>
+      <div class="pmodal-param"><code>nr_requests</code><span>Tamaño de la cola de peticiones I/O. Se amplía en NVMe para mayor paralelismo.</span></div>
+      <div class="pmodal-param"><code>read_ahead_kb</code><span>Prefetch de lectura. Se aumenta para cargas secuenciales como compilación.</span></div>
+      <div class="pmodal-param"><code>fs.inotify.max_user_watches</code><span>Límite de file watchers. Crítico para entornos de desarrollo con webpack, vite, IDEs.</span></div>
+      <div class="pmodal-param"><code>vm.vfs_cache_pressure</code><span>Retención de caché de filesystem. Reducirlo mejora I/O en sistemas con mucha RAM.</span></div>
+      <div class="pmodal-param"><code>kernel.sched_migration_cost_ns</code><span>Coste de migración de tareas entre cores. Reduce context switches innecesarios.</span></div>
+      <div class="pmodal-param"><code>kernel.nmi_watchdog</code><span>Watchdog de hardware. Se desactiva para liberar ciclos de CPU en workloads intensivos.</span></div>
+      <div class="pmodal-param"><code>net.core.somaxconn</code><span>Backlog de conexiones de red. Se aumenta para servidores locales y desarrollo web.</span></div>
+      <div class="pmodal-param"><code>vm.max_map_count</code><span>Máximo de regiones de memoria mapeadas. Necesario para JVM, Elasticsearch y herramientas de desarrollo.</span></div>
+    </div>`,
+    reqs: `<div class="pmodal-reqs">
+      <div class="pmodal-req"><strong>Ubuntu</strong>22.04 / 24.04 / 26.04 LTS</div>
+      <div class="pmodal-req"><strong>Debian</strong>11 Bullseye · 12 Bookworm</div>
+      <div class="pmodal-req"><strong>AppImage</strong>Cualquier distro Linux x64 moderna</div>
+      <div class="pmodal-req"><strong>Arch / Manjaro</strong>Vía AppImage (AUR pendiente)</div>
+      <div class="pmodal-req"><strong>Fedora / openSUSE</strong>RPM disponible en GitHub Releases</div>
+      <div class="pmodal-req"><strong>Kernel mínimo</strong>5.4 LTS · recomendado 5.15+</div>
+      <div class="pmodal-req"><strong>RAM</strong>4 GB mínimo · 8 GB recomendado</div>
+      <div class="pmodal-req"><strong>Arquitectura</strong>x86_64 únicamente</div>
+      <div class="pmodal-req"><strong>Conexión</strong>Internet para análisis IA</div>
+    </div>`,
+    faq: [
+      ['¿Es seguro aplicar los cambios?', 'Sí. DIX solo modifica parámetros del kernel en tiempo de ejecución (sysctl). Nunca edita archivos del sistema, no instala servicios, no modifica el bootloader. Al reiniciar, el sistema vuelve a los valores por defecto del kernel — a menos que marques explícitamente "persistir".'],
+      ['¿Qué pasa si algo no funciona bien?', 'Con el botón Rollback en la pantalla de Rollbacks, cualquier optimización se revierte en segundos. Cada sesión queda registrada con timestamp y la lista de cambios aplicados.'],
+      ['¿El score 0-100 es real?', 'Sí. Se calcula con sysbench (benchmark de CPU, RAM y disco) y se compara con valores objetivo verificados para tu hardware específico. No es un número inventado — subirlo significa que los benchmarks mejoran.'],
+      ['¿Necesito internet siempre?', 'Solo para el análisis IA (el paso de la IA genera las optimizaciones). Una vez recibidas, puedes aplicarlas y hacer rollback sin conexión.'],
+      ['¿Funciona con Wayland y X11?', 'Sí. DIX es una app de sistema, no depende del servidor gráfico. Funciona igual en GNOME Wayland, KDE Plasma, Hyprland, i3, etc.'],
+    ],
+  },
+  'dix-win': {
+    name: 'DIX WIN',
+    badge: '<span class="badge badge-gold">BETA GRATUITA</span>',
+    icon: `<svg viewBox="0 0 36 36" fill="none" stroke-width="1.5" width="28"><rect x="5" y="5" width="11" height="11" rx="1" stroke="#ffffff"/><rect x="20" y="5" width="11" height="11" rx="1" stroke="#FF6B00"/><rect x="5" y="20" width="11" height="11" rx="1" stroke="#FF6B00"/><rect x="20" y="20" width="11" height="11" rx="1" stroke="#ffffff"/></svg>`,
+    cta: { label: 'DESCARGAR BETA GRATIS (.exe)', href: '/downloads/dix-setup.exe', download: true, note: 'Windows 10 / 11 · 3 análisis gratis · sin tarjeta · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange)">MSI / otros formatos</a>' },
+    tabs: [
+      { id: 'how',    label: 'Cómo funciona' },
+      { id: 'params', label: 'Qué optimiza' },
+      { id: 'reqs',   label: 'Compatibilidad' },
+      { id: 'faq',    label: 'FAQ' },
+    ],
+    how: `<div class="pmodal-steps">
+      <div class="pmodal-step"><div class="pmodal-step-n">1</div><div class="pmodal-step-txt"><strong>Lectura del sistema</strong> — DIX WIN usa WMI (Windows Management Instrumentation) y la API nativa de Windows para leer CPU, RAM, discos, GPU, plan de energía activo y configuración de registro.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">2</div><div class="pmodal-step-txt"><strong>Análisis con IA</strong> — el mismo motor que DIX Linux, adaptado al ecosistema Windows. La IA conoce tu hardware y genera tweaks específicos para tu configuración.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">3</div><div class="pmodal-step-txt"><strong>Validación</strong> — cada clave de registro y ajuste de plan de energía se valida antes de aplicarse. Solo se modifican parámetros de rendimiento, nunca configuración de seguridad del sistema.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">4</div><div class="pmodal-step-txt"><strong>Aplicación con UAC</strong> — Windows solicita confirmación de administrador (el mismo diálogo que al instalar software). DIX no se ejecuta como servicio de sistema permanente.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">5</div><div class="pmodal-step-txt"><strong>Score y rollback</strong> — benchmark de rendimiento antes y después. Restauración completa de la configuración anterior con un clic.</div></div>
+    </div>`,
+    params: `<div class="pmodal-params">
+      <div class="pmodal-param"><code>Power Plan</code><span>Cambio a High Performance o Ultimate Performance para máximo rendimiento en CPU y disco.</span></div>
+      <div class="pmodal-param"><code>Game Mode / Game DVR</code><span>Configura Game Mode correctamente y desactiva Game DVR si impacta en el rendimiento.</span></div>
+      <div class="pmodal-param"><code>Visual Effects</code><span>Desactiva animaciones y efectos visuales innecesarios que consumen CPU/GPU.</span></div>
+      <div class="pmodal-param"><code>TCP Auto-Tuning</code><span>Optimiza el buffer de red para latencia reducida en gaming y trabajo remoto.</span></div>
+      <div class="pmodal-param"><code>Prefetcher / Superfetch</code><span>Configura el prefetch de Windows según el tipo de almacenamiento (SSD vs HDD).</span></div>
+      <div class="pmodal-param"><code>HPET</code><span>High Precision Event Timer — desactivarlo puede reducir latencia en gaming.</span></div>
+      <div class="pmodal-param"><code>IRQ Priority</code><span>Prioridad de interrupciones para dispositivos críticos de audio y red.</span></div>
+      <div class="pmodal-param"><code>Paging File</code><span>Tamaño y configuración del archivo de paginación según RAM disponible.</span></div>
+    </div>`,
+    reqs: `<div class="pmodal-reqs">
+      <div class="pmodal-req"><strong>Windows 10</strong>Versión 2004 (May 2020) o superior</div>
+      <div class="pmodal-req"><strong>Windows 11</strong>Todas las versiones</div>
+      <div class="pmodal-req"><strong>Arquitectura</strong>x86_64 · ARM no soportado aún</div>
+      <div class="pmodal-req"><strong>RAM</strong>4 GB mínimo</div>
+      <div class="pmodal-req"><strong>Permisos</strong>Cuenta con derechos de administrador</div>
+      <div class="pmodal-req"><strong>Conexión</strong>Internet para análisis IA</div>
+      <div class="pmodal-req"><strong>Antivirus</strong>Puede pedir excepción (binario firmado)</div>
+    </div>`,
+    faq: [
+      ['¿Toca el registro de Windows?', 'Sí, pero solo claves de rendimiento documentadas por Microsoft. Nunca toca claves de seguridad, drivers o configuración de arranque. Todo queda registrado para rollback.'],
+      ['¿Mi antivirus lo bloqueará?', 'Algunos antivirus pueden marcar el instalador al ser un programa nuevo con pocos reportes. El binario está firmado. Si tienes problemas, añade una excepción o usa el ZIP portable de GitHub Releases.'],
+      ['¿Funciona en Windows Server?', 'No está probado en entornos de servidor. Está diseñado para Windows 10/11 de escritorio.'],
+      ['¿Necesito desinstalar otras herramientas de optimización?', 'No es necesario, pero se recomienda para evitar conflictos. DIX lee el estado real actual y genera optimizaciones sobre él.'],
+    ],
+  },
+  'dix-kontrol': {
+    name: 'DIX Kontrol',
+    badge: '<span class="badge badge-blue">EN DESARROLLO</span>',
+    icon: `<svg viewBox="0 0 36 36" fill="none" stroke="#00FFFF" stroke-width="1.5" width="28"><rect x="4" y="12" width="28" height="16" rx="4"/><circle cx="12" cy="20" r="3"/><circle cx="24" cy="17" r="1.5"/><circle cx="28" cy="21" r="1.5"/></svg>`,
+    cta: { label: 'UNIRSE A LA LISTA DE ESPERA', href: '#dix-kontrol', note: 'Precio estimado: €24.99 pago único · fecha pendiente de confirmar' },
+    tabs: [
+      { id: 'how',    label: 'Concepto' },
+      { id: 'params', label: 'Funciones previstas' },
+      { id: 'reqs',   label: 'Estado' },
+    ],
+    how: `<div class="pmodal-steps">
+      <div class="pmodal-step"><div class="pmodal-step-n">💡</div><div class="pmodal-step-txt"><strong>Daemon adaptativo</strong> — DIX Kontrol es un servicio en background que monitoriza qué estás haciendo en tu PC y ajusta los parámetros del kernel automáticamente, sin que tengas que abrir ninguna app.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">🎮</div><div class="pmodal-step-txt"><strong>Detección de workload</strong> — detecta si estás compilando código, jugando, renderizando vídeo o en idle, y aplica perfiles de optimización distintos para cada modo.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">⚡</div><div class="pmodal-step-txt"><strong>Sin clics</strong> — el objetivo es que el usuario nunca tenga que pensar en el rendimiento. Kontrol lo hace de forma continua en segundo plano.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">🔒</div><div class="pmodal-step-txt"><strong>Basado en DIX Linux</strong> — usa el mismo motor validado y la misma whitelist de parámetros seguros. Los cambios son siempre reversibles.</div></div>
+    </div>`,
+    params: `<div class="pmodal-params">
+      <div class="pmodal-param"><code>Modo Gaming</code><span>Detecta juegos activos (Steam, lutris, Wine) y aplica perfil de baja latencia.</span></div>
+      <div class="pmodal-param"><code>Modo Compilación</code><span>Detecta procesos de build (cargo, make, gradle) y optimiza para throughput de CPU.</span></div>
+      <div class="pmodal-param"><code>Modo Rendering</code><span>Detecta Blender, FFmpeg, DaVinci Resolve y prioriza GPU + RAM.</span></div>
+      <div class="pmodal-param"><code>Modo Idle</code><span>Reduce consumo energético y noise cuando el sistema está inactivo.</span></div>
+      <div class="pmodal-param"><code>Dashboard</code><span>Panel visual en tiempo real de métricas y perfil activo.</span></div>
+      <div class="pmodal-param"><code>API local</code><span>Endpoint REST para integración con scripts y herramientas propias.</span></div>
+    </div>`,
+    reqs: `<div class="pmodal-section"><h3>Estado del desarrollo</h3><p style="color:var(--gray);font-size:14px;line-height:1.7">DIX Kontrol está en desarrollo activo. La arquitectura base (daemon Rust + detección de procesos) está implementada en el repositorio privado <code>dix-kontrol</code>. Las funciones de detección de workload y los perfiles adaptativos están en pruebas internas.<br><br>El lanzamiento está previsto para Q3-Q4 2026, condicionado a la validación de los perfiles en hardware real. Los suscriptores de la lista de espera serán los primeros en acceder a la beta.</p></div>`,
+  },
+  'dix-stream': {
+    name: 'DIX Stream',
+    badge: '<span class="badge badge-purple">PLANIFICADO</span>',
+    icon: `<svg viewBox="0 0 36 36" fill="none" stroke="#FF00FF" stroke-width="1.5" width="28"><circle cx="18" cy="18" r="12"/><polygon points="15,13 15,23 25,18" fill="#FF00FF"/></svg>`,
+    cta: { label: 'UNIRSE A LA LISTA DE ESPERA', href: '#dix-stream', note: 'Precio estimado: €4.99/mes · para streamers y creadores de contenido' },
+    tabs: [
+      { id: 'how',    label: 'Para quién es' },
+      { id: 'params', label: 'Funciones previstas' },
+    ],
+    how: `<div class="pmodal-steps">
+      <div class="pmodal-step"><div class="pmodal-step-n">🎙</div><div class="pmodal-step-txt"><strong>Streamers y YouTubers</strong> — diseñado para personas que hacen streaming en directo o graban gameplay mientras juegan. El problema: ejecutar OBS + juego + Discord al mismo tiempo dispara los dropped frames.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">📉</div><div class="pmodal-step-txt"><strong>El problema real</strong> — el scheduler de Linux/Windows no sabe que OBS necesita prioridad garantizada. DIX Stream ajusta las prioridades de proceso y los parámetros de scheduler para que el encoder de OBS nunca pierda tiempo de CPU.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">🚀</div><div class="pmodal-step-txt"><strong>Integración con OBS</strong> — DIX Stream detecta OBS Studio y aplica automáticamente el perfil óptimo de kernel para minimizar dropped frames y latencia de encoding.</div></div>
+    </div>`,
+    params: `<div class="pmodal-params">
+      <div class="pmodal-param"><code>Prioridad OBS</code><span>Asigna prioridad de CPU y I/O al proceso de OBS para encoding sin interrupciones.</span></div>
+      <div class="pmodal-param"><code>Scheduler tuning</code><span>Parámetros CFS específicos para mezcla de carga gaming + encoding.</span></div>
+      <div class="pmodal-param"><code>Red optimizada</code><span>Buffers de red para stream estable con jitter mínimo.</span></div>
+      <div class="pmodal-param"><code>VRAM management</code><span>Configuración de memoria de GPU compartida entre juego y encoder.</span></div>
+      <div class="pmodal-param"><code>Alertas en directo</code><span>Notificaciones cuando el sistema detecta riesgo de dropped frames.</span></div>
+    </div>`,
+  },
+  'dix-odyssey': {
+    name: 'DIX ODYSSEY',
+    badge: '<span class="badge badge-gold">EN TESTING</span>',
+    icon: `<svg viewBox="0 0 36 36" fill="none" stroke="#FFD700" stroke-width="1.5" width="28"><polygon points="18,5 30,12 30,24 18,31 6,24 6,12"/><path d="M21 14l-4 8h4l-4 9" stroke-width="2" stroke-linecap="round"/></svg>`,
+    cta: { label: 'SOLICITAR ACCESO ANTICIPADO', href: '#dix-odyssey', note: 'Beta cerrada · €4.99/mes cuando salga · suscriptores primero' },
+    tabs: [
+      { id: 'how',    label: 'Qué es Odyssey' },
+      { id: 'params', label: 'Diferencias vs DIX' },
+      { id: 'reqs',   label: 'Estado beta' },
+    ],
+    how: `<div class="pmodal-steps">
+      <div class="pmodal-step"><div class="pmodal-step-n">🚀</div><div class="pmodal-step-txt"><strong>El tier máximo de DIX</strong> — Odyssey usa un modelo de IA más potente (Claude Opus), con mayor presupuesto de tokens, para análisis más profundos y recomendaciones más detalladas que el tier estándar.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">📊</div><div class="pmodal-step-txt"><strong>Análisis diario</strong> — mientras DIX estándar es por sesión, Odyssey permite análisis diarios automatizados con detección de degradación: si tus scores caen respecto a la sesión anterior, te avisa.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">📄</div><div class="pmodal-step-txt"><strong>Informe exportable</strong> — cada análisis genera un informe TXT completo con diagnóstico, parámetros aplicados, métricas antes/después y recomendaciones a largo plazo.</div></div>
+      <div class="pmodal-step"><div class="pmodal-step-n">🏅</div><div class="pmodal-step-txt"><strong>Badge Gold + soporte prioritario</strong> — los usuarios Odyssey tienen acceso al canal de soporte directo y su badge dorado aparece en el Atlas comunitario.</div></div>
+    </div>`,
+    params: `<div class="pmodal-params">
+      <div class="pmodal-param"><code>Modelo IA</code><span>DIX estándar: Claude Sonnet. Odyssey: Claude Opus — mayor razonamiento, análisis más profundo.</span></div>
+      <div class="pmodal-param"><code>Tokens por análisis</code><span>Límite 3× mayor. Permite diagnósticos más detallados y contexto histórico completo.</span></div>
+      <div class="pmodal-param"><code>Análisis diarios</code><span>DIX estándar: bajo demanda. Odyssey: hasta 1 análisis diario programable.</span></div>
+      <div class="pmodal-param"><code>Detección de degradación</code><span>Alerta si el score baja respecto a sesiones anteriores (actualización del kernel, nuevo software, etc.).</span></div>
+      <div class="pmodal-param"><code>Informe TXT</code><span>Export completo de cada sesión con todos los parámetros, valores y razonamiento de la IA.</span></div>
+      <div class="pmodal-param"><code>Badge Gold</code><span>Identificador visual en el Atlas comunitario y acceso al canal de soporte prioritario.</span></div>
+    </div>`,
+    reqs: `<div class="pmodal-section"><h3>Estado de la beta</h3><p style="color:var(--gray);font-size:14px;line-height:1.7">DIX Odyssey está en testing interno. Los detalles de modelo, límites de tokens, precio y fecha de lanzamiento son especificaciones beta pendientes de verificación en hardware real con usuarios reales.<br><br>La lista de espera es la vía para entrar a la beta cerrada. Los primeros suscriptores tendrán 3 meses gratuitos al lanzamiento.</p></div>`,
+  },
+};
+
+function openProductModal(id) {
+  const p = PRODUCTS[id];
+  if (!p) return;
+  document.getElementById('pmodalIcon').innerHTML = p.icon;
+  document.getElementById('pmodalName').textContent = p.name;
+  document.getElementById('pmodalBadge').innerHTML = p.badge;
+
+  // Tabs
+  const tabsEl = document.getElementById('pmodalTabs');
+  tabsEl.innerHTML = p.tabs.map((t,i) =>
+    `<button class="pmodal-tab${i===0?' active':''}" onclick="switchPTab(this,'${t.id}')">${t.label}</button>`
+  ).join('');
+
+  // Panels
+  const bodyEl = document.getElementById('pmodalBody');
+  bodyEl.innerHTML = p.tabs.map((t,i) => {
+    let content = '';
+    if (t.id === 'how')    content = `<div class="pmodal-section"><h3>${currentLang==='es'?'Flujo de funcionamiento':'How it works'}</h3>${p.how}</div>`;
+    if (t.id === 'params') content = `<div class="pmodal-section"><h3>${currentLang==='es'?'Parámetros y funciones':'Parameters & features'}</h3>${p.params}</div>`;
+    if (t.id === 'reqs')   content = p.reqs;
+    if (t.id === 'faq') {
+      content = `<div class="pmodal-section"><h3>FAQ</h3><div class="pmodal-faq">${
+        (p.faq||[]).map(([q,a]) =>
+          `<div class="pmodal-faq-item"><button class="pmodal-faq-q" onclick="this.parentElement.classList.toggle('open')">${q}</button><div class="pmodal-faq-a">${a}</div></div>`
+        ).join('')
+      }</div></div>`;
+    }
+    return `<div class="pmodal-panel${i===0?' active':''}" data-panel="${t.id}">${content}</div>`;
+  }).join('');
+
+  // CTA
+  const cta = p.cta;
+  const isDownload = cta.download ? 'download' : '';
+  document.getElementById('pmodalCta').innerHTML =
+    `<a href="${cta.href}" ${isDownload} class="btn-primary" style="white-space:nowrap;font-size:13px">${cta.label}</a>
+     <div class="pmodal-cta-note">${cta.note}</div>`;
+
+  document.getElementById('productModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProductModal() {
+  document.getElementById('productModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function switchPTab(btn, panelId) {
+  const modal = document.getElementById('productModal');
+  modal.querySelectorAll('.pmodal-tab').forEach(t => t.classList.remove('active'));
+  modal.querySelectorAll('.pmodal-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const panel = modal.querySelector(`[data-panel="${panelId}"]`);
+  if (panel) panel.classList.add('active');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProductModal(); });
+// ────────────────────────────────────────────────────────────────────────────────
+
 // ── SCROLL-SPY — resaltar sección activa en la nav ──
 const navSections = ['hero','products','how','benchmarks','atlas','roadmap','hood','beta-rewards'];
 const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
@@ -1473,6 +1758,24 @@ document.querySelectorAll('.mobile-menu a').forEach(a => {
 </script>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "322a4b2bb4794989957b5e3d365eb618"}'></script><!-- End Cloudflare Web Analytics -->
+
+
+<!-- ══ PRODUCT DETAIL MODAL ══ -->
+<div class="pmodal-overlay" id="productModal" onclick="if(event.target===this)closeProductModal()">
+  <div class="pmodal">
+    <div class="pmodal-head">
+      <div class="pmodal-icon" id="pmodalIcon"></div>
+      <div>
+        <div class="pmodal-name" id="pmodalName"></div>
+        <div id="pmodalBadge" style="margin-top:4px"></div>
+      </div>
+      <button class="pmodal-close" onclick="closeProductModal()">✕</button>
+    </div>
+    <div class="pmodal-tabs" id="pmodalTabs"></div>
+    <div class="pmodal-body" id="pmodalBody"></div>
+    <div class="pmodal-cta" id="pmodalCta"></div>
+  </div>
+</div>
 
 </body>
 </html>
