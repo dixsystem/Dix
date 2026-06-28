@@ -1,6 +1,6 @@
 [package]
 name        = "dix"
-version = "1.0.9"
+version = "1.0.11"
 edition     = "2021"
 description = "La primera AppIA del Mundo — optimiza tu PC con IA real en segundos"
 authors     = ["DixSystem <hello@dixsystem.com>"]
