@@ -1124,9 +1124,55 @@ fn main() {
             set_atlas_opt_in,
             get_referral_info,
             set_referral_email,
+            open_url,
+            write_clipboard,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
+}
+
+// ─── Utilidades del sistema ───────────────────────────────────────────────────
+
+#[tauri::command]
+fn open_url(url: String) {
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd").args(["/c", "start", "", &url]).spawn();
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(&url).spawn();
+}
+
+#[tauri::command]
+fn write_clipboard(text: String) -> Result<(), String> {
+    use std::io::Write;
+    // xclip en Linux, clip.exe en Windows
+    #[cfg(target_os = "linux")]
+    {
+        let mut child = std::process::Command::new("xclip")
+            .arg("-selection").arg("clipboard")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .or_else(|_| {
+                std::process::Command::new("xsel")
+                    .arg("--clipboard").arg("--input")
+                    .stdin(std::process::Stdio::piped())
+                    .spawn()
+            })
+            .map_err(|e| format!("No se encontró xclip/xsel: {}", e))?;
+        child.stdin.as_mut().unwrap().write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+        child.wait().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let mut child = std::process::Command::new("clip")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Error clip: {}", e))?;
+        child.stdin.as_mut().unwrap().write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+        child.wait().map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 // ─── Tests simulados Windows ──────────────────────────────────────────────────

@@ -27,10 +27,11 @@ export function ReferralPanel() {
 
   const handleCopy = () => {
     if (!info) return;
-    navigator.clipboard.writeText(info.link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(info.link).catch(() => {
+      invoke("write_clipboard", { text: info.link });
     });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const shareText = (link: string) =>
@@ -38,22 +39,27 @@ export function ReferralPanel() {
 
   const handleShareTwitter = () => {
     if (!info) return;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText(info.link))}`, "_blank");
+    invoke("open_url", { url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText(info.link))}` });
     setShowShareMenu(false);
   };
 
   const handleShareWhatsApp = () => {
     if (!info) return;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText(info.link))}`, "_blank");
+    invoke("open_url", { url: `https://web.whatsapp.com/` });
+    navigator.clipboard.writeText(shareText(info.link)).catch(() => {
+      invoke("write_clipboard", { text: shareText(info.link) });
+    });
     setShowShareMenu(false);
   };
 
   const handleShareCopyText = () => {
     if (!info) return;
-    navigator.clipboard.writeText(shareText(info.link)).then(() => {
-      setCopiedText(true);
-      setTimeout(() => setCopiedText(false), 2500);
+    const text = shareText(info.link);
+    navigator.clipboard.writeText(text).catch(() => {
+      invoke("write_clipboard", { text });
     });
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 2500);
     setShowShareMenu(false);
   };
 
