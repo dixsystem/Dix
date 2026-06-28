@@ -25,6 +25,7 @@
   --gray:    #8b949e;
   --border:  #21262d;
   --card:    #161b22;
+  --muted:   #8b949e;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -36,10 +37,10 @@ button{cursor:pointer;font-family:'Inter',sans-serif}
 
 
 /* ── PRODUCT MODAL ── */
-.pmodal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
-.pmodal-overlay.open{opacity:1;pointer-events:all}
+.pmodal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.85);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+.pmodal-overlay.open{display:flex}
 .pmodal{background:#0d1117;border:1px solid var(--border);border-radius:12px;width:100%;max-width:860px;max-height:90vh;display:flex;flex-direction:column;transform:translateY(24px);transition:transform .25s;overflow:hidden}
-.pmodal-overlay.open .pmodal{transform:translateY(0)}
+.pmodal-overlay.open .pmodal{transform:translateY(0);animation:pmodalIn .2s ease}
 .pmodal-head{display:flex;align-items:center;gap:14px;padding:22px 28px;border-bottom:1px solid var(--border);flex-shrink:0}
 .pmodal-icon{width:48px;height:48px;background:rgba(255,107,0,.08);border:1px solid rgba(255,107,0,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .pmodal-name{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;flex:1}
@@ -76,6 +77,7 @@ button{cursor:pointer;font-family:'Inter',sans-serif}
 .pmodal-cta{border-top:1px solid var(--border);padding:20px 28px;display:flex;gap:12px;align-items:center;flex-shrink:0;flex-wrap:wrap}
 .pmodal-cta-note{font-size:12px;color:var(--gray);flex:1}
 /* Botón abrir modal en tarjeta */
+@keyframes pmodalIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .btn-details{width:100%;margin-bottom:12px;padding:9px 0;background:none;border:1px solid var(--border);border-radius:6px;color:var(--gray);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;letter-spacing:.3px}
 .btn-details:hover{border-color:var(--orange);color:var(--orange)}
 
@@ -477,8 +479,8 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     </h1>
     <p class="hero-sub"><span data-i18n="hero_sub">DIX reads your kernel. Claude AI analyzes it. Example from one test machine: <strong>34 → 91</strong> internal score.</span></p>
     <div class="hero-btns">
-      <a href="#calculator" class="btn-outline" data-i18n="hero_btn1">FREE ANALYSIS</a>
-      <a href="#products" class="btn-primary" data-i18n="hero_btn2">BUY DIX — €14.99</a>
+      <a href="#calculator" class="btn-outline" data-i18n="hero_btn1" data-track="beta_click">FREE ANALYSIS</a>
+      <a href="#products" class="btn-primary" data-i18n="hero_btn2" data-track="purchase_click">BUY DIX — €14.99</a>
     </div>
   </div>
   <div class="scroll-indicator">
@@ -591,7 +593,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="/downloads/dix-linux.deb" download class="btn-primary" style="display:block;text-align:center" data-i18n="p1_btn">DOWNLOAD FREE TRIAL</a>
+        <a href="/downloads/dix-linux.deb" download class="btn-primary" style="display:block;text-align:center" data-i18n="p1_btn" data-track="dix_linux_download_click">DOWNLOAD FREE TRIAL</a>
         <span style="display:block;text-align:center;margin-top:6px;font-size:11px;color:var(--muted)">Ubuntu/Debian · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange);opacity:.7" data-i18n="p1_other_formats">Other formats</a></span>
         <span style="display:block;text-align:center;margin-top:4px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p1_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
@@ -623,7 +625,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="/downloads/dix-setup.exe" download class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn">DOWNLOAD FREE TRIAL</a>
+        <a href="/downloads/dix-setup.exe" download class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn" data-track="dix_win_download_click">DOWNLOAD FREE TRIAL</a>
         <span style="display:block;text-align:center;margin-top:6px;font-size:11px;color:var(--muted)">Windows 10 / 11 · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange);opacity:.7" data-i18n="p2_other_formats">MSI / other</a></span>
         <span style="display:block;text-align:center;margin-top:4px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p2_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
@@ -1732,6 +1734,9 @@ function switchPTab(btn, panelId) {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProductModal(); });
+window.openProductModal = openProductModal;
+window.closeProductModal = closeProductModal;
+window.switchPTab = switchPTab;
 // ────────────────────────────────────────────────────────────────────────────────
 
 // ── SCROLL-SPY — resaltar sección activa en la nav ──
@@ -1758,6 +1763,64 @@ document.querySelectorAll('.mobile-menu a').forEach(a => {
 </script>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "322a4b2bb4794989957b5e3d365eb618"}'></script><!-- End Cloudflare Web Analytics -->
+
+<script>
+// ── DIX DOWNLOAD & CONVERSION TRACKING ──────────────────────────────────────
+// Registra eventos de descarga, visitas por referido y clicks de compra.
+// Compatible con Cloudflare Web Analytics (beacon) y modo debug (console).
+(function () {
+  var DEBUG = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+  function trackEvent(name, params) {
+    params = params || {};
+    if (DEBUG) console.log('[DIX-TRACK]', name, params);
+    // Almacenar en sessionStorage para análisis posterior
+    try {
+      var events = JSON.parse(sessionStorage.getItem('dix_events') || '[]');
+      events.push({ name: name, params: params, ts: Date.now() });
+      sessionStorage.setItem('dix_events', JSON.stringify(events));
+    } catch (_) {}
+  }
+
+  // Captura ?ref= o ?utm_source= al cargar la página
+  (function captureRef() {
+    try {
+      var p = new URLSearchParams(location.search);
+      var ref = p.get('ref') || p.get('utm_source') || '';
+      if (ref) {
+        localStorage.setItem('dix_ref', ref);
+        localStorage.setItem('dix_ref_ts', Date.now());
+        trackEvent('referral_visit', { ref: ref });
+        if (DEBUG) console.log('[DIX-TRACK] referral capturado:', ref);
+      }
+    } catch (_) {}
+  })();
+
+  // Adjunta listeners a todos los elementos con data-track
+  function attachTracking() {
+    document.querySelectorAll('[data-track]').forEach(function (el) {
+      if (el._dixTracked) return;
+      el._dixTracked = true;
+      el.addEventListener('click', function () {
+        var ref = '';
+        try { ref = localStorage.getItem('dix_ref') || ''; } catch (_) {}
+        trackEvent(el.getAttribute('data-track'), {
+          ref: ref,
+          href: el.href || el.getAttribute('href') || ''
+        });
+      });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachTracking);
+  } else {
+    attachTracking();
+  }
+
+  window.dixTrack = trackEvent;
+})();
+</script>
 
 
 <!-- ══ PRODUCT DETAIL MODAL ══ -->
