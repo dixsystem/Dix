@@ -7,7 +7,7 @@
 <meta name="description" content="DIX uses Claude AI to analyze your PC hardware and apply validated optimizations. Score 0-100. Linux &amp; Windows. Free trial.">
 <meta name="google" content="notranslate">
 <meta property="og:title" content="DIX — AppIA for PC Optimization">
-<meta property="og:description" content="Claude AI reads your system, proposes validated tuning for your exact hardware. Score 0–100. Linux &amp; Windows. Free trial.">
+<meta property="og:description" content="Claude AI analyzes a real hardware snapshot and proposes validated optimizations. DIX internal score 0–100. Linux &amp; Windows. Free trial.">
 <meta property="og:image" content="dix_hero_full.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -475,12 +475,12 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     <div class="hero-badge">⚡ <span data-i18n="hero_badge">AppIA FOR LINUX OPTIMIZATION</span></div>
     <h1 class="hero-h1">
       <span data-i18n="hero_h1a">YOUR SYSTEM.</span>
-      <span class="line2" data-i18n="hero_h1b">AT FULL POWER.</span>
+      <span class="line2" data-i18n="hero_h1b">ANALYZED. OPTIMIZED.</span>
     </h1>
-    <p class="hero-sub"><span data-i18n="hero_sub">DIX reads your kernel. Claude AI analyzes it. Example from one test machine: <strong>34 → 91</strong> internal score.</span></p>
+    <p class="hero-sub"><span data-i18n="hero_sub">DIX scans real system data. Claude AI analyzes a hardware snapshot and proposes validated optimizations. Internal DIX score, single test machine: <strong>34 → 91</strong>.</span></p>
     <div class="hero-btns">
       <a href="#calculator" class="btn-outline" data-i18n="hero_btn1" data-track="beta_click">FREE ANALYSIS</a>
-      <a href="#products" class="btn-primary" data-i18n="hero_btn2" data-track="purchase_click">BUY DIX — €14.99</a>
+      <a href="#products" class="btn-primary" data-i18n="hero_btn2" data-track="purchase_click">GET DIX — €14.99</a>
     </div>
   </div>
   <div class="scroll-indicator">
@@ -498,8 +498,8 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 <section id="calculator" class="reveal">
   <div class="container">
     <div class="section-label" data-i18n="calc_label">Interactive Demo</div>
-    <h2 class="section-title" data-i18n="calc_title">HOW MUCH CAN YOUR SYSTEM IMPROVE?</h2>
-    <p class="section-sub" data-i18n="calc_sub">Select your hardware and get a score estimate before you even install DIX.</p>
+    <h2 class="section-title" data-i18n="calc_title">ESTIMATE YOUR DIX SCORE</h2>
+    <p class="section-sub" data-i18n="calc_sub">Select your hardware profile for an estimated DIX internal score range. Actual results depend on your real system parameters.</p>
     <div class="calc-wrap">
       <div class="calc-selects">
         <div class="calc-select-wrap">
@@ -584,7 +584,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <div class="card-desc" data-i18n="p1_desc">Native AI optimization for Linux. Rust binary + Claude AI. Validates every script before execution.</div>
         <ul class="card-features">
           <li data-i18n="p1_f1">Real kernel scan — /proc and /sys</li>
-          <li data-i18n="p1_f2">Score 0–100 before and after</li>
+          <li data-i18n="p1_f2">DIX internal score 0–100 before and after</li>
           <li data-i18n="p1_f3">Custom script per hardware</li>
           <li data-i18n="p1_f4">One-click rollback</li>
         </ul>
@@ -613,11 +613,11 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         </div>
         <img src="assets/dix_windows_box.png" alt="DIX WIN" class="card-cover">
         <div class="card-title" translate="no">DIX WIN</div>
-        <div class="card-desc" data-i18n="p2_desc">Windows edition, fresh beta build. Real registry and power-plan tweaks, AI score, and rollback — same engine as DIX Linux. Help us stress-test it on real hardware.</div>
+        <div class="card-desc" data-i18n="p2_desc">Windows Optimization AppIA. Analyzes real system data via native Windows APIs and controlled checks. AI-generated optimization proposals with rollback. Beta — help us validate on real hardware.</div>
         <ul class="card-features">
           <li data-i18n="p2_f1">Real registry + power plan tweaks (with UAC verification)</li>
           <li data-i18n="p2_f2">Windows 10 / 11</li>
-          <li data-i18n="p2_f3">Score 0–100 before and after</li>
+          <li data-i18n="p2_f3">DIX internal score 0–100 before and after</li>
           <li data-i18n="p2_f4">One-click rollback</li>
         </ul>
         <button class="btn-details" onclick="openProductModal('dix-win')" data-i18n="btn_details">Ver todo sobre este producto →</button>
@@ -723,8 +723,8 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 <section id="how">
   <div class="container">
     <div class="section-label" data-i18n="how_label">Process</div>
-    <h2 class="section-title" data-i18n="how_title">THREE STEPS. SECONDS.</h2>
-    <p class="section-sub" data-i18n="how_sub">No configuration files. No manual tuning. DIX handles the entire process from scan to execution.</p>
+    <h2 class="section-title" data-i18n="how_title">HOW DIX WORKS</h2>
+    <p class="section-sub" data-i18n="how_sub">No manual tuning. DIX scans your system, sends a real hardware snapshot to Claude AI, and applies validated proposals through a policy engine.</p>
     <div class="steps-timeline">
       <div class="step reveal">
         <div class="step-num">
@@ -740,7 +740,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         </div>
         <div class="step-label" data-i18n="step2_label">Step 02</div>
         <div class="step-title" data-i18n="step2_title">ANALYZE</div>
-        <div class="step-desc" data-i18n="step2_desc">Claude AI receives your hardware snapshot and calculates the optimal configuration for your exact machine. Not generic. Not approximate.</div>
+        <div class="step-desc" data-i18n="step2_desc">Claude AI receives your hardware snapshot and proposes validated, hardware-specific optimizations. Based on real system parameters, not generic presets.</div>
       </div>
       <div class="step reveal">
         <div class="step-num">
@@ -762,27 +762,27 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
     <p class="section-sub" data-i18n="bench_sub">Single internal test system: Intel i5-12400 + RTX 3060 + 32 GB DDR4 — Ubuntu 26.04. Methodology pending publication.</p>
     <div class="bench-grid">
       <div class="bench-card reveal">
-        <div class="bench-value">TBD</div>
-        <div class="bench-unit" data-i18n="b1_unit">Compile time</div>
-        <div class="bench-label" data-i18n="b1_label">Example pending reproducible verification</div>
+        <div class="bench-value" style="font-size:30px">CPU</div>
+        <div class="bench-unit" data-i18n="b1_unit">Events / second</div>
+        <div class="bench-label" data-i18n="b1_label">sysbench on Linux · native computation on Windows · measured per analysis session</div>
       </div>
       <div class="bench-card reveal">
-        <div class="bench-value">TBD</div>
-        <div class="bench-unit" data-i18n="b2_unit">Gaming</div>
-        <div class="bench-label" data-i18n="b2_label">FPS suite pending; not a published average</div>
+        <div class="bench-value" style="font-size:30px">RAM</div>
+        <div class="bench-unit" data-i18n="b2_unit">MB / second</div>
+        <div class="bench-label" data-i18n="b2_label">sysbench memory throughput on Linux · native sequential copy on Windows</div>
       </div>
       <div class="bench-card reveal">
-        <div class="bench-value">TBD</div>
-        <div class="bench-unit" data-i18n="b3_unit">CPU Temperature</div>
-        <div class="bench-label" data-i18n="b3_label">Thermal test pending controlled methodology</div>
+        <div class="bench-value" style="font-size:30px">DISK</div>
+        <div class="bench-unit" data-i18n="b3_unit">IOPS · 4K random</div>
+        <div class="bench-label" data-i18n="b3_label">fio randread on Linux · native random read on Windows · 256 MB file</div>
       </div>
       <div class="bench-card reveal">
         <div class="bench-value" data-counter="91" data-suffix="" data-prefix="34→">34→91</div>
-        <div class="bench-unit" data-i18n="b4_unit">DIX Score</div>
-        <div class="bench-label" data-i18n="b4_label">Internal score from a single test machine</div>
+        <div class="bench-unit" data-i18n="b4_unit">DIX Score (internal)</div>
+        <div class="bench-label" data-i18n="b4_label">Single test machine: i5-12400, Ubuntu 26.04 — your result will vary</div>
       </div>
     </div>
-    <p class="bench-note" data-i18n="bench_note">Results vary by hardware. <span>Score is calculated locally from the scan, not invented by AI.</span></p>
+    <p class="bench-note" data-i18n="bench_note">Results vary by hardware and configuration. <span>The DIX score is an internal optimization metric — not a universal benchmark or guaranteed performance result.</span></p>
   </div>
 </section>
 
@@ -844,7 +844,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
       <div class="rm-item done reveal">
         <div class="rm-version">v1.0 — NOW</div>
         <div class="rm-title" data-i18n="rm1_title">LINUX NATIVE</div>
-        <div class="rm-desc" data-i18n="rm1_desc">Scan + Claude AI + Score 0–100 + validated script execution. pkexec privilege model. Snapshot rollback. Available now.</div>
+        <div class="rm-desc" data-i18n="rm1_desc">Scan + Claude AI + DIX internal score 0–100 + validated script execution. pkexec privilege model. Snapshot rollback. Available now.</div>
         <span class="rm-tag rm-tag-done" data-i18n="tag_live">LIVE</span>
       </div>
       <div class="rm-item soon reveal">
@@ -908,7 +908,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <div><span class="t-cmd">check</span> hugepages=never → <span class="t-error">BLOCKED</span></div>
           <div>&nbsp;</div>
           <div><span class="t-comment"># 4. Validated script runs via pkexec</span></div>
-          <div><span class="t-cmd">/usr/bin/pkexec</span> /bin/bash boost_1749123.sh</div>
+          <div><span class="t-cmd">/usr/bin/pkexec</span> /bin/bash optimize_1749123.sh</div>
           <div><span class="t-ok">✓</span> vm.swappiness = 10 applied</div>
           <div><span class="t-ok">✓</span> snapshot saved → rollback ready</div>
           <div><span class="t-ok">✓</span> script deleted after execution</div>
@@ -1019,7 +1019,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <img src="dix_mask.png" alt="DIX">
         <span class="brand-name">DixSystem</span>
       </div>
-      <p data-i18n="footer_tagline">AppIA for Linux optimization. Claude AI + Linux kernel. Transparent results.</p>
+      <p data-i18n="footer_tagline">AppIA for PC optimization. Claude AI + real system data. Transparent results.</p>
     </div>
     <div class="footer-col">
       <h4 data-i18n="footer_products">Products</h4>
@@ -1068,45 +1068,45 @@ const t = {
   en: {
     nav_products:'Products', nav_atlas:'Atlas', nav_community:'Community',
     nav_news:'News', nav_hood:'Under the Hood', nav_cta:'GET DIX',
-    hero_badge:'AppIA FOR LINUX OPTIMIZATION',
-    hero_h1a:'YOUR SYSTEM.', hero_h1b:'AT FULL POWER.',
-    hero_sub:'DIX reads your kernel. Claude AI analyzes it. Example from one test machine: <strong>34 → 91</strong> internal score.',
-    hero_btn1:'FREE ANALYSIS', hero_btn2:'BUY DIX — €14.99', hero_scroll:'scroll',
-    calc_label:'Interactive Demo', calc_title:'HOW MUCH CAN YOUR SYSTEM IMPROVE?',
-    calc_sub:'Select your hardware and get a score estimate before you even install DIX.',
+    hero_badge:'AppIA FOR PC OPTIMIZATION',
+    hero_h1a:'YOUR SYSTEM.', hero_h1b:'ANALYZED. OPTIMIZED.',
+    hero_sub:'DIX scans real system data. Claude AI analyzes a hardware snapshot and proposes validated optimizations. Internal DIX score, single test machine: <strong>34 → 91</strong>.',
+    hero_btn1:'FREE ANALYSIS', hero_btn2:'GET DIX — €14.99', hero_scroll:'scroll',
+    calc_label:'Interactive Demo', calc_title:'ESTIMATE YOUR DIX SCORE',
+    calc_sub:'Select your hardware profile for an estimated DIX internal score range. Actual results depend on your real system parameters.',
     calc_cpu:'CPU', calc_ram:'RAM', calc_distro:'OS',
     calc_btn:'CALCULATE MY SCORE', calc_before:'BEFORE DIX', calc_after:'WITH DIX',
-    calc_cta:'Verify it for real →',
+    calc_cta:'Download DIX and measure for real →',
     prod_label:'Ecosystem', prod_title:'THE DIX ECOSYSTEM',
     prod_sub:'One platform. Multiple tools. Each one solving a specific performance problem.',
     badge_available:'AVAILABLE NOW', badge_soon:'COMING SOON', badge_dev:'IN DEVELOPMENT', badge_planned:'ROADMAP', badge_beta:'BETA',
     p1_desc:'Native AI optimization for Linux. Rust binary + Claude AI. Validates every script before execution.',
-    p1_f1:'Real kernel scan — /proc and /sys', p1_f2:'Score 0–100 before and after',
+    p1_f1:'Real kernel scan — /proc and /sys', p1_f2:'DIX internal score 0–100 before and after',
     p1_f3:'Custom script per hardware', p1_f4:'One-click rollback',
     p1_btn:'DOWNLOAD FREE TRIAL',
     p1_other_formats:'Other formats',
-    p1_trial:'Purchase — coming soon',
-    p2_desc:'Windows edition, fresh beta build. Real registry and power-plan tweaks, AI score, and rollback — same engine as DIX Linux. Help us stress-test it on real hardware.',
+    p1_trial:'Purchase opening soon',
+    p2_desc:'Windows Optimization AppIA. Analyzes real system data via native Windows APIs and controlled checks. AI-generated optimization proposals with rollback. Beta — help us validate on real hardware.',
     p2_launch:'Launch target: ', p2_waiting:'847 people on the waitlist',
     p3_desc:'Adaptive daemon. Detects your workload and adjusts automatically.',
     p4_desc:'Planned streamer mode for OBS + games, focused on scheduler tuning and fewer dropped frames.',
     btn_waitlist:'JOIN',
     btn_details:'See full product details →',
-    how_label:'Process', how_title:'THREE STEPS. SECONDS.',
-    how_sub:'No configuration files. No manual tuning. DIX handles the entire process.',
+    how_label:'Process', how_title:'HOW DIX WORKS',
+    how_sub:'No manual tuning. DIX scans your system, sends a real hardware snapshot to Claude AI, and applies validated proposals through a policy engine.',
     step1_label:'Step 01', step1_title:'SCAN',
-    step1_desc:'DIX reads <code>/proc</code> and <code>/sys</code> in real time. CPU governor, I/O scheduler, memory pressure, NUMA state, hugepages.',
+    step1_desc:'DIX reads <code>/proc</code> and <code>/sys</code> in real time. CPU governor, I/O scheduler, memory pressure, NUMA state, hugepages. On Windows, native APIs and controlled registry checks.',
     step2_label:'Step 02', step2_title:'ANALYZE',
-    step2_desc:'Claude AI receives your hardware snapshot and calculates the optimal configuration for your exact machine. Not generic.',
+    step2_desc:'Claude AI receives your hardware snapshot and proposes validated, hardware-specific optimizations. Based on real system parameters, not generic presets.',
     step3_label:'Step 03', step3_title:'APPLY',
     step3_desc:'A validated script runs via <code>pkexec</code>. Every parameter change is snapshotted first. One click to revert if needed.',
     bench_label:'Results', bench_title:'ONE TEST CASE. REAL HARDWARE.',
     bench_sub:'Single internal test system: Intel i5-12400 + RTX 3060 + 32 GB DDR4 — Ubuntu 26.04. Methodology pending publication.',
-    b1_unit:'Compile time', b1_label:'Example pending reproducible verification',
-    b2_unit:'Gaming', b2_label:'FPS suite pending; not a published average',
-    b3_unit:'CPU Temperature', b3_label:'Thermal test pending controlled methodology',
-    b4_unit:'DIX Score', b4_label:'Internal score from a single test machine',
-    bench_note:'Results vary by hardware. <span>Score is calculated locally from the scan, not invented by AI.</span>',
+    b1_unit:'Events / second', b1_label:'CPU benchmark · sysbench on Linux · native computation on Windows',
+    b2_unit:'MB / second', b2_label:'RAM throughput · sysbench on Linux · native sequential copy on Windows',
+    b3_unit:'IOPS · 4K random', b3_label:'Disk I/O · fio on Linux · native random read on Windows',
+    b4_unit:'DIX Score (internal)', b4_label:'Single test machine: i5-12400, Ubuntu 26.04 — your result will vary',
+    bench_note:'Results vary by hardware and configuration. <span>The DIX score is an internal optimization metric — not a universal benchmark or guaranteed performance result.</span>',
     atlas_label:'Community', atlas_title:'DIX ATLAS — ROADMAP',
     atlas_sub:'Planned opt-in telemetry for future recommendations. Backend and privacy review pending before public rollout.',
     at_hw:'Hardware', at_distro:'Distro', at_before:'Before', at_after:'After', at_gain:'Gain',
@@ -1116,7 +1116,7 @@ const t = {
     club_title:'CLUB OF 90+',
     club_desc:'A high-score club is planned once Atlas has a real dataset.',
     rm_label:'Roadmap', rm_title:'WHERE WE\'RE GOING', rm_sub:'Versioned, dated, honest. No vaporware.',
-    rm1_title:'LINUX NATIVE', rm1_desc:'Scan + Claude AI + Score 0–100 + validated script execution. Available now.',
+    rm1_title:'LINUX NATIVE', rm1_desc:'Scan + Claude AI + DIX internal score 0–100 + validated script execution. Available now.',
     rm2_title:'DIX DAEMON', rm2_desc:'Adaptive background daemon and active workload detection planned. Atlas and Windows remain roadmap items until backend and beta builds are verified.',
     rm3_title:'MULTI-PLATFORM', rm3_desc:'Windows, macOS, and Android support planned after Linux validation. Unified score system under design.',
     rm4_title:'LOCAL AI ENGINE', rm4_desc:'Research track for on-device LLM optimization, reduced external API dependency, offline analysis, and hardware-adaptive models.',
@@ -1144,7 +1144,7 @@ const t = {
     rewards_q5:'5. Would you recommend DIX to a friend? Why?',
     rewards_submit:'ENTER NOW',
     rewards_btn:'SEE OFFICIAL RULES', rewards_note:'20 winners, launch week only — picked with a public random draw if needed.', rewards_note_link:'Full terms here',
-    footer_tagline:'AppIA for Linux optimization. Claude AI + Linux kernel. Transparent results.',
+    footer_tagline:'AppIA for PC optimization. Claude AI + real system data. Transparent results.',
     footer_products:'Products', footer_linux:'DIX Linux', footer_windows:'DIX WIN',
     footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
     footer_company:'Company', footer_atlas:'Atlas', footer_roadmap:'Roadmap',
@@ -1152,8 +1152,8 @@ const t = {
     foot_privacy:'Privacy', foot_terms:'Terms', foot_contact:'Contact',
     badge_beta:'BETA', badge_odyssey:'IN TESTING',
     p2_f1:'Real registry + power plan tweaks (with UAC verification)', p2_f2:'Windows 10 / 11',
-    p2_f3:'Score 0–100 before and after', p2_f4:'One-click rollback',
-    p2_btn:'DOWNLOAD FREE TRIAL', p2_other_formats:'MSI / other', p2_trial:'Purchase — coming soon',
+    p2_f3:'DIX internal score 0–100 before and after', p2_f4:'One-click rollback',
+    p2_btn:'DOWNLOAD FREE TRIAL', p2_other_formats:'MSI / other', p2_trial:'Purchase opening soon',
     p5_label:'MAXIMUM TIER',
     p5_desc:'Planned premium tier for deeper hardware analysis. Model, token limits, daily limits, and degradation detection are beta specifications pending verification.',
     p5_f1:'Premium AI model — pending provider verification', p5_f2:'Higher token budget planned',
@@ -1167,45 +1167,45 @@ const t = {
   es: {
     nav_products:'Productos', nav_atlas:'Atlas', nav_community:'Comunidad',
     nav_news:'Noticias', nav_hood:'Bajo el Capó', nav_cta:'OBTENER DIX',
-    hero_badge:'AppIA PARA OPTIMIZACIÓN LINUX',
-    hero_h1a:'TU SISTEMA.', hero_h1b:'AL MÁXIMO.',
-    hero_sub:'DIX lee tu kernel. Claude AI lo analiza. Ejemplo de una máquina de prueba: score interno <strong>34 → 91</strong>.',
-    hero_btn1:'ANÁLISIS GRATUITO', hero_btn2:'COMPRAR DIX — €14.99', hero_scroll:'bajar',
-    calc_label:'Demo Interactivo', calc_title:'¿CUÁNTO PUEDE MEJORAR TU SISTEMA?',
-    calc_sub:'Selecciona tu hardware y obtén una estimación antes de instalar DIX.',
+    hero_badge:'AppIA DE OPTIMIZACIÓN DE PC',
+    hero_h1a:'TU SISTEMA.', hero_h1b:'ANALIZADO. OPTIMIZADO.',
+    hero_sub:'DIX escanea datos reales del sistema. Claude AI analiza un snapshot del hardware y propone optimizaciones validadas. Score DIX interno, una sola máquina de prueba: <strong>34 → 91</strong>.',
+    hero_btn1:'ANÁLISIS GRATUITO', hero_btn2:'OBTENER DIX — €14.99', hero_scroll:'bajar',
+    calc_label:'Demo Interactivo', calc_title:'ESTIMA TU SCORE DIX',
+    calc_sub:'Selecciona tu perfil de hardware para ver un rango estimado de score DIX interno. Los resultados reales dependen de los parámetros reales de tu sistema.',
     calc_cpu:'CPU', calc_ram:'RAM', calc_distro:'Sistema',
     calc_btn:'CALCULAR MI PUNTUACIÓN', calc_before:'ANTES DE DIX', calc_after:'CON DIX',
-    calc_cta:'Compruébalo de verdad →',
+    calc_cta:'Descarga DIX y mídelo de verdad →',
     prod_label:'Ecosistema', prod_title:'EL ECOSISTEMA DIX',
     prod_sub:'Una plataforma. Múltiples herramientas. Cada una resolviendo un problema concreto.',
     badge_available:'DISPONIBLE AHORA', badge_soon:'PRÓXIMAMENTE', badge_dev:'EN DESARROLLO', badge_planned:'ROADMAP',
     p1_desc:'Optimización AI nativa para Linux. Binario Rust + Claude AI. Valida cada script antes de ejecutarlo.',
-    p1_f1:'Scan real del kernel — /proc y /sys', p1_f2:'Score 0–100 antes y después',
+    p1_f1:'Scan real del kernel — /proc y /sys', p1_f2:'Score DIX interno 0–100 antes y después',
     p1_f3:'Script personalizado por hardware', p1_f4:'Rollback con un click',
     p1_btn:'DESCARGAR PRUEBA GRATUITA',
     p1_other_formats:'Otros formatos',
-    p1_trial:'Compra — próximamente',
-    p2_desc:'Edición Windows, beta reciente. Ajustes reales de registro y plan de energía, score IA y rollback — mismo motor que DIX Linux. Ayúdanos a probarlo en hardware real.',
+    p1_trial:'Compra disponible próximamente',
+    p2_desc:'AppIA de optimización para Windows. Analiza datos reales del sistema usando APIs nativas de Windows y comprobaciones controladas. Propuestas de optimización generadas por IA con rollback incluido. Beta — ayúdanos a validarlo en hardware real.',
     p2_launch:'Lanzamiento estimado: ', p2_waiting:'847 personas en lista de espera',
     p3_desc:'Daemon adaptativo. Detecta tu carga de trabajo y ajusta automáticamente.',
     p4_desc:'Modo streamer planificado para OBS + juegos, centrado en scheduler y menos fotogramas perdidos.',
     btn_waitlist:'UNIRSE',
     btn_details:'Ver todo sobre este producto →',
-    how_label:'Proceso', how_title:'TRES PASOS. SEGUNDOS.',
-    how_sub:'Sin archivos de configuración. Sin ajuste manual. DIX gestiona todo el proceso.',
+    how_label:'Proceso', how_title:'CÓMO FUNCIONA DIX',
+    how_sub:'Sin ajuste manual. DIX escanea tu sistema, envía un snapshot real del hardware a Claude AI, y aplica propuestas validadas a través de un motor de política.',
     step1_label:'Paso 01', step1_title:'ESCANEAR',
-    step1_desc:'DIX lee <code>/proc</code> y <code>/sys</code> en tiempo real. CPU governor, scheduler, presión de memoria, estado NUMA, hugepages.',
+    step1_desc:'DIX lee <code>/proc</code> y <code>/sys</code> en tiempo real. CPU governor, scheduler, presión de memoria, estado NUMA, hugepages. En Windows, APIs nativas y comprobaciones controladas de registro.',
     step2_label:'Paso 02', step2_title:'ANALIZAR',
-    step2_desc:'Claude AI recibe el snapshot de tu hardware y calcula la configuración óptima para tu máquina exacta. No genérico.',
+    step2_desc:'Claude AI recibe el snapshot de tu hardware y propone optimizaciones validadas y específicas para tu hardware. Basado en parámetros reales del sistema, no en ajustes genéricos.',
     step3_label:'Paso 03', step3_title:'APLICAR',
     step3_desc:'Un script validado se ejecuta via <code>pkexec</code>. Cada cambio tiene snapshot previo. Un click para revertir.',
     bench_label:'Resultados', bench_title:'UN CASO DE PRUEBA. HARDWARE REAL.',
     bench_sub:'Sistema interno de prueba único: Intel i5-12400 + RTX 3060 + 32 GB DDR4 — Ubuntu 26.04. Metodología pendiente de publicar.',
-    b1_unit:'Tiempo compilación', b1_label:'Ejemplo pendiente de verificación reproducible',
-    b2_unit:'Gaming', b2_label:'Suite FPS pendiente; no es promedio publicado',
-    b3_unit:'Temperatura CPU', b3_label:'Prueba térmica pendiente de metodología controlada',
-    b4_unit:'Score DIX', b4_label:'Score interno de una única máquina de prueba',
-    bench_note:'Los resultados varían según el hardware. <span>El score se calcula localmente desde el scan, no lo inventa la IA.</span>',
+    b1_unit:'Eventos / segundo', b1_label:'Benchmark CPU · sysbench en Linux · computación nativa en Windows',
+    b2_unit:'MB / segundo', b2_label:'Throughput RAM · sysbench en Linux · copia secuencial nativa en Windows',
+    b3_unit:'IOPS · 4K aleatorio', b3_label:'Benchmark disco · fio en Linux · lectura aleatoria nativa en Windows',
+    b4_unit:'Score DIX (interno)', b4_label:'Una sola máquina de prueba: i5-12400, Ubuntu 26.04 — tu resultado puede variar',
+    bench_note:'Los resultados varían según el hardware y la configuración. <span>El score DIX es una métrica interna de optimización — no es un benchmark universal ni un resultado de rendimiento garantizado.</span>',
     atlas_label:'Comunidad', atlas_title:'DIX ATLAS — ROADMAP',
     atlas_sub:'Telemetría voluntaria planificada para futuras recomendaciones. Backend y revisión de privacidad pendientes antes del despliegue público.',
     at_hw:'Hardware', at_distro:'Distro', at_before:'Antes', at_after:'Después', at_gain:'Mejora',
@@ -1215,7 +1215,7 @@ const t = {
     club_title:'CLUB DE LOS 90+',
     club_desc:'El club de puntuaciones altas está planificado cuando Atlas tenga un dataset real.',
     rm_label:'Roadmap', rm_title:'HACIA DÓNDE VAMOS', rm_sub:'Versionado, con fechas, honesto. Sin humo.',
-    rm1_title:'LINUX NATIVO', rm1_desc:'Scan + Claude AI + Score 0–100 + ejecución validada. Disponible ahora.',
+    rm1_title:'LINUX NATIVO', rm1_desc:'Scan + Claude AI + score DIX interno 0–100 + ejecución validada. Disponible ahora.',
     rm2_title:'DIX DAEMON', rm2_desc:'Daemon adaptativo y detección de carga planificados. Atlas y Windows siguen en roadmap hasta verificar backend y betas.',
     rm3_title:'MULTI-PLATAFORMA', rm3_desc:'Windows, macOS y Android planificados tras validar Linux. Sistema de score unificado en diseño.',
     rm4_title:'IA LOCAL', rm4_desc:'Línea de investigación para LLM en dispositivo, menor dependencia de API externa, análisis offline y modelos adaptados al hardware.',
@@ -1243,7 +1243,7 @@ const t = {
     rewards_q5:'5. ¿Recomendarías DIX a un amigo? ¿Por qué?',
     rewards_submit:'PARTICIPAR',
     rewards_btn:'VER BASES OFICIALES', rewards_note:'20 ganadores, solo en la semana de lanzamiento — sorteo público si hace falta.', rewards_note_link:'Bases completas aquí',
-    footer_tagline:'AppIA para optimización Linux. Claude AI + kernel Linux. Resultados transparentes.',
+    footer_tagline:'AppIA de optimización de PC. Claude AI + datos reales del sistema. Resultados transparentes.',
     footer_products:'Productos', footer_linux:'DIX Linux', footer_windows:'DIX WIN',
     footer_kontrol:'DIX Kontrol', footer_stream:'DIX Stream', footer_odyssey:'DIX Odyssey',
     footer_company:'Empresa', footer_atlas:'Atlas', footer_roadmap:'Roadmap',
@@ -1251,8 +1251,8 @@ const t = {
     foot_privacy:'Privacidad', foot_terms:'Términos', foot_contact:'Contacto',
     badge_beta:'BETA', badge_odyssey:'EN PRUEBAS',
     p2_f1:'Ajustes reales de registro + plan de energía (con verificación UAC)', p2_f2:'Windows 10 / 11',
-    p2_f3:'Score 0–100 antes y después', p2_f4:'Rollback con un clic',
-    p2_btn:'DESCARGAR BETA GRATUITA', p2_other_formats:'MSI / otros', p2_trial:'Comprar — próximamente',
+    p2_f3:'Score DIX interno 0–100 antes y después', p2_f4:'Rollback con un clic',
+    p2_btn:'DESCARGAR BETA GRATUITA', p2_other_formats:'MSI / otros', p2_trial:'Compra disponible próximamente',
     p5_label:'NIVEL MÁXIMO',
     p5_desc:'Nivel premium planificado para análisis de hardware más profundo. Modelo, tokens, límites diarios y degradación de sesión son especificaciones beta pendientes de verificar.',
     p5_f1:'Modelo AI premium — pendiente de verificar con proveedor', p5_f2:'Mayor presupuesto de tokens planificado',
