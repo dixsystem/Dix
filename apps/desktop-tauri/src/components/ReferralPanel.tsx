@@ -13,6 +13,8 @@ export function ReferralPanel() {
   const [info, setInfo] = useState<ReferralInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
   const [email, setEmail] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
 
@@ -31,14 +33,28 @@ export function ReferralPanel() {
     });
   };
 
-  const handleShare = () => {
+  const shareText = (link: string) =>
+    `Llevo semanas con el PC lento y encontré esto. DIX lo analiza, lo optimiza y te dice exactamente qué está fallando. Completamente gratis en beta. 👉 ${link}`;
+
+  const handleShareTwitter = () => {
     if (!info) return;
-    const text = `Llevo semanas con el PC lento y encontré esto.\nDIX lo analiza, lo optimiza y te dice exactamente qué está fallando.\nCompletamente gratis en beta.\n👉 ${info.link}`;
-    if (navigator.share) {
-      navigator.share({ title: "DIX — Optimizador IA", text, url: info.link }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(text);
-    }
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText(info.link))}`, "_blank");
+    setShowShareMenu(false);
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!info) return;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText(info.link))}`, "_blank");
+    setShowShareMenu(false);
+  };
+
+  const handleShareCopyText = () => {
+    if (!info) return;
+    navigator.clipboard.writeText(shareText(info.link)).then(() => {
+      setCopiedText(true);
+      setTimeout(() => setCopiedText(false), 2500);
+    });
+    setShowShareMenu(false);
   };
 
   const handleEmailSave = async () => {
@@ -84,9 +100,18 @@ export function ReferralPanel() {
         <button style={styles.btnPrimary} onClick={handleCopy}>
           {copied ? "✓ Copiado" : "📋 Copiar enlace"}
         </button>
-        <button style={styles.btnSecondary} onClick={handleShare}>
-          → Compartir
-        </button>
+        <div style={{ position: "relative" }}>
+          <button style={styles.btnSecondary} onClick={() => setShowShareMenu(s => !s)}>
+            {copiedText ? "✓ Texto copiado" : "→ Compartir"}
+          </button>
+          {showShareMenu && (
+            <div style={styles.shareMenu}>
+              <button style={styles.shareOption} onClick={handleShareTwitter}>𝕏 Twitter / X</button>
+              <button style={styles.shareOption} onClick={handleShareWhatsApp}>💬 WhatsApp</button>
+              <button style={styles.shareOption} onClick={handleShareCopyText}>📋 Copiar mensaje</button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={styles.counter}>
@@ -172,4 +197,14 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12,
   },
   emailConfirmed: { color: "#00FF88", fontSize: 12, marginTop: 12 },
+  shareMenu: {
+    position: "absolute", bottom: "calc(100% + 6px)", left: 0,
+    background: "#1c2128", border: "1px solid #30363d", borderRadius: 8,
+    padding: "4px 0", minWidth: 160, zIndex: 100, boxShadow: "0 4px 16px rgba(0,0,0,.5)",
+  },
+  shareOption: {
+    display: "block", width: "100%", background: "transparent", border: "none",
+    color: "#e6edf3", padding: "8px 14px", cursor: "pointer", fontSize: 13,
+    textAlign: "left" as const,
+  },
 };
