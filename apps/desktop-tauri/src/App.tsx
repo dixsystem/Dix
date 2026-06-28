@@ -1092,6 +1092,27 @@ export default function App() {
                       )}
                     </div>
 
+                    {/* Botón compartir score — solo si hay análisis en esta sesión */}
+                    {analysis && scan && (
+                      <button
+                        onClick={() => generateShareCard(
+                          analysis.score_actual,
+                          verifiedScoreAfter ?? analysis.score_optimizado,
+                          scan.cpu_model, scan.mem_total_mb,
+                          scan.distro_id, scan.distro_version, dixIdle,
+                        ).then(setShareCardUrl)}
+                        style={{
+                          width: "100%", marginBottom: 14,
+                          background: `linear-gradient(135deg, ${C.orange}22, ${C.orange}11)`,
+                          border: `1px solid ${C.orange}66`, borderRadius: 8,
+                          color: C.orange, padding: "9px 0", fontSize: 12,
+                          fontWeight: 700, cursor: "pointer", letterSpacing: "0.3px",
+                        }}
+                      >
+                        {t("share_score_button")}
+                      </button>
+                    )}
+
                     {/* Selector de perfil */}
                     <div style={{ width: "100%" }}>
                       <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8, fontWeight: 600 }}>
@@ -1575,7 +1596,7 @@ export default function App() {
             {/* Texto para copiar */}
             <div style={{ background: "#010409", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.muted, fontFamily: "monospace" }}>
               My {scan?.distro_id === "windows" ? "Windows" : "Linux"} score went from {analysis.score_actual} to {verifiedScoreAfter ?? analysis.score_optimizado}/100 with DIX 🚀{"\n"}
-              Try it free → dixsystem.com #DIXScore #{scan?.distro_id === "windows" ? "Windows" : "Linux"}
+              Try it free → dixsystem.com #DixBeta #{scan?.distro_id === "windows" ? "Windows" : "Linux"}
             </div>
 
             {/* Botones */}
@@ -1595,7 +1616,7 @@ export default function App() {
               <button
                 onClick={() => {
                   const platform = scan?.distro_id === "windows" ? "Windows" : "Linux";
-                  const text = `My ${platform} score went from ${analysis.score_actual} to ${verifiedScoreAfter ?? analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DIXScore #${platform}`;
+                  const text = `My ${platform} score went from ${analysis.score_actual} to ${verifiedScoreAfter ?? analysis.score_optimizado}/100 with DIX 🚀 Try it free → dixsystem.com #DixBeta #${platform}`;
                   navigator.clipboard.writeText(text).catch(() => {});
                 }}
                 style={{

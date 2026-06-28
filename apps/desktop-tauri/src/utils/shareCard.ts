@@ -181,7 +181,7 @@ export async function generateShareCard(
   ctx.fillStyle = "#FF6B00";
   ctx.font = "bold 19px 'Inter', system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(isWin ? "#DIXScore  ·  #Windows  ·  dixsystem.com" : "#DIXScore  ·  #Linux  ·  dixsystem.com", W / 2, H - 38);
+  ctx.fillText(isWin ? "#DixBeta  ·  #Windows  ·  dixsystem.com" : "#DixBeta  ·  #Linux  ·  dixsystem.com", W / 2, H - 38);
 
   return canvas.toDataURL("image/png");
 }
