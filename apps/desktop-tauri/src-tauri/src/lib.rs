@@ -10,6 +10,9 @@
 pub mod contracts;
 pub mod memory_api;
 pub mod event_bus;
+pub mod knowledge_core;
+pub mod context_engine;
+pub mod cerebro;
 pub mod scanner;
 pub mod analysis;
 pub mod policy;
