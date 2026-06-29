@@ -11,6 +11,11 @@ use dix::{
     ai_budget, analysis, atlas, benchmark, cache, claude_gateway, command_engine, dixkontrol, executor,
     journal, memory, policy, referral, safe_mode, scanner, startup, state,
 };
+use dix::forge::ForgeSystem;
+use dix::forge_commands::{ForgeInfo, ForgeState, OllamaStatus};
+use dix::contracts::{Artifact, Pipeline, Spec};
+use dix::cerebro::ollama::OllamaClient;
+use std::sync::Arc;
 #[cfg(target_os = "windows")]
 use dix::winutil;
 
@@ -1085,6 +1090,23 @@ fn main() {
                     window.set_icon(icon).ok();
                 }
             }
+
+            // DIX Forge — inicializar sistema de fabricación de AppIAs
+            let db_path = dirs::data_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("dix-forge")
+                .join("forge.db");
+            if let Some(parent) = db_path.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
+            let db_str = db_path.to_string_lossy().to_string();
+            match tauri::async_runtime::block_on(
+                ForgeSystem::init(&db_str, "http://localhost:11434")
+            ) {
+                Ok(forge) => { app.manage(Arc::new(forge) as ForgeState); }
+                Err(e) => eprintln!("[DIX Forge] No se pudo inicializar: {e}"),
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1126,6 +1148,12 @@ fn main() {
             set_referral_email,
             open_url,
             write_clipboard,
+            // DIX Forge
+            forge_status,
+            forge_ollama_check,
+            forge_panel_activos,
+            forge_crear_pipeline,
+            forge_publicar,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
@@ -1173,6 +1201,59 @@ fn write_clipboard(text: String) -> Result<(), String> {
         child.wait().map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+// ─── Comandos DIX Forge ───────────────────────────────────────────────────────
+
+#[tauri::command]
+async fn forge_status(forge: tauri::State<'_, ForgeState>) -> Result<ForgeInfo, String> {
+    let resumen = forge.resumen().map_err(|e| e.to_string())?;
+    Ok(ForgeInfo {
+        version: env!("CARGO_PKG_VERSION"),
+        ollama_url: "http://localhost:11434",
+        resumen,
+    })
+}
+
+#[tauri::command]
+async fn forge_ollama_check() -> OllamaStatus {
+    let client = OllamaClient::new("http://localhost:11434");
+    match client.list_models().await {
+        Ok(modelos) => OllamaStatus { disponible: true, modelos },
+        Err(_) => OllamaStatus { disponible: false, modelos: vec![] },
+    }
+}
+
+#[tauri::command]
+async fn forge_panel_activos(forge: tauri::State<'_, ForgeState>) -> Result<Vec<Pipeline>, String> {
+    forge.panel.activos().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn forge_crear_pipeline(
+    forge: tauri::State<'_, ForgeState>,
+    spec_json: String,
+) -> Result<Pipeline, String> {
+    let spec: Spec = serde_json::from_str(&spec_json)
+        .map_err(|e| format!("Spec JSON inválido: {}", e))?;
+    forge.fabricar(spec).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn forge_publicar(
+    forge: tauri::State<'_, ForgeState>,
+    pipeline_json: String,
+    nombre: String,
+    version: String,
+    descripcion: String,
+    ruta_binario: Option<String>,
+) -> Result<Artifact, String> {
+    let pipeline: Pipeline = serde_json::from_str(&pipeline_json)
+        .map_err(|e| format!("Pipeline JSON inválido: {}", e))?;
+    forge
+        .publicar(&pipeline, &nombre, &version, &descripcion, ruta_binario.as_deref())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ─── Tests simulados Windows ──────────────────────────────────────────────────

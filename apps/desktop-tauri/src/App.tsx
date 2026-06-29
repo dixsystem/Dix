@@ -24,6 +24,7 @@ import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
 import { DixKontrolPanel } from "./components/DixKontrolPanel";
 import { AtlasConsentBanner } from "./components/AtlasConsentBanner";
 import { ReferralPanel } from "./components/ReferralPanel";
+import { ForgePanel } from "./components/ForgePanel";
 import { useT } from "./i18n";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -56,6 +57,7 @@ export default function App() {
   const [showRollbacks, setShowRollbacks] = useState(false);
   const [showStartupPanel, setShowStartupPanel] = useState(false);
   const [showDixKontrol, setShowDixKontrol] = useState(false);
+  const [showForge, setShowForge] = useState(false);
   const [startupItems, setStartupItems] = useState<StartupItem[]>([]);
   const [startupLoading, setStartupLoading] = useState(false);
   const [startupToDisable, setStartupToDisable] = useState<Set<string>>(new Set());
@@ -569,6 +571,9 @@ export default function App() {
               {t("nav_dixkontrol")}
             </button>
           )}
+          <button className="btn-secondary" onClick={() => setShowForge(!showForge)} style={{ fontSize: 12 }}>
+            ⚙ Forge
+          </button>
           <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
           {isLicensed ? (
             isOdyssey ? (
@@ -968,6 +973,16 @@ export default function App() {
 
                   {/* DixKontrol — nivel Moderado (manual) */}
                   {showDixKontrol && <DixKontrolPanel onClose={() => setShowDixKontrol(false)} />}
+                  {showForge && (
+                    <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowForge(false)}>
+                      <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, width: "min(820px, 95vw)", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 12px" }}>
+                          <button onClick={() => setShowForge(false)} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 18 }}>✕</button>
+                        </div>
+                        <ForgePanel />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Programas de inicio */}
                   {showStartupPanel && (

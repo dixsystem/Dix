@@ -9,6 +9,7 @@
 
 pub mod contracts;
 pub mod forge;
+pub mod forge_commands;
 pub mod memory_api;
 pub mod event_bus;
 pub mod knowledge_core;
