@@ -7,6 +7,7 @@
 // main.rs, y dix-cli para servidores sin GUI) sin duplicar lógica de
 // seguridad. Ningún módulo aquí depende de Tauri.
 
+pub mod contracts;
 pub mod scanner;
 pub mod analysis;
 pub mod policy;

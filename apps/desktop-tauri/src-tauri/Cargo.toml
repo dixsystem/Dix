@@ -25,6 +25,9 @@ tokio                 = { version = "1", features = ["full"] }
 obfstr                = "0.4"
 dirs                  = "5"
 keyring               = "4"
+chrono                = { version = "0.4", features = ["serde"] }
+thiserror             = "1.0"
+uuid                  = { version = "1", features = ["v4", "serde"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg   = "0.52"
