@@ -59,37 +59,21 @@ impl Lanzador {
 
     /// Ejecuta el pipeline completo: itera tareas en ciclos TALLER+VUELTA.
     /// Para si hay un Hallazgo Crítico sin resolver o si se recibe Decision::Stop.
-    pub async fn ejecutar_pipeline(&self, pipeline: &mut Pipeline) -> Result<(), LanzadorError> {
+    /// El caller provee la Spec original para que el Taller tenga contexto completo.
+    pub async fn ejecutar_pipeline(&self, pipeline: &mut Pipeline, spec: &Spec) -> Result<(), LanzadorError> {
         pipeline_mgr::transicionar(pipeline, EstadoPipeline::Activo);
         let _ = self.bus.publish(DixEvent::PipelineStateChanged {
             pipeline_id: pipeline.id,
             estado: pipeline.estado,
         });
 
-        // Clonar spec_id antes del loop mutable
-        let spec_id = pipeline.spec_id;
-
-        // Iterar sobre índices para mutabilidad
         let task_count = pipeline.tareas.len();
         for i in 0..task_count {
             if !pipeline_mgr::puede_continuar(pipeline) {
                 break;
             }
 
-            // Necesitamos un Spec mínimo para el contexto del Taller
-            // (en producción vendría del KnowledgeCore; aquí construimos un stub temporal)
-            let spec_stub = crate::contracts::Spec {
-                id: spec_id,
-                nombre: pipeline.nombre.clone(),
-                descripcion: String::new(),
-                dominio: pipeline.tareas[i].dominio,
-                objetivo: String::new(),
-                criterios_aceptacion: Vec::new(),
-                restricciones: Vec::new(),
-                creado_en: Utc::now(),
-            };
-
-            let resultado = self.taller.ejecutar(&spec_stub, &mut pipeline.tareas[i]).await;
+            let resultado = self.taller.ejecutar(spec, &mut pipeline.tareas[i]).await;
 
             match resultado {
                 Err(TallerError::Agotado { motivo, .. }) => {

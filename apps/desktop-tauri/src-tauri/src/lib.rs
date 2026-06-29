@@ -8,6 +8,7 @@
 // seguridad. Ningún módulo aquí depende de Tauri.
 
 pub mod contracts;
+pub mod forge;
 pub mod memory_api;
 pub mod event_bus;
 pub mod knowledge_core;
