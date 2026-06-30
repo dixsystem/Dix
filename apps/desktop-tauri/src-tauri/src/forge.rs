@@ -71,6 +71,7 @@ impl ForgeSystem {
         ));
         let vuelta = Arc::new(Vuelta::new(Arc::clone(&ollama), Arc::clone(&bus)));
         let lanzador = Arc::new(Lanzador::new(
+            Arc::clone(&cerebro),
             Arc::clone(&taller),
             Arc::clone(&vuelta),
             Arc::clone(&knowledge),
@@ -111,5 +112,67 @@ impl ForgeSystem {
             .publisher
             .publicar(pipeline, nombre, version, descripcion, ruta_binario)
             .await?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{Dominio, EstadoPipeline, Spec};
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    async fn sistema_test() -> ForgeSystem {
+        ForgeSystem::init("/tmp/forge_test.db", "http://localhost:11434")
+            .await
+            .expect("ForgeSystem::init falló")
+    }
+
+    #[tokio::test]
+    async fn test_init_y_resumen() {
+        let forge = sistema_test().await;
+        let resumen = forge.resumen().expect("resumen() falló");
+        assert_eq!(resumen.total, 0);
+        assert_eq!(resumen.activos, 0);
+        println!("✓ ForgeSystem iniciado — resumen: {:?}", resumen);
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_vacio_se_completa() {
+        let forge = sistema_test().await;
+        let spec = Spec {
+            id: Uuid::new_v4(),
+            nombre: "AppIA de prueba".to_string(),
+            descripcion: "Test de integración".to_string(),
+            dominio: Dominio::Rust,
+            objetivo: "Verificar que el pipeline vacío completa sin error".to_string(),
+            criterios_aceptacion: vec!["Build OK".to_string()],
+            restricciones: vec![],
+            creado_en: Utc::now(),
+        };
+        // Un pipeline sin tareas debe completarse inmediatamente
+        let pipeline = forge.fabricar(spec).await.expect("fabricar() falló");
+        assert_eq!(pipeline.estado, EstadoPipeline::Completado);
+        assert_eq!(pipeline.tareas.len(), 0);
+        println!("✓ Pipeline vacío completado — id: {}", pipeline.id);
+    }
+
+    #[tokio::test]
+    async fn test_panel_registra_pipeline() {
+        let forge = sistema_test().await;
+        let spec = Spec {
+            id: Uuid::new_v4(),
+            nombre: "Pipeline panel test".to_string(),
+            descripcion: "Verifica registro en Panel".to_string(),
+            dominio: Dominio::Frontend,
+            objetivo: "Verificar Panel".to_string(),
+            criterios_aceptacion: vec![],
+            restricciones: vec![],
+            creado_en: Utc::now(),
+        };
+        let pipeline = forge.fabricar(spec).await.expect("fabricar falló");
+        let resumen = forge.resumen().expect("resumen falló");
+        assert!(resumen.completados >= 1);
+        println!("✓ Panel tiene ≥1 completado — total: {}", resumen.total);
     }
 }

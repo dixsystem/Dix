@@ -90,4 +90,17 @@ impl Cerebro {
     pub async fn decide(&self, pipeline: &Pipeline) -> Result<Decision, CerebroError> {
         Ok(orchestrator::decide_pipeline(pipeline))
     }
+
+    /// Llama al razonador para descomponer una Spec en tareas ejecutables.
+    /// Si Ollama falla o el JSON es inválido, devuelve una tarea de fallback.
+    pub async fn planificar(&self, spec: &Spec) -> Vec<Task> {
+        let prompt = orchestrator::build_plan_prompt(spec);
+        match self.ollama.generate(&self.reasoner_model, &prompt).await {
+            Ok(response) => orchestrator::parse_tasks(spec, &response),
+            Err(e) => {
+                eprintln!("[CEREBRO] planificar error: {e} — usando fallback");
+                orchestrator::parse_tasks(spec, "")
+            }
+        }
+    }
 }

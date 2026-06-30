@@ -40,9 +40,9 @@ pub fn parse_audit_response(response: &str, task_id: Uuid) -> (Vec<Hallazgo>, De
             continue;
         }
         let ll = l.to_lowercase();
-        let nivel = if ll.contains("error crítico") || ll.contains("error critico") || ll.contains("crítico") {
+        let nivel = if ll.contains("error crítico") || ll.contains("error critico") || ll.contains("fallo crítico") {
             Some(NivelHallazgo::Critico)
-        } else if ll.contains("advertencia") || ll.contains("importante") || ll.contains("warning") {
+        } else if ll.contains("advertencia") || ll.contains("importante") || ll.contains("warning") || ll.contains("crítico") {
             Some(NivelHallazgo::Importante)
         } else if ll.contains("mejora") || ll.contains("opcional") || ll.contains("sugerencia") {
             Some(NivelHallazgo::Opcional)

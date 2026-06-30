@@ -1,5 +1,6 @@
 pub mod pipeline_mgr;
 
+use crate::cerebro::Cerebro;
 use crate::contracts::{
     Approval, Decision, EstadoPipeline, NivelHallazgo, Pipeline, Spec,
 };
@@ -27,6 +28,7 @@ pub enum LanzadorError {
 /// Orquestador de pipelines completos.
 /// Crea un Pipeline desde una Spec y coordina ciclos TALLER+VUELTA por cada tarea.
 pub struct Lanzador {
+    cerebro: Arc<Cerebro>,
     taller: Arc<Taller>,
     vuelta: Arc<Vuelta>,
     knowledge: Arc<KnowledgeCore>,
@@ -35,12 +37,13 @@ pub struct Lanzador {
 
 impl Lanzador {
     pub fn new(
+        cerebro: Arc<Cerebro>,
         taller: Arc<Taller>,
         vuelta: Arc<Vuelta>,
         knowledge: Arc<KnowledgeCore>,
         bus: Arc<EventBus>,
     ) -> Self {
-        Self { taller, vuelta, knowledge, bus }
+        Self { cerebro, taller, vuelta, knowledge, bus }
     }
 
     /// Crea un Pipeline en estado Borrador desde una Spec.
@@ -67,6 +70,11 @@ impl Lanzador {
             estado: pipeline.estado,
         });
 
+        // Si el pipeline no tiene tareas, el Cerebro las genera ahora
+        if pipeline.tareas.is_empty() {
+            pipeline.tareas = self.cerebro.planificar(spec).await;
+        }
+
         let task_count = pipeline.tareas.len();
         for i in 0..task_count {
             if !pipeline_mgr::puede_continuar(pipeline) {
@@ -92,12 +100,12 @@ impl Lanzador {
                     // Revisión post-ejecución
                     let review = self.vuelta.revisar(&pipeline.tareas[i]).await?;
 
-                    // Si hay hallazgos críticos, parar el pipeline
-                    if review
+                    // Solo para el pipeline si hay críticos Y el build también falló
+                    let hay_criticos = review
                         .hallazgos
                         .iter()
-                        .any(|h| matches!(h.nivel, NivelHallazgo::Critico))
-                    {
+                        .any(|h| matches!(h.nivel, NivelHallazgo::Critico));
+                    if hay_criticos && !review.build_ok {
                         pipeline_mgr::transicionar(pipeline, EstadoPipeline::Fallido);
                         let _ = self.bus.publish(DixEvent::PipelineStateChanged {
                             pipeline_id: pipeline.id,

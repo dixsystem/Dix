@@ -33,7 +33,14 @@ interface Pipeline {
 
 type ForgeView = "panel" | "nuevo";
 
-const DOMINIOS = ["Rust", "Frontend", "Documentacion", "Arquitectura", "Testing", "Deploy"];
+const DOMINIOS: { val: string; label: string }[] = [
+  { val: "rust",          label: "Rust" },
+  { val: "frontend",      label: "Frontend" },
+  { val: "documentacion", label: "Documentación" },
+  { val: "arquitectura",  label: "Arquitectura" },
+  { val: "testing",       label: "Testing" },
+  { val: "deploy",        label: "Deploy" },
+];
 const ESTADO_COLOR: Record<string, string> = {
   activo:     "#4ade80",
   completado: "#60a5fa",
@@ -56,7 +63,7 @@ export function ForgePanel() {
   const [nombre, setNombre]     = useState("");
   const [desc, setDesc]         = useState("");
   const [objetivo, setObjetivo] = useState("");
-  const [dominio, setDominio]   = useState("Rust");
+  const [dominio, setDominio]   = useState("rust");
   const [running, setRunning]   = useState(false);
   const [resultado, setResultado] = useState<Pipeline | null>(null);
 
@@ -86,8 +93,8 @@ export function ForgePanel() {
       const spec = {
         id: crypto.randomUUID(),
         nombre, descripcion: desc, dominio, objetivo,
-        criterios_aceptacion: [], restricciones: [],
-        creado_en: new Date().toISOString(),
+        criteriosAceptacion: [], restricciones: [],
+        creadoEn: new Date().toISOString(),
       };
       const p = await invoke<Pipeline>("forge_crear_pipeline", { specJson: JSON.stringify(spec) });
       setResultado(p);
@@ -180,7 +187,7 @@ export function ForgePanel() {
           <textarea style={S.area} value={objetivo} onChange={e => setObjetivo(e.target.value)} placeholder="Describe el objetivo…" rows={3} disabled={running} />
           <label style={S.lbl}>Dominio técnico</label>
           <select style={S.sel} value={dominio} onChange={e => setDominio(e.target.value)} disabled={running}>
-            {DOMINIOS.map(d => <option key={d}>{d}</option>)}
+            {DOMINIOS.map(d => <option key={d.val} value={d.val}>{d.label}</option>)}
           </select>
           <button style={{ ...S.launch, opacity: running || !nombre || !objetivo ? 0.45 : 1 }}
             disabled={running || !nombre || !objetivo} onClick={lanzar}>
