@@ -975,29 +975,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* DIX Forge — card de acceso en pantalla principal */}
-                  {!showForge && (
-                    <div
-                      onClick={() => setShowForge(true)}
-                      style={{
-                        marginBottom: 16, padding: "16px 20px", borderRadius: 12, cursor: "pointer",
-                        background: "linear-gradient(135deg, #0f172a 60%, #1e1b4b)",
-                        border: "1px solid #3730a344",
-                        display: "flex", alignItems: "center", gap: 16,
-                        transition: "border-color 0.2s",
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = "#6366f1aa")}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = "#3730a344")}
-                    >
-                      <span style={{ fontSize: 32 }}>⚙</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", marginBottom: 3 }}>DIX Forge</div>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>Fabrica AppIAs con agentes Ollama locales</div>
-                      </div>
-                      <span style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, padding: "3px 10px", border: "1px solid #6366f155", borderRadius: 20 }}>Abrir →</span>
-                    </div>
-                  )}
-
                   {/* DixKontrol — nivel Moderado (manual) */}
                   {showDixKontrol && <DixKontrolPanel onClose={() => setShowDixKontrol(false)} />}
                   {showForge && (
