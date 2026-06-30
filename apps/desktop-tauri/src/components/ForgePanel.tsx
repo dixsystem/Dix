@@ -22,16 +22,27 @@ interface OllamaStatus {
   modelos: string[];
 }
 
+interface Task {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  agente: string;
+  dominio: string;
+  estado: string;
+  intentos: number;
+  resultado: string | null;
+}
+
 interface Pipeline {
   id: string;
   nombre: string;
   estado: string;
   creadoEn: string;
-  tareas: unknown[];
+  tareas: Task[];
   artefactos: unknown[];
 }
 
-type ForgeView = "panel" | "nuevo";
+type ForgeView = "panel" | "nuevo" | "detalle";
 
 const DOMINIOS: { val: string; label: string }[] = [
   { val: "rust",          label: "Rust" },
@@ -52,12 +63,13 @@ const ESTADO_COLOR: Record<string, string> = {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ForgePanel() {
-  const [view, setView]       = useState<ForgeView>("panel");
-  const [info, setInfo]       = useState<ForgeInfo | null>(null);
-  const [ollama, setOllama]   = useState<OllamaStatus | null>(null);
-  const [activos, setActivos] = useState<Pipeline[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [view, setView]             = useState<ForgeView>("panel");
+  const [info, setInfo]             = useState<ForgeInfo | null>(null);
+  const [ollama, setOllama]         = useState<OllamaStatus | null>(null);
+  const [activos, setActivos]       = useState<Pipeline[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [selected, setSelected]     = useState<Pipeline | null>(null);
 
   // formulario nuevo pipeline
   const [nombre, setNombre]     = useState("");
@@ -143,6 +155,11 @@ export function ForgePanel() {
             {v === "panel" ? "Panel" : "+ Nueva AppIA"}
           </button>
         ))}
+        {view === "detalle" && selected && (
+          <button style={{ ...S.tab, ...S.tabOn }}>
+            📋 {selected.nombre}
+          </button>
+        )}
       </div>
 
       {/* Vista Panel */}
@@ -159,11 +176,12 @@ export function ForgePanel() {
             </div>
           )}
           {activos.length === 0
-            ? <p style={S.dim}>No hay pipelines activos.</p>
+            ? <p style={S.dim}>No hay pipelines. Crea tu primera AppIA.</p>
             : activos.map(p => {
                 const c = ESTADO_COLOR[p.estado.toLowerCase()] ?? "#94a3b8";
                 return (
-                  <div key={p.id} style={S.card}>
+                  <div key={p.id} style={{ ...S.card, cursor: "pointer" }}
+                    onClick={() => { setSelected(p); setView("detalle"); }}>
                     <div style={S.cardRow}>
                       <span style={S.cardName}>{p.nombre}</span>
                       <span style={{ ...S.pill, background: c + "22", color: c }}>{p.estado}</span>
@@ -173,6 +191,49 @@ export function ForgePanel() {
                 );
               })
           }
+        </div>
+      )}
+
+      {/* Vista Detalle pipeline */}
+      {view === "detalle" && selected && (
+        <div>
+          <button style={{ ...S.btn, marginBottom: 16 }} onClick={() => setView("panel")}>← Volver al Panel</button>
+          <div style={{ marginBottom: 16 }}>
+            <div style={S.cardRow}>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{selected.nombre}</span>
+              <span style={{ ...S.pill, background: (ESTADO_COLOR[selected.estado.toLowerCase()] ?? "#94a3b8") + "22", color: ESTADO_COLOR[selected.estado.toLowerCase()] ?? "#94a3b8" }}>
+                {selected.estado}
+              </span>
+            </div>
+            <span style={S.dim}>{selected.tareas.length} tareas · {new Date(selected.creadoEn).toLocaleString("es-ES")}</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {selected.tareas.map((t, i) => {
+              const tc = ESTADO_COLOR[t.estado.toLowerCase()] ?? "#94a3b8";
+              return (
+                <div key={t.id} style={{ background: "#0f172a", border: `1px solid #1e293b`, borderRadius: 8, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>#{i + 1} {t.titulo}</span>
+                    <span style={{ ...S.pill, background: tc + "22", color: tc }}>{t.estado}</span>
+                  </div>
+                  <p style={{ ...S.dim, margin: "0 0 8px" }}>{t.descripcion}</p>
+                  <div style={{ display: "flex", gap: 8, marginBottom: t.resultado ? 10 : 0 }}>
+                    <span style={{ ...S.pill, background: "#1e293b", color: "#94a3b8" }}>{t.agente}</span>
+                    <span style={{ ...S.pill, background: "#1e293b", color: "#94a3b8" }}>{t.dominio}</span>
+                    <span style={{ ...S.pill, background: "#1e293b", color: "#94a3b8" }}>intento {t.intentos}</span>
+                  </div>
+                  {t.resultado && (
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ ...S.dim, cursor: "pointer", userSelect: "none" }}>Ver resultado de Ollama</summary>
+                      <pre style={{ margin: "8px 0 0", padding: "10px 12px", background: "#020617", borderRadius: 6, fontSize: 11, color: "#94a3b8", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 200, overflowY: "auto" }}>
+                        {t.resultado}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
