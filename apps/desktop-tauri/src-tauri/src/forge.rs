@@ -89,8 +89,10 @@ impl ForgeSystem {
     pub async fn fabricar(&self, spec: Spec) -> Result<Pipeline, ForgeError> {
         let mut pipeline = self.lanzador.crear_pipeline(spec.clone());
         self.panel.registrar(pipeline.clone())?;
-        self.lanzador.ejecutar_pipeline(&mut pipeline, &spec).await?;
+        let resultado = self.lanzador.ejecutar_pipeline(&mut pipeline, &spec).await;
+        // Actualizar el panel siempre, incluso si el pipeline falló
         self.panel.registrar(pipeline.clone())?;
+        resultado?;
         Ok(pipeline)
     }
 

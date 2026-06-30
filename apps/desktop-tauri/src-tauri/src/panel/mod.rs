@@ -48,14 +48,16 @@ impl Panel {
         Ok(())
     }
 
-    /// Devuelve todos los pipelines en estado Activo.
+    /// Devuelve todos los pipelines (cualquier estado excepto Borrador).
     pub fn activos(&self) -> Result<Vec<Pipeline>, PanelError> {
         let lock = self.pipelines.read().map_err(|_| PanelError::LockPoisoned)?;
-        Ok(lock
+        let mut lista: Vec<Pipeline> = lock
             .values()
-            .filter(|p| matches!(p.estado, EstadoPipeline::Activo))
+            .filter(|p| !matches!(p.estado, EstadoPipeline::Borrador))
             .cloned()
-            .collect())
+            .collect();
+        lista.sort_by(|a, b| b.creado_en.cmp(&a.creado_en));
+        Ok(lista)
     }
 
     /// Devuelve un pipeline por su ID.
@@ -67,11 +69,12 @@ impl Panel {
     /// Devuelve un resumen del estado de todos los pipelines registrados.
     pub fn resumen(&self) -> Result<ResumenPanel, PanelError> {
         let lock = self.pipelines.read().map_err(|_| PanelError::LockPoisoned)?;
-        let total = lock.len();
-        let activos = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Activo)).count();
+        let activos     = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Activo)).count();
         let completados = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Completado)).count();
-        let fallidos = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Fallido)).count();
-        let cancelados = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Cancelado)).count();
+        let fallidos    = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Fallido)).count();
+        let cancelados  = lock.values().filter(|p| matches!(p.estado, EstadoPipeline::Cancelado)).count();
+        // Total excluye Borrador (pipelines que nunca llegaron a ejecutarse)
+        let total = activos + completados + fallidos + cancelados;
         Ok(ResumenPanel { total, activos, completados, fallidos, cancelados })
     }
 }
