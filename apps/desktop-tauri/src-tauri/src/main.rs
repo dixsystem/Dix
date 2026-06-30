@@ -14,6 +14,7 @@ use dix::{
 use dix::forge::ForgeSystem;
 use dix::forge_commands::{ForgeInfo, ForgeState, OllamaStatus};
 use dix::contracts::{Artifact, Pipeline, Spec};
+use dix::event_bus::DixEvent;
 use dix::cerebro::ollama::OllamaClient;
 use std::sync::Arc;
 #[cfg(target_os = "windows")]
@@ -1241,11 +1242,52 @@ async fn forge_panel_activos(forge: tauri::State<'_, ForgeState>) -> Result<Vec<
 #[tauri::command]
 async fn forge_crear_pipeline(
     forge: tauri::State<'_, ForgeState>,
+    app: tauri::AppHandle,
     spec_json: String,
 ) -> Result<Pipeline, String> {
     let spec: Spec = serde_json::from_str(&spec_json)
         .map_err(|e| format!("Spec JSON inválido: {}", e))?;
-    forge.fabricar(spec).await.map_err(|e| e.to_string())
+
+    // Puente EventBus → eventos Tauri para progreso en tiempo real
+    let mut rx = forge.bus.subscribe();
+    let app2 = app.clone();
+    let bridge = tokio::spawn(async move {
+        while let Ok(ev) = rx.recv().await {
+            match ev {
+                DixEvent::PipelineStateChanged { pipeline_id, estado } => {
+                    let _ = app2.emit("forge:pipeline.state", serde_json::json!({
+                        "pipelineId": pipeline_id, "estado": estado,
+                    }));
+                }
+                DixEvent::TaskStarted { task_id, titulo, agente, dominio } => {
+                    let _ = app2.emit("forge:task.started", serde_json::json!({
+                        "taskId": task_id, "titulo": titulo,
+                        "agente": agente, "dominio": dominio,
+                    }));
+                }
+                DixEvent::TaskCompleted { task_id, resultado } => {
+                    let _ = app2.emit("forge:task.completed", serde_json::json!({
+                        "taskId": task_id, "resultado": resultado,
+                    }));
+                }
+                DixEvent::TaskFailed { task_id, error, intentos } => {
+                    let _ = app2.emit("forge:task.failed", serde_json::json!({
+                        "taskId": task_id, "error": error, "intentos": intentos,
+                    }));
+                }
+                DixEvent::ReviewCompleted { review_id, decision } => {
+                    let _ = app2.emit("forge:review.completed", serde_json::json!({
+                        "reviewId": review_id, "decision": decision,
+                    }));
+                }
+                _ => {}
+            }
+        }
+    });
+
+    let result = forge.fabricar(spec).await.map_err(|e| e.to_string());
+    bridge.abort();
+    result
 }
 
 #[tauri::command]

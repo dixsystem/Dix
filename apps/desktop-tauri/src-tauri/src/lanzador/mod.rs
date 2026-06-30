@@ -81,10 +81,23 @@ impl Lanzador {
                 break;
             }
 
+            // Notificar inicio de tarea
+            let _ = self.bus.publish(DixEvent::TaskStarted {
+                task_id: pipeline.tareas[i].id,
+                titulo: pipeline.tareas[i].titulo.clone(),
+                agente: pipeline.tareas[i].agente,
+                dominio: pipeline.tareas[i].dominio,
+            });
+
             let resultado = self.taller.ejecutar(spec, &mut pipeline.tareas[i]).await;
 
             match resultado {
                 Err(TallerError::Agotado { motivo, .. }) => {
+                    let _ = self.bus.publish(DixEvent::TaskFailed {
+                        task_id: pipeline.tareas[i].id,
+                        error: motivo.clone(),
+                        intentos: pipeline.tareas[i].max_intentos,
+                    });
                     pipeline_mgr::transicionar(pipeline, EstadoPipeline::Fallido);
                     let _ = self.bus.publish(DixEvent::PipelineStateChanged {
                         pipeline_id: pipeline.id,
@@ -106,6 +119,11 @@ impl Lanzador {
                         .iter()
                         .any(|h| matches!(h.nivel, NivelHallazgo::Critico));
                     if hay_criticos && !review.build_ok {
+                        let _ = self.bus.publish(DixEvent::TaskFailed {
+                            task_id: pipeline.tareas[i].id,
+                            error: "Hallazgo crítico en revisión".to_string(),
+                            intentos: pipeline.tareas[i].intentos,
+                        });
                         pipeline_mgr::transicionar(pipeline, EstadoPipeline::Fallido);
                         let _ = self.bus.publish(DixEvent::PipelineStateChanged {
                             pipeline_id: pipeline.id,
@@ -113,6 +131,13 @@ impl Lanzador {
                         });
                         return Err(LanzadorError::HallazgoCritico(pipeline.tareas[i].id));
                     }
+
+                    // Tarea completada exitosamente
+                    let res = pipeline.tareas[i].resultado.clone().unwrap_or_default();
+                    let _ = self.bus.publish(DixEvent::TaskCompleted {
+                        task_id: pipeline.tareas[i].id,
+                        resultado: res,
+                    });
 
                     // Guarda la revisión en memoria
                     let _ = self

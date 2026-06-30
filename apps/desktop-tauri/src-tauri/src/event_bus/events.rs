@@ -5,7 +5,7 @@ use uuid::Uuid;
 /// Todos los eventos internos que circulan por el Event Bus de DIX Forge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DixEvent {
-    TaskStarted { task_id: Uuid },
+    TaskStarted { task_id: Uuid, titulo: String, agente: TipoAgente, dominio: crate::contracts::Dominio },
     TaskCompleted { task_id: Uuid, resultado: String },
     TaskFailed { task_id: Uuid, error: String, intentos: u32 },
     TaskEscalated { task_id: Uuid, motivo: String },

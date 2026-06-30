@@ -35,7 +35,12 @@ impl Taller {
     /// Emite TaskStarted, luego TaskCompleted, TaskFailed o TaskEscalated.
     pub async fn ejecutar(&self, spec: &Spec, task: &mut Task) -> Result<String, TallerError> {
         task.estado = EstadoTarea::EnCurso;
-        let _ = self.bus.publish(DixEvent::TaskStarted { task_id: task.id });
+        let _ = self.bus.publish(DixEvent::TaskStarted {
+            task_id: task.id,
+            titulo: task.titulo.clone(),
+            agente: task.agente,
+            dominio: task.dominio,
+        });
 
         match executor::ejecutar_con_reintentos(&self.cerebro, spec, task).await {
             Ok(resultado) => {

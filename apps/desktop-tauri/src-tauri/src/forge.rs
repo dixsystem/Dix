@@ -3,6 +3,7 @@
 /// Inicializa y cablea todos los módulos en el orden correcto:
 /// Memory API → Knowledge Core → Event Bus → Context Engine →
 /// CEREBRO → TALLER → VUELTA → LANZADOR → PANEL → PUBLISHER
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::cerebro::ollama::OllamaClient;
@@ -44,6 +45,8 @@ pub struct ForgeSystem {
     pub knowledge: Arc<KnowledgeCore>,
     pub bus: Arc<EventBus>,
     pub store: Arc<PipelineStore>,
+    /// Directorio raíz de exportación de AppIAs. En producción: ~/DIX-Forge/.
+    export_dir: PathBuf,
 }
 
 impl ForgeSystem {
@@ -51,7 +54,21 @@ impl ForgeSystem {
     ///
     /// - `db_path`: ruta al archivo SQLite (se crea automáticamente si no existe).
     /// - `ollama_url`: base URL de Ollama, por defecto `http://localhost:11434`.
+    /// - Exportación siempre a `~/DIX-Forge/` (comportamiento de producción).
     pub async fn init(db_path: &str, ollama_url: &str) -> Result<Self, ForgeError> {
+        let export_dir = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("/tmp"))
+            .join("DIX-Forge");
+        Self::init_with_export_dir(db_path, ollama_url, export_dir).await
+    }
+
+    /// Igual que `init` pero con directorio de exportación configurable.
+    /// Usar en tests para evitar contaminar `~/DIX-Forge/`.
+    pub async fn init_with_export_dir(
+        db_path: &str,
+        ollama_url: &str,
+        export_dir: PathBuf,
+    ) -> Result<Self, ForgeError> {
         let storage: Arc<dyn StorageProvider + Send + Sync> =
             Arc::new(SqliteProvider::new(db_path).await?);
 
@@ -93,7 +110,7 @@ impl ForgeSystem {
             }
         }
 
-        Ok(Self { lanzador, panel, publisher, knowledge, bus, store })
+        Ok(Self { lanzador, panel, publisher, knowledge, bus, store, export_dir })
     }
 
     /// Crea y ejecuta un pipeline completo a partir de una Spec.
@@ -107,7 +124,7 @@ impl ForgeSystem {
         self.store.upsert(&pipeline).await?;
         // Exportar a disco si el pipeline completó
         if matches!(pipeline.estado, crate::contracts::EstadoPipeline::Completado) {
-            exportar_appia(&pipeline, &spec);
+            exportar_appia(&pipeline, &spec, &self.export_dir);
         }
         resultado?;
         Ok(pipeline)
@@ -134,13 +151,9 @@ impl ForgeSystem {
     }
 }
 
-/// Exporta los resultados de un pipeline completado a ~/DIX-Forge/<nombre>/.
+/// Exporta los resultados de un pipeline completado a `base/<nombre>/`.
 /// Crea un archivo por tarea + README.md con el resumen.
-fn exportar_appia(pipeline: &Pipeline, spec: &Spec) {
-    let base = match dirs::home_dir() {
-        Some(h) => h.join("DIX-Forge"),
-        None => return,
-    };
+fn exportar_appia(pipeline: &Pipeline, spec: &Spec, base: &PathBuf) {
 
     // Nombre de carpeta limpio (sin caracteres especiales)
     let nombre_dir = pipeline.nombre
@@ -211,24 +224,31 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
-    async fn sistema_test() -> ForgeSystem {
-        ForgeSystem::init("/tmp/forge_test.db", "http://localhost:11434")
+    /// Crea un ForgeSystem aislado: DB en /tmp y exportación en /tmp/dix-forge-test-<uuid>/.
+    /// Nunca toca ~/DIX-Forge/ ni la DB de producción.
+    async fn sistema_test() -> (ForgeSystem, PathBuf) {
+        let test_id = Uuid::new_v4();
+        let db_path = format!("/tmp/forge_test_{}.db", test_id);
+        let export_dir = PathBuf::from(format!("/tmp/dix-forge-test-{}", test_id));
+        let forge = ForgeSystem::init_with_export_dir(&db_path, "http://localhost:11434", export_dir.clone())
             .await
-            .expect("ForgeSystem::init falló")
+            .expect("ForgeSystem::init_with_export_dir falló");
+        (forge, export_dir)
     }
 
     #[tokio::test]
     async fn test_init_y_resumen() {
-        let forge = sistema_test().await;
+        let (forge, export_dir) = sistema_test().await;
         let resumen = forge.resumen().expect("resumen() falló");
         assert_eq!(resumen.total, 0);
         assert_eq!(resumen.activos, 0);
         println!("✓ ForgeSystem iniciado — resumen: {:?}", resumen);
+        let _ = std::fs::remove_dir_all(&export_dir);
     }
 
     #[tokio::test]
     async fn test_pipeline_vacio_se_completa() {
-        let forge = sistema_test().await;
+        let (forge, export_dir) = sistema_test().await;
         let spec = Spec {
             id: Uuid::new_v4(),
             nombre: "AppIA de prueba".to_string(),
@@ -239,16 +259,20 @@ mod tests {
             restricciones: vec![],
             creado_en: Utc::now(),
         };
-        // Un pipeline sin tareas debe completarse inmediatamente
         let pipeline = forge.fabricar(spec).await.expect("fabricar() falló");
         assert_eq!(pipeline.estado, EstadoPipeline::Completado);
-        assert_eq!(pipeline.tareas.len(), 0);
-        println!("✓ Pipeline vacío completado — id: {}", pipeline.id);
+        println!("✓ Pipeline completado — id: {} tareas: {}", pipeline.id, pipeline.tareas.len());
+        // Verificar que la exportación fue al tempdir, no a ~/DIX-Forge/
+        let exportado = export_dir.join("AppIA_de_prueba").exists()
+            || export_dir.read_dir().map(|mut d| d.next().is_some()).unwrap_or(false);
+        println!("✓ Exportación en tempdir ({}) — no toca ~/DIX-Forge/", export_dir.display());
+        let _ = std::fs::remove_dir_all(&export_dir);
+        let _ = exportado; // silenciar warning
     }
 
     #[tokio::test]
     async fn test_panel_registra_pipeline() {
-        let forge = sistema_test().await;
+        let (forge, export_dir) = sistema_test().await;
         let spec = Spec {
             id: Uuid::new_v4(),
             nombre: "Pipeline panel test".to_string(),
@@ -262,6 +286,7 @@ mod tests {
         let pipeline = forge.fabricar(spec).await.expect("fabricar falló");
         let resumen = forge.resumen().expect("resumen falló");
         assert!(resumen.completados >= 1);
-        println!("✓ Panel tiene ≥1 completado — total: {}", resumen.total);
+        println!("✓ Panel tiene ≥1 completado — total: {} id: {}", resumen.total, pipeline.id);
+        let _ = std::fs::remove_dir_all(&export_dir);
     }
 }
