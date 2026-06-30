@@ -97,7 +97,7 @@ impl ForgeSystem {
     }
 
     /// Crea y ejecuta un pipeline completo a partir de una Spec.
-    /// Registra en el Panel y persiste en SQLite antes y después de la ejecución.
+    /// Registra en el Panel, persiste en SQLite y exporta a ~/DIX-Forge/<nombre>/.
     pub async fn fabricar(&self, spec: Spec) -> Result<Pipeline, ForgeError> {
         let mut pipeline = self.lanzador.crear_pipeline(spec.clone());
         self.panel.registrar(pipeline.clone())?;
@@ -105,6 +105,10 @@ impl ForgeSystem {
         // Actualizar panel y persistir siempre, incluso si el pipeline falló
         self.panel.registrar(pipeline.clone())?;
         self.store.upsert(&pipeline).await?;
+        // Exportar a disco si el pipeline completó
+        if matches!(pipeline.estado, crate::contracts::EstadoPipeline::Completado) {
+            exportar_appia(&pipeline, &spec);
+        }
         resultado?;
         Ok(pipeline)
     }
@@ -128,6 +132,76 @@ impl ForgeSystem {
             .publicar(pipeline, nombre, version, descripcion, ruta_binario)
             .await?)
     }
+}
+
+/// Exporta los resultados de un pipeline completado a ~/DIX-Forge/<nombre>/.
+/// Crea un archivo por tarea + README.md con el resumen.
+fn exportar_appia(pipeline: &Pipeline, spec: &Spec) {
+    let base = match dirs::home_dir() {
+        Some(h) => h.join("DIX-Forge"),
+        None => return,
+    };
+
+    // Nombre de carpeta limpio (sin caracteres especiales)
+    let nombre_dir = pipeline.nombre
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect::<String>();
+    let dir = base.join(&nombre_dir);
+
+    if std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+
+    // README con resumen del pipeline
+    let readme = format!(
+        "# {nombre}\n\n\
+         **Estado:** {estado:?}\n\
+         **Dominio:** {dominio:?}\n\
+         **Creado:** {fecha}\n\n\
+         ## Objetivo\n\n{objetivo}\n\n\
+         ## Descripción\n\n{descripcion}\n\n\
+         ## Tareas ({n})\n\n{tareas}\n",
+        nombre   = pipeline.nombre,
+        estado   = pipeline.estado,
+        dominio  = spec.dominio,
+        fecha    = pipeline.creado_en.format("%Y-%m-%d %H:%M UTC"),
+        objetivo = spec.objetivo,
+        descripcion = spec.descripcion,
+        n        = pipeline.tareas.len(),
+        tareas   = pipeline.tareas.iter().enumerate()
+            .map(|(i, t)| format!("{}. **{}** — {:?}", i + 1, t.titulo, t.estado))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
+    let _ = std::fs::write(dir.join("README.md"), readme);
+
+    // Un archivo por tarea con el resultado de Ollama
+    for (i, tarea) in pipeline.tareas.iter().enumerate() {
+        let nombre_archivo = format!(
+            "{:02}_{}.md",
+            i + 1,
+            tarea.titulo
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == '-' { c.to_lowercase().next().unwrap_or(c) } else { '_' })
+                .collect::<String>()
+        );
+        let contenido = format!(
+            "# {titulo}\n\n\
+             **Agente:** {agente:?} | **Dominio:** {dominio:?} | **Estado:** {estado:?}\n\n\
+             ## Descripción\n\n{desc}\n\n\
+             ## Resultado\n\n{resultado}\n",
+            titulo    = tarea.titulo,
+            agente    = tarea.agente,
+            dominio   = tarea.dominio,
+            estado    = tarea.estado,
+            desc      = tarea.descripcion,
+            resultado = tarea.resultado.as_deref().unwrap_or("_(sin resultado)_"),
+        );
+        let _ = std::fs::write(dir.join(&nombre_archivo), contenido);
+    }
+
+    eprintln!("[DIX Forge] AppIA exportada → {}", dir.display());
 }
 
 #[cfg(test)]
