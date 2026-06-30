@@ -15,6 +15,7 @@ use crate::lanzador::{Lanzador, LanzadorError};
 use crate::memory_api::sqlite::SqliteProvider;
 use crate::memory_api::StorageProvider;
 use crate::panel::{Panel, PanelError, ResumenPanel};
+use crate::pipeline_store::{PipelineStore, PipelineStoreError};
 use crate::publisher::{Publisher, PublisherError};
 use crate::taller::Taller;
 use crate::vuelta::Vuelta;
@@ -28,6 +29,8 @@ pub enum ForgeError {
     Lanzador(#[from] LanzadorError),
     #[error("Panel: {0}")]
     Panel(#[from] PanelError),
+    #[error("PipelineStore: {0}")]
+    PipelineStore(#[from] PipelineStoreError),
     #[error("Publisher: {0}")]
     Publisher(#[from] PublisherError),
 }
@@ -40,6 +43,7 @@ pub struct ForgeSystem {
     pub publisher: Arc<Publisher>,
     pub knowledge: Arc<KnowledgeCore>,
     pub bus: Arc<EventBus>,
+    pub store: Arc<PipelineStore>,
 }
 
 impl ForgeSystem {
@@ -80,18 +84,27 @@ impl ForgeSystem {
 
         let panel = Arc::new(Panel::new(Arc::clone(&bus)));
         let publisher = Arc::new(Publisher::new(Arc::clone(&knowledge), Arc::clone(&bus)));
+        let store = Arc::new(PipelineStore::new(db_path).await?);
 
-        Ok(Self { lanzador, panel, publisher, knowledge, bus })
+        // Cargar historial de pipelines al inicio
+        if let Ok(historicos) = store.list_all().await {
+            for p in historicos {
+                let _ = panel.registrar(p);
+            }
+        }
+
+        Ok(Self { lanzador, panel, publisher, knowledge, bus, store })
     }
 
     /// Crea y ejecuta un pipeline completo a partir de una Spec.
-    /// Registra el estado en el Panel antes y después de la ejecución.
+    /// Registra en el Panel y persiste en SQLite antes y después de la ejecución.
     pub async fn fabricar(&self, spec: Spec) -> Result<Pipeline, ForgeError> {
         let mut pipeline = self.lanzador.crear_pipeline(spec.clone());
         self.panel.registrar(pipeline.clone())?;
         let resultado = self.lanzador.ejecutar_pipeline(&mut pipeline, &spec).await;
-        // Actualizar el panel siempre, incluso si el pipeline falló
+        // Actualizar panel y persistir siempre, incluso si el pipeline falló
         self.panel.registrar(pipeline.clone())?;
+        self.store.upsert(&pipeline).await?;
         resultado?;
         Ok(pipeline)
     }
