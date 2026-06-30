@@ -26,7 +26,7 @@ interface Pipeline {
   id: string;
   nombre: string;
   estado: string;
-  creado_en: string;
+  creadoEn: string;
   tareas: unknown[];
   artefactos: unknown[];
 }
@@ -168,7 +168,7 @@ export function ForgePanel() {
                       <span style={S.cardName}>{p.nombre}</span>
                       <span style={{ ...S.pill, background: c + "22", color: c }}>{p.estado}</span>
                     </div>
-                    <span style={S.dim}>{p.tareas.length} tareas · {p.artefactos.length} artefactos · {new Date(p.creado_en).toLocaleString("es-ES")}</span>
+                    <span style={S.dim}>{p.tareas.length} tareas · {p.artefactos.length} artefactos · {new Date(p.creadoEn).toLocaleString("es-ES")}</span>
                   </div>
                 );
               })
