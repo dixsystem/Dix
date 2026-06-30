@@ -25,7 +25,7 @@ use obfstr::obfstr;
 use scanner::SystemScan;
 use serde::Serialize;
 use std::process::Command;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Retorno de analyze_system — incluye si vino del caché para mostrarlo en UI
 #[derive(Serialize)]
@@ -1105,6 +1105,15 @@ fn main() {
             ) {
                 Ok(forge) => { app.manage(Arc::new(forge) as ForgeState); }
                 Err(e) => eprintln!("[DIX Forge] No se pudo inicializar: {e}"),
+            }
+
+            // Si se lanzó con --forge, notificar al frontend para abrir Forge automáticamente
+            if std::env::args().any(|a| a == "--forge") {
+                let h = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
+                    let _ = h.emit("open-forge", ());
+                });
             }
 
             Ok(())

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import dixIdle from "./assets/dix-idle.png";
@@ -100,6 +101,12 @@ export default function App() {
   const [reapplying, setReapplying] = useState(false);
   const [tier, setTier]             = useState<string>("pro");
   const isOdyssey = tier === "odyssey";
+
+  // Abrir Forge automáticamente si se lanzó con --forge
+  useEffect(() => {
+    const unlisten = listen("open-forge", () => setShowForge(true));
+    return () => { unlisten.then(f => f()); };
+  }, []);
 
   // Mostrar todas las métricas inmediatamente cuando llegan
   useEffect(() => {
