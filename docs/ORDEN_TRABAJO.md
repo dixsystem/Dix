@@ -687,13 +687,19 @@ let gpu_model = Command::new("/usr/bin/lspci").output().ok()
 
 ---
 
-## TAREA 3.4 — README de lanzamiento + prueba social
+## TAREA 3.4 — README de lanzamiento + prueba social ✅ COMPLETADA (2026-07-03)
 
 **Archivo:** `README.md` (repo público)
 
 **Qué hacer:** README con GIF del flujo, benchmarks reales medidos (Tarea 2.1), explicación del modelo open-core, instrucciones de build, y enlace a la versión Pro. Mensaje central: "código abierto y auditable, sin humo; el servicio Pro paga el servidor y los datos del Atlas".
 
 **Criterio de aceptación:** un usuario técnico puede clonar, compilar y ejecutar en modo BYOK siguiendo solo el README.
+
+**Estado real:** README reescrito — Windows+Linux, licencia AGPL-3.0-only,
+separación de `dix-proxy`/Forge explicada, BYOK documentado, límites reales
+declarados, sin claims no verificables ("primera AppIA del mundo" retirado).
+GIF de demo sigue pendiente (placeholder en el archivo). Con esto se cierra
+la **Fase 3 completa** (3.1-3.4). Ver `DEC-010`.
 
 ---
 

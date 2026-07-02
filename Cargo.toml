@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/desktop-tauri/src-tauri",
+    "apps/desktop-tauri/dix-cli",
+    "apps/dix-forge/src-tauri",
+]
+
+# Los perfiles de release de un miembro de workspace se ignoran salvo que
+# vivan en la raíz — los tres Cargo.toml (dix, dix-cli, dix-forge) usaban el
+# mismo bloque idéntico, así que se unifica aquí una sola vez.
+[profile.release]
+codegen-units = 1
+lto           = true
+opt-level     = "s"
+panic         = "abort"
+strip         = true

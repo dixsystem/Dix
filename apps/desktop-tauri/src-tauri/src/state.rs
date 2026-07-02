@@ -1,5 +1,5 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

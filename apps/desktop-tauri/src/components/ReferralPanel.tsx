@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
+
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 

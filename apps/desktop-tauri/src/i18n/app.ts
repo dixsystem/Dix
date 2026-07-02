@@ -1,6 +1,5 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
-// Prohibida la reproducción sin autorización expresa de DixSystem.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 //
 // Diccionario de cadenas de App.tsx. Claves en snake_case descriptivo del
 // lugar donde aparecen (no del texto en sí, para que sobrevivan a cambios de

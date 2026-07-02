@@ -1,6 +1,5 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
-// Prohibida la reproducción sin autorización expresa de DixSystem.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 
 //! Gestión de programas de inicio — la optimización con más impacto sensible
 //! real (arranque más rápido, RAM libre desde el primer segundo) y la más

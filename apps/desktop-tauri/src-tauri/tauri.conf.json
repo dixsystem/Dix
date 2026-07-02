@@ -36,7 +36,7 @@
     "android": {
       "debugApplicationIdSuffix": ".debug"
     },
-    "shortDescription": "La primera AppIA del Mundo",
+    "shortDescription": "Open-source desktop client for system optimization workflows",
     "longDescription": "DIX optimiza tu PC con inteligencia artificial real. Analiza tu hardware, genera un script personalizado, aplica las mejoras en segundos y permite revertir con un clic. Sin humo, sin promesas vacías — todo verificado.",
     "linux": {
       "deb": {

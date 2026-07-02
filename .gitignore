@@ -24,11 +24,16 @@ dist-ssr
 *.sw?
 
 # Rust / Tauri
+/target/
 apps/desktop-tauri/src-tauri/target/
 apps/desktop-tauri/dix-cli/target/
+apps/dix-forge/src-tauri/target/
 
 # Proxy — lógica de servidor privada, NUNCA publicar
 dix-proxy/
+
+# Forge — Infraestructura de Fabricación interna, NUNCA publicar (DEC-007)
+apps/dix-forge/
 
 # Variables de entorno y secretos — NUNCA subir al repositorio
 .env

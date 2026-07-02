@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
+
 // Mock de Tauri para desarrollo en navegador — no se incluye en el build de producción
 
 const mockScan = {

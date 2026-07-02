@@ -1,6 +1,5 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
-// Prohibida la reproducción sin autorización expresa de DixSystem.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 //
 // Panel manual del nivel Moderado de DixKontrol. Ver docs/threat-model/dixkontrol.md.
 // No hay todavía un bucle automático que reaccione a cambios de contexto —

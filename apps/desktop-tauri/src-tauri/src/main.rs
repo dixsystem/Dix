@@ -1,6 +1,5 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
-// Prohibida la reproducción sin autorización expresa de DixSystem.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -11,12 +10,6 @@ use dix::{
     ai_budget, analysis, atlas, benchmark, cache, claude_gateway, command_engine, dixkontrol, executor,
     journal, memory, policy, referral, safe_mode, scanner, startup, state,
 };
-use dix::forge::ForgeSystem;
-use dix::forge_commands::{ForgeInfo, ForgeState, OllamaStatus};
-use dix::contracts::{Artifact, Pipeline, Spec};
-use dix::event_bus::DixEvent;
-use dix::cerebro::ollama::OllamaClient;
-use std::sync::Arc;
 #[cfg(target_os = "windows")]
 use dix::winutil;
 
@@ -26,7 +19,7 @@ use obfstr::obfstr;
 use scanner::SystemScan;
 use serde::Serialize;
 use std::process::Command;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 /// Retorno de analyze_system — incluye si vino del caché para mostrarlo en UI
 #[derive(Serialize)]
@@ -783,6 +776,32 @@ fn get_demo_count() -> u32 {
     memory::get_demo_count()
 }
 
+// ─── BYOK (Bring Your Own Key) ─────────────────────────────────────────────
+// La clave del usuario se guarda con memory::save_api_key (keyring del
+// sistema, nunca texto plano si hay alternativa) y claude_gateway::call ya
+// la usa en llamada directa a Anthropic, sin pasar por dix-proxy. Aquí solo
+// se expone esa lógica ya existente a la UI — byok_status nunca devuelve la
+// clave en sí, solo si hay una configurada.
+
+#[tauri::command]
+fn byok_save_key(key: String) -> Result<(), String> {
+    let key = key.trim();
+    if key.is_empty() {
+        return Err("La clave no puede estar vacía.".to_string());
+    }
+    memory::save_api_key(key)
+}
+
+#[tauri::command]
+fn byok_clear_key() {
+    memory::clear_api_key();
+}
+
+#[tauri::command]
+fn byok_status() -> bool {
+    memory::get_api_key_from_store().is_some()
+}
+
 #[tauri::command]
 async fn activate_license(key: String) -> Result<bool, String> {
     let key = key.trim().to_string();
@@ -1092,31 +1111,6 @@ fn main() {
                 }
             }
 
-            // DIX Forge — inicializar sistema de fabricación de AppIAs
-            let db_path = dirs::data_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("dix-forge")
-                .join("forge.db");
-            if let Some(parent) = db_path.parent() {
-                std::fs::create_dir_all(parent).ok();
-            }
-            let db_str = db_path.to_string_lossy().to_string();
-            match tauri::async_runtime::block_on(
-                ForgeSystem::init(&db_str, "http://localhost:11434")
-            ) {
-                Ok(forge) => { app.manage(Arc::new(forge) as ForgeState); }
-                Err(e) => eprintln!("[DIX Forge] No se pudo inicializar: {e}"),
-            }
-
-            // Si se lanzó con --forge, notificar al frontend para abrir Forge automáticamente
-            if std::env::args().any(|a| a == "--forge") {
-                let h = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
-                    let _ = h.emit("open-forge", ());
-                });
-            }
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1138,6 +1132,9 @@ fn main() {
             get_license_status,
             get_demo_count,
             activate_license,
+            byok_save_key,
+            byok_clear_key,
+            byok_status,
             get_live_metrics,
             run_benchmarks,
             run_benchmarks_partial,
@@ -1158,12 +1155,6 @@ fn main() {
             set_referral_email,
             open_url,
             write_clipboard,
-            // DIX Forge
-            forge_status,
-            forge_ollama_check,
-            forge_panel_activos,
-            forge_crear_pipeline,
-            forge_publicar,
         ])
         .run(tauri::generate_context!())
         .expect("Error arrancando Dix");
@@ -1211,100 +1202,6 @@ fn write_clipboard(text: String) -> Result<(), String> {
         child.wait().map_err(|e| e.to_string())?;
     }
     Ok(())
-}
-
-// ─── Comandos DIX Forge ───────────────────────────────────────────────────────
-
-#[tauri::command]
-async fn forge_status(forge: tauri::State<'_, ForgeState>) -> Result<ForgeInfo, String> {
-    let resumen = forge.resumen().map_err(|e| e.to_string())?;
-    Ok(ForgeInfo {
-        version: env!("CARGO_PKG_VERSION"),
-        ollama_url: "http://localhost:11434",
-        resumen,
-    })
-}
-
-#[tauri::command]
-async fn forge_ollama_check() -> OllamaStatus {
-    let client = OllamaClient::new("http://localhost:11434");
-    match client.list_models().await {
-        Ok(modelos) => OllamaStatus { disponible: true, modelos },
-        Err(_) => OllamaStatus { disponible: false, modelos: vec![] },
-    }
-}
-
-#[tauri::command]
-async fn forge_panel_activos(forge: tauri::State<'_, ForgeState>) -> Result<Vec<Pipeline>, String> {
-    forge.panel.activos().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn forge_crear_pipeline(
-    forge: tauri::State<'_, ForgeState>,
-    app: tauri::AppHandle,
-    spec_json: String,
-) -> Result<Pipeline, String> {
-    let spec: Spec = serde_json::from_str(&spec_json)
-        .map_err(|e| format!("Spec JSON inválido: {}", e))?;
-
-    // Puente EventBus → eventos Tauri para progreso en tiempo real
-    let mut rx = forge.bus.subscribe();
-    let app2 = app.clone();
-    let bridge = tokio::spawn(async move {
-        while let Ok(ev) = rx.recv().await {
-            match ev {
-                DixEvent::PipelineStateChanged { pipeline_id, estado } => {
-                    let _ = app2.emit("forge:pipeline.state", serde_json::json!({
-                        "pipelineId": pipeline_id, "estado": estado,
-                    }));
-                }
-                DixEvent::TaskStarted { task_id, titulo, agente, dominio } => {
-                    let _ = app2.emit("forge:task.started", serde_json::json!({
-                        "taskId": task_id, "titulo": titulo,
-                        "agente": agente, "dominio": dominio,
-                    }));
-                }
-                DixEvent::TaskCompleted { task_id, resultado } => {
-                    let _ = app2.emit("forge:task.completed", serde_json::json!({
-                        "taskId": task_id, "resultado": resultado,
-                    }));
-                }
-                DixEvent::TaskFailed { task_id, error, intentos } => {
-                    let _ = app2.emit("forge:task.failed", serde_json::json!({
-                        "taskId": task_id, "error": error, "intentos": intentos,
-                    }));
-                }
-                DixEvent::ReviewCompleted { review_id, decision } => {
-                    let _ = app2.emit("forge:review.completed", serde_json::json!({
-                        "reviewId": review_id, "decision": decision,
-                    }));
-                }
-                _ => {}
-            }
-        }
-    });
-
-    let result = forge.fabricar(spec).await.map_err(|e| e.to_string());
-    bridge.abort();
-    result
-}
-
-#[tauri::command]
-async fn forge_publicar(
-    forge: tauri::State<'_, ForgeState>,
-    pipeline_json: String,
-    nombre: String,
-    version: String,
-    descripcion: String,
-    ruta_binario: Option<String>,
-) -> Result<Artifact, String> {
-    let pipeline: Pipeline = serde_json::from_str(&pipeline_json)
-        .map_err(|e| format!("Pipeline JSON inválido: {}", e))?;
-    forge
-        .publicar(&pipeline, &nombre, &version, &descripcion, ruta_binario.as_deref())
-        .await
-        .map_err(|e| e.to_string())
 }
 
 // ─── Tests simulados Windows ──────────────────────────────────────────────────

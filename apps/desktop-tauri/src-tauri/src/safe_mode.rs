@@ -1,6 +1,5 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
-// Prohibida la reproducción sin autorización expresa de DixSystem.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 //
 // Modo de rescate de arranque. Si una optimización deja el sistema en un
 // bucle de arranque (boot loop), la app de Dix no puede ni abrirse para que

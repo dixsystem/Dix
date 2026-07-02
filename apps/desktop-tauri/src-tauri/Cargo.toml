@@ -2,9 +2,9 @@
 name        = "dix"
 version = "1.0.11"
 edition     = "2021"
-description = "La primera AppIA del Mundo — optimiza tu PC con IA real en segundos"
+description = "DIX is an open-source desktop client for system optimization workflows with optional user-controlled AI assistance."
 authors     = ["DixSystem <hello@dixsystem.com>"]
-license     = "LicenseRef-Proprietary"
+license     = "AGPL-3.0-only"
 homepage    = "https://dixsystem.com"
 
 [[bin]]
@@ -28,7 +28,6 @@ keyring               = "4"
 chrono                = { version = "0.4", features = ["serde"] }
 thiserror             = "1.0"
 uuid                  = { version = "1", features = ["v4", "serde"] }
-sqlx                  = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono", "macros"] }
 sha2                  = "0.10"
 
 [target.'cfg(windows)'.dependencies]
@@ -40,10 +39,5 @@ windows  = { version = "0.58", features = [
     "Win32_System_SystemInformation",
 ] }
 
-
-[profile.release]
-codegen-units = 1
-lto           = true
-opt-level     = "s"
-panic         = "abort"
-strip         = true
+# [profile.release] vive en el Cargo.toml raíz del workspace — un perfil de
+# miembro no root se ignora (advertencia de Cargo).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
+
 // © 2026 DixSystem — DIX Atlas — Telemetría anónima de optimizaciones
 // Solo datos de hardware y kernel. Sin hostname, sin usuario, sin IP almacenada.
 

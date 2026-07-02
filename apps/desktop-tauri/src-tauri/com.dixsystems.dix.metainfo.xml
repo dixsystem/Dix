@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>com.dixsystems.dix</id>
   <name>Dix</name>
-  <summary>La primera AppIA del Mundo</summary>
+  <summary>Open-source desktop client for system optimization workflows with optional AI assistance</summary>
   <description>
     <p>DIX optimiza tu PC con inteligencia artificial real. Analiza tu hardware, genera un script personalizado, aplica las mejoras en segundos y permite revertir con un clic.</p>
     <p>Sin humo, sin promesas vacías — cada optimización es verificada antes y después del reinicio.</p>
@@ -19,6 +19,6 @@
     <binary>dix</binary>
   </provides>
   <metadata_license>MIT</metadata_license>
-  <project_license>LicenseRef-Proprietary</project_license>
+  <project_license>AGPL-3.0-only</project_license>
   <content_rating type="oars-1.1"/>
 </component>

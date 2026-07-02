@@ -1,25 +1,11 @@
-// © 2026 DixSystem — Todos los derechos reservados.
-// Dix — La primera AppIA del Mundo
-// Prohibida la reproducción sin autorización expresa de DixSystem.
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
 //
 // Núcleo de DIX como librería — permite reutilizar scanner/policy/executor/
 // command_engine/journal/etc. desde más de un binario (la app Tauri en
 // main.rs, y dix-cli para servidores sin GUI) sin duplicar lógica de
 // seguridad. Ningún módulo aquí depende de Tauri.
 
-pub mod contracts;
-pub mod forge;
-pub mod forge_commands;
-pub mod memory_api;
-pub mod event_bus;
-pub mod knowledge_core;
-pub mod context_engine;
-pub mod cerebro;
-pub mod taller;
-pub mod vuelta;
-pub mod lanzador;
-pub mod panel;
-pub mod publisher;
 pub mod scanner;
 pub mod analysis;
 pub mod policy;
@@ -37,6 +23,5 @@ pub mod safe_mode;
 pub mod ai_budget;
 pub mod dixkontrol;
 pub mod referral;
-pub mod pipeline_store;
 #[cfg(target_os = "windows")]
 pub mod winutil;

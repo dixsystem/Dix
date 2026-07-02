@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright © 2026 DixSystem
+
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import dixIdle from "./assets/dix-idle.png";
@@ -25,7 +27,7 @@ import { LiveOptimizingPanel } from "./components/LiveOptimizingPanel";
 import { DixKontrolPanel } from "./components/DixKontrolPanel";
 import { AtlasConsentBanner } from "./components/AtlasConsentBanner";
 import { ReferralPanel } from "./components/ReferralPanel";
-import { ForgePanel } from "./components/ForgePanel";
+import { ByokSettings } from "./components/ByokSettings";
 import { useT } from "./i18n";
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -58,7 +60,7 @@ export default function App() {
   const [showRollbacks, setShowRollbacks] = useState(false);
   const [showStartupPanel, setShowStartupPanel] = useState(false);
   const [showDixKontrol, setShowDixKontrol] = useState(false);
-  const [showForge, setShowForge] = useState(false);
+  const [showByok, setShowByok] = useState(false);
   const [startupItems, setStartupItems] = useState<StartupItem[]>([]);
   const [startupLoading, setStartupLoading] = useState(false);
   const [startupToDisable, setStartupToDisable] = useState<Set<string>>(new Set());
@@ -101,12 +103,6 @@ export default function App() {
   const [reapplying, setReapplying] = useState(false);
   const [tier, setTier]             = useState<string>("pro");
   const isOdyssey = tier === "odyssey";
-
-  // Abrir Forge automáticamente si se lanzó con --forge
-  useEffect(() => {
-    const unlisten = listen("open-forge", () => setShowForge(true));
-    return () => { unlisten.then(f => f()); };
-  }, []);
 
   // Mostrar todas las métricas inmediatamente cuando llegan
   useEffect(() => {
@@ -578,6 +574,11 @@ export default function App() {
               {t("nav_dixkontrol")}
             </button>
           )}
+          {view === "idle" && (
+            <button className="btn-secondary" onClick={() => setShowByok(!showByok)} style={{ fontSize: 12 }}>
+              Mi API Key
+            </button>
+          )}
           <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
           {isLicensed ? (
             isOdyssey ? (
@@ -977,13 +978,10 @@ export default function App() {
 
                   {/* DixKontrol — nivel Moderado (manual) */}
                   {showDixKontrol && <DixKontrolPanel onClose={() => setShowDixKontrol(false)} />}
-                  {showForge && (
-                    <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowForge(false)}>
-                      <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, width: "min(820px, 95vw)", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 12px" }}>
-                          <button onClick={() => setShowForge(false)} style={{ background: "transparent", border: "none", color: "#64748b", cursor: "pointer", fontSize: 18 }}>✕</button>
-                        </div>
-                        <ForgePanel />
+                  {showByok && (
+                    <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowByok(false)}>
+                      <div onClick={e => e.stopPropagation()}>
+                        <ByokSettings onClose={() => setShowByok(false)} />
                       </div>
                     </div>
                   )}
