@@ -43,12 +43,13 @@ async fn run_partial(
     let do_ram  = want_ram  && sysbench;
     let do_disk = want_disk && fio;
 
-    // Los tres corren en paralelo — tiempo total ~8-10s
-    let (cpu_r, ram_r, disk_r) = tokio::join!(
-        tokio::task::spawn_blocking(move || if do_cpu  { bench_cpu(cores) } else { 0.0 }),
-        tokio::task::spawn_blocking(move || if do_ram  { bench_ram()      } else { 0.0 }),
-        tokio::task::spawn_blocking(move || if do_disk { bench_disk()     } else { 0.0 }),
-    );
+    // Secuencial (CPU → RAM → disco) — cada categoría mide su recurso sin
+    // interferencia de las demás, a costa de tiempo total (~17s vs ~8-10s
+    // en paralelo). Prioriza reproducibilidad: el resultado se muestra al
+    // usuario como "MEDIDO, no es una estimación".
+    let cpu_r  = tokio::task::spawn_blocking(move || if do_cpu  { bench_cpu(cores) } else { 0.0 }).await;
+    let ram_r  = tokio::task::spawn_blocking(move || if do_ram  { bench_ram()      } else { 0.0 }).await;
+    let disk_r = tokio::task::spawn_blocking(move || if do_disk { bench_disk()     } else { 0.0 }).await;
 
     let any_ran = do_cpu || do_ram || do_disk;
     BenchmarkResult {
@@ -74,11 +75,10 @@ async fn run_partial(
     want_ram: bool,
     want_disk: bool,
 ) -> BenchmarkResult {
-    let (cpu_r, ram_r, disk_r) = tokio::join!(
-        tokio::task::spawn_blocking(move || if want_cpu  { bench_cpu_native(cores) } else { 0.0 }),
-        tokio::task::spawn_blocking(move || if want_ram  { bench_ram_native()      } else { 0.0 }),
-        tokio::task::spawn_blocking(move || if want_disk { bench_disk_native()     } else { 0.0 }),
-    );
+    // Secuencial (CPU → RAM → disco) — ver comentario en la variante Linux.
+    let cpu_r  = tokio::task::spawn_blocking(move || if want_cpu  { bench_cpu_native(cores) } else { 0.0 }).await;
+    let ram_r  = tokio::task::spawn_blocking(move || if want_ram  { bench_ram_native()      } else { 0.0 }).await;
+    let disk_r = tokio::task::spawn_blocking(move || if want_disk { bench_disk_native()     } else { 0.0 }).await;
 
     let any_ran = want_cpu || want_ram || want_disk;
     BenchmarkResult {
