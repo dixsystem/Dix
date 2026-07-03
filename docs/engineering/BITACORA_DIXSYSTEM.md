@@ -810,3 +810,38 @@ reset --hard origin/main`.
 - `remote` limpio, sin token.
 - Los archivos sin trackear `landing/appia-experimental.html` y
   `landing/index.html.bak` permanecieron intactos.
+
+## Decisión sobre landing/appia-experimental.html
+
+Se investigaron los dos archivos locales de landing sin trackear:
+`landing/appia-experimental.html` y `landing/index.html.bak`. Ambos
+quedaron añadidos a `.gitignore` en el commit `7736192 chore: ignore
+local landing drafts`.
+
+`landing/index.html.bak` se considera un backup manual superado de
+`landing/index.html` — mismo copy anterior, sin contenido único.
+`landing/appia-experimental.html` se considera un borrador/prototipo
+de visión AppIA/DixSystem, no basura — define bien la categoría
+"AppIA" y los cinco principios (Understand→Analyze→Decide→Act→Adapt),
+con tono más disciplinado que la propia landing actual.
+
+**Decisión actual: B. conservar local, ignorada.** No se publica, no
+se fusiona con `landing/index.html`, no se incorpora al repo público,
+no se borra, no se convierte todavía en página `/appia`, `/vision` ni
+`/about`.
+
+**Contexto de negocio confirmado por el CEO:** DIX Windows/Linux sigue
+siendo el producto principal y foco inmediato. DIXBOT y DixBodyForm
+son proyectos reales del ecosistema DixSystem, pero no están en el
+mismo grado de madurez que DIX Windows/Linux. No deben presentarse
+ahora como roadmap público, promesa comercial, fecha, "Next" o
+"Future". DixBodyForm implica datos sensibles de salud, nutrición,
+entrenamiento, sueño y suplementos, por lo que no debe exponerse
+prematuramente como promesa pública.
+
+**Idea salvable para el futuro:** una página prudente tipo `/appia`,
+`/vision` o `/about`, pero solo cuando DIX Windows/Linux tenga mayor
+validación comercial, limitada a: definición de AppIA; principios de
+DixSystem; local-first/privacy-first; calidad y seguridad; sin
+productos futuros concretos; sin fechas; sin claims absolutos; sin
+datos sensibles de salud; sin roadmap público prematuro.
