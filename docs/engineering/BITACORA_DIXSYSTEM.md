@@ -778,3 +778,35 @@ hardware.
 **Commit publicado:** `2564fb9 fix: serialize benchmark execution for
 reproducibility`. `main` local y `origin/main` están alineadas en
 `2564fb9`.
+
+## Alineación main/origin tras commit equivalente MCP
+
+Se detectó divergencia local/remota tras publicar la entrada de bitácora
+del benchmark vía MCP/API: `main` quedó "delante 1 / detrás 1" de
+`origin/main`.
+
+- **Commit local duplicado:** `7f163f3 docs: record benchmark
+  reproducibility fix`.
+- **Commit remoto publicado:** `6e5a258 docs: record benchmark
+  reproducibility fix`.
+
+Investigación (`git log --left-right`, `git diff HEAD..origin/main`,
+`git show -s --format=...`) confirmó que ambos commits tenían:
+- mismo padre: `2564fb9`;
+- mismo tree hash: `f64af9548fb323fc22aa06f247f52506ce3979b7`;
+- diff completo vacío entre `HEAD` y `origin/main`;
+- diferencia solo en metadatos de commit (autor `DixSystem` vs
+  `dixsystem`, timestamp), sin diferencia real de contenido — mismo
+  patrón ya visto antes con `8013724`→`2564fb9`.
+
+Con esa evidencia y confirmación explícita del usuario, se ejecutó `git
+reset --hard origin/main`.
+
+**Resultado:**
+- HEAD local quedó en `6e5a258`.
+- `main` quedó alineada con `origin/main`, sin ahead/behind.
+- Sin cambios tracked pendientes.
+- Sin commit nuevo, sin push.
+- `remote` limpio, sin token.
+- Los archivos sin trackear `landing/appia-experimental.html` y
+  `landing/index.html.bak` permanecieron intactos.
