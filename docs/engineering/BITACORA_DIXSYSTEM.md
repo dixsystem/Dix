@@ -845,3 +845,30 @@ validación comercial, limitada a: definición de AppIA; principios de
 DixSystem; local-first/privacy-first; calidad y seguridad; sin
 productos futuros concretos; sin fechas; sin claims absolutos; sin
 datos sensibles de salud; sin roadmap público prematuro.
+
+## Publicación del fix de release workflow
+
+Se publicó correctamente el commit `c2b9a9a fix: remove unverifiable
+AppIA claim from release workflow`, que modifica únicamente
+`.github/workflows/release.yml`.
+
+**Objetivo del cambio:** eliminar del release body el claim no
+verificable "**La primera AppIA del Mundo** — optimiza tu PC con IA
+real en segundos." **Copy vigente:** "DIX — Optimizador de sistema
+para Windows y Linux, con IA real."
+
+**Verificación posterior al push:**
+- HEAD local = `c2b9a9a`, `origin/main` = `c2b9a9a`.
+- `main` alineada con `origin/main`, sin ahead/behind.
+- `git status --short` vacío.
+- `git diff HEAD..origin/main --stat` y diff completo vacíos.
+- `remote` limpio, sin token.
+- Sin tag creado, sin release creada, sin commit adicional.
+
+**Verificación de claims:** sin coincidencias de "primera AppIA", "La
+primera AppIA", "The world's first AppIA", "world's first", "first
+AppIA" ni "AppIA del Mundo" en `.github/workflows/release.yml` ni en
+`.github/workflows`.
+
+**Nota:** el workflow de release ya no publicará el claim prohibido si
+se corta un tag nuevo.
