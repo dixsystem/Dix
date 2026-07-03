@@ -750,3 +750,31 @@ gobernanza.
 corregidos y verificados en producción; 429 sigue pendiente de prueba
 controlada de rate limit con licencia de test. **Estado actualizado del
 Ítem 5: CUMPLE PARCIALMENTE**, con 400/403 ya corregidos; 429 pendiente.
+
+## Ítem 9 — Benchmark reproducible corregido
+
+El benchmark principal/release fue cambiado de ejecución paralela a
+ejecución secuencial CPU → RAM → disco. Motivo: la ejecución paralela
+con `tokio::join!` generaba contención interna real (CPU saturando los
+núcleos mientras RAM/disco competían por ancho de banda e I/O), y hacía
+que RAM y disco variaran ~11–12% entre corridas idénticas, fuera del
+criterio ±3%.
+
+**Resultado tras serializar** (misma metodología: 1 warmup + 5 pasadas
+medidas):
+- CPU: desviación máxima ~0.153%
+- RAM: desviación máxima ~0.524%
+- Disco: desviación máxima ~1.210%
+
+Las tres categorías quedan dentro de ±3%. **Ítem 9 pasa de CUMPLE
+PARCIALMENTE a CUMPLE.**
+
+**Trade-off aceptado:** los valores históricos de benchmark paralelo no
+son comparables directamente con los nuevos valores seriales (el disco,
+en particular, sube de ~520-600k IOPS a ~1.3M IOPS al no competir ya por
+CPU) — es un cambio de metodología de medición, no una mejora real de
+hardware.
+
+**Commit publicado:** `2564fb9 fix: serialize benchmark execution for
+reproducibility`. `main` local y `origin/main` están alineadas en
+`2564fb9`.
