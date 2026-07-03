@@ -62,3 +62,7 @@ apps/desktop-tauri/src-tauri/src/main.rs.save
 
 # Wrangler CLI (Cloudflare Workers — datos locales, nunca publicar)
 .wrangler/
+
+# Borradores locales de landing, no publicar
+landing/appia-experimental.html
+landing/index.html.bak
