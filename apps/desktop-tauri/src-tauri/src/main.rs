@@ -69,7 +69,8 @@ async fn analyze_system(scan_json: String, bench_json: Option<String>, profile: 
 
     #[cfg(target_os = "windows")]
     let system = format!(
-        "Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown.\n{}",
+        "{}\n{}",
+        obfstr!("Eres un experto en optimizacion Windows. Respondes SOLO con JSON valido sin markdown."),
         analysis::profile_hint(profile_str)
     );
     #[cfg(not(target_os = "windows"))]
