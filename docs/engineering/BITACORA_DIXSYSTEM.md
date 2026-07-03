@@ -714,3 +714,39 @@ Justificación:
 - Repetir Ítem 4 con sudo/pkexec interactivo real.
 - Subir manualmente los commits pendientes cuando se resuelva
   autenticación GitHub.
+
+## Fix producción dix-proxy — Ítem 5 checklist global
+
+Se corrigió el hallazgo del Ítem 5: las ramas 400/403 de `handleMessages`
+en `dix-proxy` devolvían texto plano en vez de JSON. El cambio usa
+`errorJson()` (ya existente en el propio archivo, usado antes solo para
+429/402) para devolver `Content-Type: application/json`, body JSON
+válido, y estructura `{"error":{"type":...,"message":...}}`.
+
+**No se cambiaron:** códigos HTTP, lógica de licencia, rate limit,
+Lemon Squeezy, CORS, rutas, KV namespaces, cliente DIX Windows, Forge,
+gobernanza.
+
+**Version ID del deploy:** `dc753df3-4e3d-468c-805e-9f545c7d9fdb`.
+
+**Verificación:**
+- Preflight completado (carpeta real, diff confirmado a las 3 ramas,
+  `wrangler.toml`/rate limit/Lemon Squeezy/CORS confirmados sin tocar).
+- Prueba local con `wrangler dev`: 3/3 casos correctos.
+- `wrangler deploy` exitoso.
+- Producción verificada contra
+  `https://dix-proxy.dixsystem.workers.dev/v1/messages`, casos:
+  1. 400 — JSON inválido
+  2. 400 — falta auth
+  3. 403 — licencia inválida sintética
+- Resultado en producción: status HTTP correcto, `Content-Type:
+  application/json`, JSON válido, sin HTML, sin stack traces, sin texto
+  plano roto.
+- Verificación repetida después del deploy: 3/3 casos siguen correctos.
+- No se repitió el deploy en la reverificación porque no había cambios
+  nuevos de código.
+
+**Impacto sobre el checklist:** Ítem 5 mejora — 400/403 quedan
+corregidos y verificados en producción; 429 sigue pendiente de prueba
+controlada de rate limit con licencia de test. **Estado actualizado del
+Ítem 5: CUMPLE PARCIALMENTE**, con 400/403 ya corregidos; 429 pendiente.
