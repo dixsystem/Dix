@@ -8,7 +8,7 @@
 import type { Dict } from "./index";
 
 export const APP_STRINGS: Dict = {
-  header_tagline: { es: "La primera AppIA del Mundo", en: "The world's first AppIA" },
+  header_tagline: { es: "Optimizador de sistema", en: "System optimizer" },
   nav_startup_items: { es: "⚡ Programas de inicio", en: "⚡ Startup items" },
   nav_dixkontrol: { es: "🛡 DixKontrol", en: "🛡 DixKontrol" },
   apply_success_log: { es: "Script ejecutado correctamente.", en: "Script executed successfully." },
