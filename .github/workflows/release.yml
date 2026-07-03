@@ -58,7 +58,7 @@ jobs:
           releaseBody: |
             ## Dix ${{ github.ref_name }}
 
-            **La primera AppIA del Mundo** — optimiza tu PC con IA real en segundos.
+            DIX — Optimizador de sistema para Windows y Linux, con IA real.
 
             ---
 
