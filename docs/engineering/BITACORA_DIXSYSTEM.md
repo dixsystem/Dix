@@ -594,3 +594,50 @@ completas). `DEC-010`. **Con esto se cierra la Fase 3 completa de
 ORDEN_TRABAJO.md (3.1 corte público/privado, 3.2 AGPL-3.0, 3.3 BYOK, 3.4
 README) — DIX Windows es, de principio a fin, código, licencia y
 documentación coherentes.**
+
+**Fase 3 publicada y checklist global auditado (2026-07-03):** commit
+`9539e2a` ("chore: complete Phase 3 public release alignment") empujado a
+`main` en `github.com/dixsystem/Dix`. Auditoría posterior del checklist
+global de aceptación de `ORDEN_TRABAJO.md` (13 ítems) detectó una
+inconsistencia real: el system prompt de la rama `#[cfg(target_os =
+"windows")]` en `main.rs` no usaba `obfstr!`, a diferencia de la rama Linux
+— el binario Windows distribuido habría expuesto el prompt en texto plano
+ante `strings`. Corregido en el commit `278229f` ("fix: obfuscate Windows
+system prompt consistently"), también empujado a `main`.
+
+**Estado del checklist global tras `278229f`: no cerrado completamente.**
+Superado en revisión estática solo para los puntos verificables sin
+ejecución real. Pendientes de validación funcional (requieren hardware,
+red o entorno reales, no auditables desde código estático):
+
+- Ítem 4 — Aplicar → Deshacer con `sysctl` real
+- Ítem 5 — Respuestas del Worker (400/403/429, JSON válido)
+- Ítem 6 — `activation_limit` en licencia atada a hardware
+- Ítem 9 — Benchmark reproducible ±3%
+- Ítem 13 — `.deb` instalando limpio en entorno sin dev
+
+Ítems 7, 8 y 10 quedan en CUMPLE PARCIALMENTE: la parte verificable en
+código está confirmada, su comportamiento en ejecución real no se ha
+probado.
+
+Confirmaciones estáticas de esta auditoría: `obfstr!` corregido en la rama
+Windows de `main.rs`; "La primera AppIA del Mundo" eliminado de todos los
+metadatos distribuibles (`Cargo.toml`, `com.dixsystems.dix.metainfo.xml`,
+`tauri.conf.json`, `README.md`); Forge ausente de `dist/assets/*.js`;
+`dix-proxy` y `apps/dix-forge/` ausentes de `git ls-files`; AGPL-3.0-only
+coherente en `LICENSE`, ambos `Cargo.toml` de `desktop-tauri`/`dix-cli`,
+`package.json` y `com.dixsystems.dix.metainfo.xml`; BYOK documentado, con
+la ruta BYOK de `claude_gateway.rs` llamando directo a Anthropic — la única
+referencia a `dix-proxy.dixsystem.workers.dev` en ese archivo pertenece
+exclusivamente al camino de fallback sin clave propia (modo demo).
+
+**Seguridad local del remoto git (tarea aparte, sin relación con el
+producto):** se detectó un token de GitHub incrustado en texto plano en
+`git remote -v`. SSH probado primero (clave `id_ed25519.pub` existente) y
+descartado por fallar la autenticación (`Permission denied (publickey)`),
+sin generar claves nuevas ni tocar `~/.ssh`. Resuelto con `origin` en HTTPS
+limpio (`https://github.com/dixsystem/Dix.git`) y `credential.helper`
+configurado como `cache --timeout=28800` (sin Git Credential Manager
+instalado; se descartó `store` por guardar credenciales en texto plano).
+Sin cambios en el repositorio derivados de esta tarea — es configuración
+local de git, no código ni documentación versionada.
