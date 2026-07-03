@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "apps/desktop-tauri/src-tauri",
     "apps/desktop-tauri/dix-cli",
-    "apps/dix-forge/src-tauri",
 ]
 
 # Los perfiles de release de un miembro de workspace se ignoran salvo que
