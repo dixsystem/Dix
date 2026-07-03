@@ -641,3 +641,76 @@ configurado como `cache --timeout=28800` (sin Git Credential Manager
 instalado; se descartó `store` por guardar credenciales en texto plano).
 Sin cambios en el repositorio derivados de esta tarea — es configuración
 local de git, no código ni documentación versionada.
+
+## 2026-07-03
+
+## Validación funcional del checklist global — estado consolidado
+
+Continuación de la auditoría estática cerrada el día anterior (commits
+`9539e2a`, `278229f`, `4fa089f`): se ejecutó validación funcional real
+(ejecución en vivo, no solo lectura de código) sobre los ítems del
+checklist global de `ORDEN_TRABAJO.md` que requerían hardware, red o
+entorno reales.
+
+**Clasificación global: B. LISTO PARA RELEASE CON ADVERTENCIAS.**
+
+Justificación:
+- No hay bloqueo crítico confirmado en el cliente público.
+- El claim visible "LA PRIMERA APPIA DEL MUNDO" fue corregido en la UI y
+  commiteado localmente: `69f7731 fix: remove unverifiable AppIA claim from UI`.
+- Sigue pendiente de push junto con: `4fa089f docs: record Phase 3 acceptance audit status`.
+- El checklist global **NO** queda cerrado completamente.
+- Persisten ítems sin cierre funcional completo y otros con cumplimiento parcial.
+
+**Estado por ítem:**
+
+- **Ítem 4 — Aplicar → Deshacer con `sysctl` real:** NO VERIFICABLE SIN
+  EJECUCIÓN CON SUDO. Entorno sin autenticación privilegiada interactiva.
+  Análisis estático favorable: `pkexec`, snapshot previo, rollback con
+  valores reales y journal.
+
+- **Ítem 5 — Worker 400/403/429 y JSON válido:** CUMPLE PARCIALMENTE. 400 y
+  403 devuelven códigos correctos, pero body en texto plano, no JSON. 429
+  queda NO VERIFICABLE sin licencia de test/rate limit controlado.
+  Hallazgo real: `dix-proxy` usa `new Response("texto plano")` en algunas
+  ramas 400/403; `errorJson()` solo cubre algunas ramas.
+
+- **Ítem 6 — `activation_limit` atado a hardware:** NO VERIFICABLE SIN
+  LICENCIA DE TEST. Hallazgo por código: posible discrepancia entre
+  `instance_name` de activación y `X-Device-Id` usado en
+  `claude_gateway`. Hallazgo adicional: en Linux, hardware-binding puede
+  ser débil si depende solo del modelo de CPU.
+
+- **Ítem 7 — CSP activa:** CUMPLE PARCIALMENTE. CSP configurada y
+  embebida en binario, app arranca sin errores/violaciones visibles, pero
+  falta verificación interactiva completa por limitaciones Wayland/herramientas.
+
+- **Ítem 8 — Hardware real detectado:** CUMPLE. Verificado campo a campo
+  contra `lscpu`, `lspci`, `uname` y `/etc/os-release`.
+
+- **Ítem 9 — Benchmark reproducible ±3%:** CUMPLE PARCIALMENTE. CPU
+  cumple ±0.18%. RAM no cumple ~11.65%. Disco no cumple ~11.74%. Causa
+  probable: CPU/RAM/disco ejecutan en paralelo con `tokio::join!`,
+  generando competencia real.
+
+- **Ítem 10 — Telemetría off = cero datos salientes:** CUMPLE. Probado
+  con proceso real y config aislada, cero conexiones salientes durante
+  arranque/idle con telemetría off.
+
+- **Ítem 13 — `.deb` instalando limpio en entorno sin dev:** NO
+  VERIFICABLE SIN ENTORNO LIMPIO. Subresultados: paquete generado
+  CUMPLE; dependencias sin toolchain dev CUMPLE; estructura del paquete
+  CUMPLE; `ldd` sin dependencias rotas críticas PARCIAL; instalación real
+  en Docker/VM limpia no verificable porque Docker/Podman no están
+  disponibles y no se usó sudo.
+
+**Pendientes recomendados, sin crear Fase 4:**
+- Corregir respuestas JSON en ramas 400/403 de `dix-proxy`.
+- Probar `activation_limit` con licencia Lemon Squeezy de test.
+- Revisar discrepancia `instance_name` / `X-Device-Id`.
+- Decidir si benchmark CPU/RAM/disco debe ejecutarse en serie o si se
+  acepta la varianza actual.
+- Probar `.deb` en Docker/VM limpia cuando haya entorno.
+- Repetir Ítem 4 con sudo/pkexec interactivo real.
+- Subir manualmente los commits pendientes cuando se resuelva
+  autenticación GitHub.
