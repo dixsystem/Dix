@@ -593,7 +593,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="/downloads/dix-linux.deb" download class="btn-primary" style="display:block;text-align:center" data-i18n="p1_btn" data-track="dix_linux_download_click">DOWNLOAD FREE TRIAL</a>
+        <a href="https://github.com/dixsystem/Dix/releases/download/v1.0.12/Dix_1.0.12_amd64.deb" download class="btn-primary" style="display:block;text-align:center" data-i18n="p1_btn" data-track="dix_linux_download_click">DOWNLOAD FREE TRIAL</a>
         <span style="display:block;text-align:center;margin-top:6px;font-size:11px;color:var(--muted)">Ubuntu/Debian · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange);opacity:.7" data-i18n="p1_other_formats">Other formats</a></span>
         <span style="display:block;text-align:center;margin-top:4px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p1_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
@@ -625,7 +625,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
           <span class="price-old">€29.99</span>
           <span class="price-new">€14.99</span>
         </div>
-        <a href="/downloads/dix-setup.exe" download class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn" data-track="dix_win_download_click">DOWNLOAD FREE TRIAL</a>
+        <a href="https://github.com/dixsystem/Dix/releases/download/v1.0.12/Dix_1.0.12_x64-setup.exe" download class="btn-primary" style="display:block;text-align:center" data-i18n="p2_btn" data-track="dix_win_download_click">DOWNLOAD FREE TRIAL</a>
         <span style="display:block;text-align:center;margin-top:6px;font-size:11px;color:var(--muted)">Windows 10 / 11 · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange);opacity:.7" data-i18n="p2_other_formats">MSI / other</a></span>
         <span style="display:block;text-align:center;margin-top:4px;font-size:12px;color:var(--muted);opacity:.5;cursor:not-allowed" data-i18n="p2_trial" title="Lemon Squeezy: payment provider in review">Purchase — coming soon</span>
       </div>
@@ -1057,7 +1057,7 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
 // ── DOWNLOAD ──
 function downloadDix(platform) {
   if (platform === 'windows') {
-    location.href = 'https://github.com/dixsystem/Dix/releases/latest/download/dix-setup.exe';
+    location.href = 'https://github.com/dixsystem/Dix/releases/download/v1.0.12/Dix_1.0.12_x64-setup.exe';
   } else {
     location.href = 'https://github.com/dixsystem/Dix/releases/latest';
   }
@@ -1510,7 +1510,7 @@ const PRODUCTS = {
     name: 'DIX Linux',
     badge: '<span class="badge badge-green">AVAILABLE NOW</span>',
     icon: `<svg viewBox="0 0 36 36" fill="none" stroke="#FF6B00" stroke-width="1.5" width="28"><ellipse cx="18" cy="10" rx="5" ry="7"/><path d="M9 28c0-5 4-9 9-9s9 4 9 9"/><circle cx="14" cy="9" r="1.2" fill="#FF6B00"/><circle cx="22" cy="9" r="1.2" fill="#FF6B00"/><path d="M9 28l-3 3m21-3l3 3"/></svg>`,
-    cta: { label: 'DESCARGAR GRATIS (.deb)', href: '/downloads/dix-linux.deb', download: true, note: 'Ubuntu/Debian · 3 análisis gratis · sin tarjeta · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange)">AppImage / RPM / otros formatos</a>' },
+    cta: { label: 'DESCARGAR GRATIS (.deb)', href: 'https://github.com/dixsystem/Dix/releases/download/v1.0.12/Dix_1.0.12_amd64.deb', download: true, note: 'Ubuntu/Debian · 3 análisis gratis · sin tarjeta · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange)">AppImage / RPM / otros formatos</a>' },
     tabs: [
       { id: 'how',    label: 'Cómo funciona' },
       { id: 'params', label: 'Qué optimiza' },
@@ -1562,7 +1562,7 @@ const PRODUCTS = {
     name: 'DIX WIN',
     badge: '<span class="badge badge-gold">BETA GRATUITA</span>',
     icon: `<svg viewBox="0 0 36 36" fill="none" stroke-width="1.5" width="28"><rect x="5" y="5" width="11" height="11" rx="1" stroke="#ffffff"/><rect x="20" y="5" width="11" height="11" rx="1" stroke="#FF6B00"/><rect x="5" y="20" width="11" height="11" rx="1" stroke="#FF6B00"/><rect x="20" y="20" width="11" height="11" rx="1" stroke="#ffffff"/></svg>`,
-    cta: { label: 'DESCARGAR BETA GRATIS (.exe)', href: '/downloads/dix-setup.exe', download: true, note: 'Windows 10 / 11 · 3 análisis gratis · sin tarjeta · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange)">MSI / otros formatos</a>' },
+    cta: { label: 'DESCARGAR BETA GRATIS (.exe)', href: 'https://github.com/dixsystem/Dix/releases/download/v1.0.12/Dix_1.0.12_x64-setup.exe', download: true, note: 'Windows 10 / 11 · 3 análisis gratis · sin tarjeta · <a href="https://github.com/dixsystem/Dix/releases/latest" style="color:var(--orange)">MSI / otros formatos</a>' },
     tabs: [
       { id: 'how',    label: 'Cómo funciona' },
       { id: 'params', label: 'Qué optimiza' },
