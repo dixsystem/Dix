@@ -136,6 +136,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $src = Get-ChildItem -Path "apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          $src = Get-ChildItem -Path "target/x86_64-pc-windows-msvc/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $src) {
+            Write-Error "No Windows setup executable found in target/x86_64-pc-windows-msvc/release/bundle/nsis"
+            exit 1
+          }
           Copy-Item $src.FullName "dix-setup.exe"
           gh release upload "${{ github.ref_name }}" "dix-setup.exe" --clobber
