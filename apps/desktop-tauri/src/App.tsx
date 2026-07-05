@@ -579,7 +579,6 @@ export default function App() {
               Mi API Key
             </button>
           )}
-          <span style={{ fontSize: 11, color: C.border, padding: "2px 8px", border: `1px solid ${C.border}`, borderRadius: 4 }}>v2.0</span>
           {isLicensed ? (
             isOdyssey ? (
               <span style={{ fontSize: 11, color: "#FFD700", padding: "2px 10px", border: "1px solid #FFD70066", borderRadius: 4, fontWeight: 800, letterSpacing: "1px", background: "#FFD70010" }}>
