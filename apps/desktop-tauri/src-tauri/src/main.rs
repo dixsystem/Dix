@@ -1365,6 +1365,109 @@ mod tests_win {
         println!("✓ Todos los profile_hints tienen contenido");
     }
 
+    // ── Regresión: cuelgue indefinido al 90-92% en Windows durante ─────────────
+    // "Consultando Claude AI" (EG-002, fix a69a1c2/9682925/1968132). 4 causas
+    // raíz distintas se combinaban para que el timeout de red nunca se disparara.
+    // Estos tests fijan las 4 invariantes por escrito: si alguna se revierte en
+    // el futuro, fallan en CI sin necesitar un PC Windows.
+
+    #[test]
+    fn test_no_regresion_device_fingerprint_bloquea_runtime() {
+        // Causa raíz 1: device_fingerprint() ejecuta PowerShell síncrono en
+        // Windows. Si se llama directo dentro de la fn async `call` (sin
+        // spawn_blocking), bloquea el runtime de Tokio y el timer del timeout
+        // nunca se dispara.
+        let src = include_str!("claude_gateway.rs");
+        assert!(
+            src.contains("tokio::task::spawn_blocking(device_fingerprint)"),
+            "device_fingerprint() debe seguir envuelto en spawn_blocking (causa raíz 1 del cuelgue 90-92%)"
+        );
+    }
+
+    #[test]
+    fn test_no_regresion_http2_y_timeouts_cliente_claude() {
+        // Causa raíz 3: la feature http2 de reqwest fallaba en silencio (ALPN)
+        // con antivirus/routers de Windows. Causa raíz 4: timeout insuficiente
+        // para los reintentos del proxy (hasta 3×~30s ≈ 90s).
+        let cargo_toml = include_str!("../Cargo.toml");
+        let gateway_src = include_str!("claude_gateway.rs");
+        assert!(
+            !cargo_toml.contains("\"http2\""),
+            "reqwest no debe reactivar la feature http2 (causa raíz 3 del cuelgue 90-92%)"
+        );
+        assert!(
+            cargo_toml.contains("rustls-tls"),
+            "reqwest debe seguir usando rustls-tls (causa raíz 3 del cuelgue 90-92%)"
+        );
+        assert!(
+            gateway_src.contains("Duration::from_secs(120)"),
+            "timeout del cliente HTTP debe seguir en 120s para cubrir reintentos del proxy (causa raíz 4)"
+        );
+        assert!(
+            gateway_src.contains("connect_timeout(Duration::from_secs(15))"),
+            "connect_timeout debe seguir acotado a 15s para fallo rápido sin red (causa raíz 4)"
+        );
+    }
+
+    #[test]
+    fn test_no_regresion_powershell_scanner_sin_timeout_largo() {
+        // Causa raíz 2: 16 llamadas PowerShell separadas (Get-StoragePool
+        // tardaba 30-60s en hardware consumer) bloqueaban el scan completo.
+        let scanner_src = include_str!("scanner.rs");
+        assert!(
+            scanner_src.matches("run_powershell(").count() >= 1,
+            "scanner.rs debe seguir usando winutil::run_powershell (con kill explícito por timeout)"
+        );
+        assert!(
+            !scanner_src.contains("from_secs(30)") && !scanner_src.contains("from_secs(60)"),
+            "Ninguna llamada PowerShell en scanner.rs debe usar timeouts largos (30-60s) — \
+             eso causaba el cuelgue original con Get-StoragePool (causa raíz 2)"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_spawn_blocking_no_bloquea_runtime_de_un_hilo() {
+        // Reproduce el mecanismo real del cuelgue: con un runtime de 1 solo
+        // hilo (simula un equipo con hilos ya saturados), si el trabajo
+        // bloqueante NO estuviera en spawn_blocking, el timer de abajo nunca
+        // se dispararía a tiempo — exactamente el síntoma "cuelga al 92% y
+        // el timeout de 60s nunca salta".
+        use std::time::{Duration, Instant};
+
+        // spawn_blocking corre en un pool de hilos aparte del runtime async:
+        // se lanza y NO se espera aquí (eso simularía join!, que bloquearía
+        // hasta que ambas terminen). Lo que importa es que, con la tarea
+        // bloqueante en vuelo, el único hilo async siga libre para disparar
+        // el timer del timeout a tiempo.
+        let blocking = tokio::task::spawn_blocking(|| {
+            // Simula el peor caso real: PowerShell colgado por antivirus/perfil lento.
+            std::thread::sleep(Duration::from_millis(300));
+            "device_fingerprint_simulado".to_string()
+        });
+
+        let start = Instant::now();
+        let guard_result = tokio::time::timeout(
+            Duration::from_millis(50),
+            tokio::time::sleep(Duration::from_secs(30)),
+        ).await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            guard_result.is_err(),
+            "El timer de Tokio debe dispararse aunque haya un spawn_blocking en vuelo — \
+             si esto falla, el runtime se está bloqueando y el cuelgue del 92% ha vuelto"
+        );
+        assert!(
+            elapsed < Duration::from_millis(200),
+            "El timer tardó {:?} en dispararse — runtime posiblemente bloqueado",
+            elapsed
+        );
+        println!("✓ Runtime de 1 hilo responsive con spawn_blocking en vuelo ({:?})", elapsed);
+
+        let blocking_result = blocking.await;
+        assert!(blocking_result.is_ok(), "spawn_blocking no debería fallar");
+    }
+
     // ── Tests de red (requieren conexión) ─────────────────────────────────────
     // Ejecutar con: cargo test tests_win -- --nocapture --include-ignored
 
