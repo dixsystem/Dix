@@ -4,14 +4,23 @@
 // © 2026 DixSystem — DIX Atlas — Telemetría anónima de optimizaciones
 // Solo datos de hardware y kernel. Sin hostname, sin usuario, sin IP almacenada.
 
+use obfstr::obfstr;
 use serde::{Deserialize, Serialize};
 use crate::scanner::SystemScan;
 use crate::policy;
 use std::collections::HashMap;
 
-const ATLAS_URL: &str = "https://dix-proxy.dixsystem.workers.dev/atlas";
-const ATLAS_BEST_URL: &str = "https://dix-proxy.dixsystem.workers.dev/atlas/best";
 const DIX_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// URLs ofuscadas en tiempo de compilación (obfstr) para que el hostname del
+// proxy no quede como string literal extraíble con `strings` sobre el binario.
+fn atlas_url() -> String {
+    obfstr!("https://dix-proxy.dixsystem.workers.dev/atlas").to_string()
+}
+
+fn atlas_best_url() -> String {
+    obfstr!("https://dix-proxy.dixsystem.workers.dev/atlas/best").to_string()
+}
 
 #[derive(Serialize)]
 struct AtlasPayload {
@@ -85,7 +94,7 @@ pub fn report(
                     .build()
                     .unwrap_or_default();
                 let _ = client
-                    .post(ATLAS_URL)
+                    .post(atlas_url())
                     .header("content-type", "application/json")
                     .header("X-Atlas-Version", DIX_VERSION)
                     .json(&payload)
@@ -189,7 +198,7 @@ pub async fn fetch_best(cpu_model: &str) -> Option<AtlasBest> {
         .build()
         .ok()?;
     let resp = client
-        .get(ATLAS_BEST_URL)
+        .get(atlas_best_url())
         .query(&[("cpu", cpu_model)])
         .send()
         .await

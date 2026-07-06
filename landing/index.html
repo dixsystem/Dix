@@ -275,20 +275,16 @@ section{padding:100px 40px}
 .rm-item.done::before{background:var(--green);border-color:var(--green);box-shadow:0 0 12px rgba(0,255,136,.4)}
 .rm-item.soon::before{background:var(--orange);border-color:var(--orange);box-shadow:0 0 12px rgba(255,107,0,.4)}
 .rm-item.future::before{border-color:var(--cyan)}
-.rm-item.nexus::before{border-color:var(--magenta);animation:pulseMag 2s ease infinite}
-@keyframes pulseMag{0%,100%{box-shadow:0 0 6px rgba(255,0,255,.3)}50%{box-shadow:0 0 20px rgba(255,0,255,.7)}}
 .rm-version{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--orange);margin-bottom:4px}
 .rm-title{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px}
 .rm-item.done .rm-title{color:var(--green)}
 .rm-item.soon .rm-title{color:var(--orange)}
 .rm-item.future .rm-title{color:var(--cyan)}
-.rm-item.nexus .rm-title{color:var(--magenta)}
 .rm-desc{font-size:14px;color:var(--gray);line-height:1.7}
 .rm-tag{display:inline-block;margin-top:8px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.5px}
 .rm-tag-done{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25)}
 .rm-tag-soon{background:rgba(255,107,0,.12);color:var(--orange);border:1px solid rgba(255,107,0,.25)}
 .rm-tag-future{background:rgba(0,255,255,.1);color:var(--cyan);border:1px solid rgba(0,255,255,.2)}
-.rm-tag-nexus{background:rgba(255,0,255,.1);color:var(--magenta);border:1px solid rgba(255,0,255,.2)}
 
 /* ── UNDER THE HOOD ── */
 #hood{background:var(--bg-dark)}
@@ -865,12 +861,6 @@ footer{background:var(--bg-dark);border-top:1px solid var(--border);padding:60px
         <div class="rm-desc" data-i18n="rm3_desc">Windows, macOS, and Android support planned after Linux validation. Unified score system under design.</div>
         <span class="rm-tag rm-tag-future" data-i18n="tag_future">PLANNED</span>
       </div>
-      <div class="rm-item nexus reveal">
-        <div class="rm-version">NEXUS — FUTURE</div>
-        <div class="rm-title" data-i18n="rm4_title">LOCAL AI ENGINE</div>
-        <div class="rm-desc" data-i18n="rm4_desc">Research track for on-device LLM optimization, reduced external API dependency, offline analysis, and hardware-adaptive models.</div>
-        <span class="rm-tag rm-tag-nexus" data-i18n="tag_nexus">RESEARCH</span>
-      </div>
     </div>
   </div>
 </section>
@@ -1120,7 +1110,7 @@ const t = {
     rm2_title:'DIX DAEMON', rm2_desc:'Adaptive background daemon and active workload detection planned. Atlas and Windows remain roadmap items until backend and beta builds are verified.',
     rm3_title:'MULTI-PLATFORM', rm3_desc:'Windows, macOS, and Android support planned after Linux validation. Unified score system under design.',
     rm4_title:'LOCAL AI ENGINE', rm4_desc:'Research track for on-device LLM optimization, reduced external API dependency, offline analysis, and hardware-adaptive models.',
-    tag_live:'LIVE', tag_soon:'IN PROGRESS', tag_future:'PLANNED', tag_nexus:'RESEARCH',
+    tag_live:'LIVE', tag_soon:'IN PROGRESS', tag_future:'PLANNED',
     hood_label:'Transparency', hood_title:'UNDER THE HOOD', hood_sub:'We know what you\'re looking for. Here it is.',
     rule1_title:'API key never in the client',
     rule1_desc:'The Anthropic key lives exclusively in the server-side proxy. Verifiable with <code>strings ./dix | grep sk-ant</code>.',
@@ -1219,7 +1209,7 @@ const t = {
     rm2_title:'DIX DAEMON', rm2_desc:'Daemon adaptativo y detección de carga planificados. Atlas y Windows siguen en roadmap hasta verificar backend y betas.',
     rm3_title:'MULTI-PLATAFORMA', rm3_desc:'Windows, macOS y Android planificados tras validar Linux. Sistema de score unificado en diseño.',
     rm4_title:'IA LOCAL', rm4_desc:'Línea de investigación para LLM en dispositivo, menor dependencia de API externa, análisis offline y modelos adaptados al hardware.',
-    tag_live:'EN VIVO', tag_soon:'EN PROGRESO', tag_future:'PLANIFICADO', tag_nexus:'INVESTIGACIÓN',
+    tag_live:'EN VIVO', tag_soon:'EN PROGRESO', tag_future:'PLANIFICADO',
     hood_label:'Transparencia', hood_title:'BAJO EL CAPÓ', hood_sub:'Sabemos lo que buscas. Aquí está.',
     rule1_title:'API key nunca en el cliente',
     rule1_desc:'La key de Anthropic vive exclusivamente en el proxy de servidor. Verificable con <code>strings ./dix | grep sk-ant</code>.',
@@ -1396,7 +1386,7 @@ async function joinWaitlist(product) {
   }
   const email = input.value.trim();
   try {
-    await fetch('https://dix-proxy.dixsystem.workers.dev/subscribe', {
+    await fetch('https://dixsystem.com/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, product }),
@@ -1408,8 +1398,8 @@ async function joinWaitlist(product) {
   setTimeout(() => { input.placeholder = 'your@email.com'; input.style.borderColor = ''; }, 3000);
 }
 
-// ── DIX BETA REWARDS — formulario real (POST a dix-proxy, guardado en KV) ──
-const REWARDS_API = 'https://dix-proxy.dixsystem.workers.dev';
+// ── DIX BETA REWARDS — formulario real (POST vía API pública, guardado en KV) ──
+const REWARDS_API = 'https://dixsystem.com/api';
 
 function toggleRewardsMethod() {
   const isTest = document.getElementById('rwMethod').value === 'test';
