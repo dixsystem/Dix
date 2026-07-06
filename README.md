@@ -141,9 +141,9 @@ repository — you can audit it yourself, it is not a black box.
 This repository contains DIX Windows/Linux — the public client — licensed
 **AGPL-3.0-only**. It does **not** contain and never will:
 
-- `dix-proxy/` — the server-side analysis/licensing backend DixSystem operates.
-  Gitignored, never published here.
-- DIX Forge — an internal tool DixSystem uses to build other AppIAs. It is a
+- Server-side analysis/licensing backend DixSystem operates. Gitignored build
+  tooling, never published here.
+- Internal build infrastructure DixSystem uses to build other AppIAs. It is a
   separate application with its own binary; it is not compiled into the DIX client
   and is not distributed in this repository.
 

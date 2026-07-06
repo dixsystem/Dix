@@ -15,7 +15,7 @@
   <releases>
     <release version="1.0.12" date="2026-07-03">
       <description>
-        <p>Public release alignment: AGPL licensing, Forge separation, benchmark reproducibility and release workflow cleanup.</p>
+        <p>Mejoras de rendimiento, correcciones de errores y estabilidad reforzada.</p>
       </description>
     </release>
     <release version="1.0.10" date="2026-06-28"/>

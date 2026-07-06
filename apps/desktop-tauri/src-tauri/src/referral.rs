@@ -2,6 +2,7 @@
 // Copyright © 2026 DixSystem
 
 use crate::memory;
+use obfstr::obfstr;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -60,7 +61,11 @@ pub fn get_or_create_code() -> String {
     code
 }
 
-const PROXY_BASE: &str = "https://dix-proxy.dixsystem.workers.dev";
+// Ofuscada en tiempo de compilación (obfstr) para que el hostname del proxy
+// no quede como string literal extraíble con `strings` sobre el binario.
+fn proxy_base() -> String {
+    obfstr!("https://dix-proxy.dixsystem.workers.dev").to_string()
+}
 
 /// Registra el código en el worker. Devuelve Ok(true) si se registró ahora, Ok(false) si ya existía.
 pub async fn register(code: &str, device_id: &str, email: Option<&str>) -> Result<bool, String> {
@@ -78,7 +83,7 @@ pub async fn register(code: &str, device_id: &str, email: Option<&str>) -> Resul
     }
 
     let resp = client
-        .post(format!("{}/referral/register", PROXY_BASE))
+        .post(format!("{}/referral/register", proxy_base()))
         .header("content-type", "application/json")
         .json(&payload)
         .send()
@@ -101,7 +106,7 @@ pub async fn get_status(code: &str) -> Result<ReferralStatus, String> {
         .map_err(|e| e.to_string())?;
 
     let resp = client
-        .get(format!("{}/referral/{}", PROXY_BASE, code))
+        .get(format!("{}/referral/{}", proxy_base(), code))
         .send()
         .await
         .map_err(|e| format!("Error de red: {}", e))?;
