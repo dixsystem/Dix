@@ -810,77 +810,47 @@ async fn activate_license(key: String) -> Result<bool, String> {
         return Err("La clave de licencia no puede estar vacía.".to_string());
     }
 
-    // Nombre de instancia: CPU model (anónimo, sin hostname)
-    // PowerShell es síncrono y puede colgarse (AV, perfil lento) — se ejecuta
-    // en spawn_blocking con timeout para no bloquear el runtime de Tokio.
-    #[cfg(target_os = "windows")]
-    let instance_name = tokio::task::spawn_blocking(|| {
-        let cpu = winutil::run_powershell(
-            "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name",
-            std::time::Duration::from_secs(10),
-        )
-        .unwrap_or_else(|| "unknown-cpu".to_string());
-        format!("dix-{}", &cpu[..cpu.len().min(40)])
-    })
-    .await
-    .unwrap_or_else(|_| "dix-unknown-cpu".to_string());
-
-    #[cfg(not(target_os = "windows"))]
-    let instance_name = {
-        {
-            use std::fs;
-            let cpu = fs::read_to_string("/proc/cpuinfo")
-                .unwrap_or_default()
-                .lines()
-                .find(|l| l.contains("model name"))
-                .and_then(|l| l.split(':').nth(1))
-                .map(|s| s.trim().to_string())
-                .unwrap_or_else(|| "unknown".to_string());
-            format!("dix-{}", &cpu[..cpu.len().min(40)])
-        }
-    };
-
-    // Validación real contra Lemon Squeezy
+    // Activación vía dix-proxy (nunca contra Polar directo desde el binario:
+    // el organization_id vive solo server-side, en env.POLAR_ORGANIZATION_ID
+    // del worker). Migrado desde Lemon Squeezy.
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| format!("Error de red: {}", e))?;
 
+    let hw_fingerprint = get_hw_fingerprint();
+
     let response = client
-        .post(obfstr!("https://api.lemonsqueezy.com/v1/licenses/activate"))
-        .header("Accept", "application/json")
-        .form(&[
-            ("license_key", key.as_str()),
-            ("instance_name", instance_name.as_str()),
-        ])
+        .post(obfstr!("https://dix-proxy.dixsystem.workers.dev/license/activate"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "license_key": key,
+            "hw_fingerprint": hw_fingerprint,
+        }))
         .send()
         .await
         .map_err(|_| "No se pudo conectar con el servidor de licencias. Comprueba tu conexión.".to_string())?;
+
+    if !response.status().is_success() {
+        // dix-proxy devuelve 403/404/422 sin cuerpo útil para el usuario final
+        // (ver handleLicenseActivate en dix-proxy/src/index.js).
+        return Err("Clave de licencia inválida o ya activada en otro dispositivo.".to_string());
+    }
 
     let body: serde_json::Value = response
         .json()
         .await
         .map_err(|_| "Respuesta inválida del servidor de licencias.".to_string())?;
 
-    let activated = body.get("activated").and_then(|v| v.as_bool()).unwrap_or(false);
-
-    if !activated {
-        let msg = body
-            .get("error")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Clave de licencia inválida o ya activada en otro dispositivo.");
-        return Err(msg.to_string());
+    if body.get("activated").and_then(|v| v.as_bool()) != Some(true) {
+        return Err("Clave de licencia inválida o ya activada en otro dispositivo.".to_string());
     }
 
-    // Guardar clave, instance_id y fingerprint de esta máquina
+    // Guardar clave, id de activación y fingerprint de esta máquina.
     memory::save_license_key(&key)?;
-    memory::save_license_hw_fingerprint(&get_hw_fingerprint())?;
-    if let Some(instance_id) = body
-        .get("instance")
-        .and_then(|i| i.get("id"))
-        .and_then(|i| i.as_str())
-    {
-        memory::save_license_instance_id(instance_id)?;
+    memory::save_license_hw_fingerprint(&hw_fingerprint)?;
+    if let Some(activation_id) = body.get("activation_id").and_then(|v| v.as_str()) {
+        memory::save_license_instance_id(activation_id)?;
     }
 
     Ok(true)

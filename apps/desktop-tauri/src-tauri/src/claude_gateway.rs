@@ -123,6 +123,9 @@ pub async fn call(system: &str, user: &str, max_tokens: u32) -> Result<String, S
         req = req.header(obfstr!("X-Device-Id"), fp);
         if let Some(license_key) = memory::get_license_key() {
             req = req.header(obfstr!("X-License-Key"), license_key);
+            if let Some(activation_id) = memory::get_license_instance_id() {
+                req = req.header(obfstr!("X-License-Activation-Id"), activation_id);
+            }
         }
         req.send().await.map_err(|e| format!("Error de red: {}", e))?
     };

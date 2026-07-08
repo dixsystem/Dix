@@ -25,6 +25,12 @@ exports.handler = async (event) => {
   };
   if (event.headers["x-device-id"]) forwardHeaders["X-Device-Id"] = event.headers["x-device-id"];
   if (event.headers["x-license-key"]) forwardHeaders["X-License-Key"] = event.headers["x-license-key"];
+  if (event.headers["x-license-activation-id"]) forwardHeaders["X-License-Activation-Id"] = event.headers["x-license-activation-id"];
+  // Cabeceras de firma del webhook de Polar (Standard Webhooks) — sin esto
+  // dix-proxy no puede verificar que la compra viene realmente de Polar.
+  if (event.headers["webhook-id"]) forwardHeaders["webhook-id"] = event.headers["webhook-id"];
+  if (event.headers["webhook-timestamp"]) forwardHeaders["webhook-timestamp"] = event.headers["webhook-timestamp"];
+  if (event.headers["webhook-signature"]) forwardHeaders["webhook-signature"] = event.headers["webhook-signature"];
 
   let upstreamResp;
   try {

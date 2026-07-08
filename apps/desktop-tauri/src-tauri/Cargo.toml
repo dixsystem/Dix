@@ -1,6 +1,6 @@
 [package]
 name        = "dix"
-version = "1.0.12"
+version = "1.0.13"
 edition     = "2021"
 description = "DIX is an open-source desktop client for system optimization workflows with optional user-controlled AI assistance."
 authors     = ["DixSystem <hello@dixsystem.com>"]
